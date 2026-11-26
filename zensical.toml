@@ -37,6 +37,7 @@ nav = [
   { "Spec" = [
     "spec/index.md",
     "spec/magnetic-coupling.md",
+    "spec/magnetic-attraction.md",
     "spec/engine.md",
     "spec/contract.md",
     "spec/settings-app.md",

@@ -78,3 +78,12 @@ Every part is held to the same bar, and CI enforces it.
 - **Architectures.** x64 and ARM64. ARM64 is cross-built and published. Tests, lint and coverage run on x64.
 
 One strict bar was chosen over per-language leniency so the three engines stay comparable, and a failing check means something is wrong, not that it is noisy.
+
+## D-018: Magnetic attraction moves the window during Windows' own drag
+
+Windows runs a window move in the dragged app's own thread. Each time the mouse moves, Windows puts the window where the mouse says, then Magnetic Borders hears the location change and moves the window to the held position. Nothing is injected into other processes ([D-003](#d-003-an-out-of-process-helper-not-a-window-manager)), and FancyZones, Windows Snap and Grab And Move keep working because the drag is still Windows' drag.
+
+The cost is that Windows moves the window first, so a held window may show the free position for a moment before the correction. In-process hooks (a DLL that changes `WM_MOVING`, as AquaSnap does) avoid that, but they need one DLL per architecture, cannot reach elevated windows any better, and conflict with D-003. Replacing the drag with Magnetic Borders' own drag loop was rejected because it would break FancyZones and Windows Snap, which watch the system drag.
+
+The speed limit, breakaway and sliding follow macOS. macOS also lets the Option key bypass snapping. Magnetic Borders never reads keys ([D-002](#d-002-no-modifier-keys-ever), SNAP-004), so a fast move is the bypass.
+
