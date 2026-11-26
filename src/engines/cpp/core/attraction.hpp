@@ -127,6 +127,10 @@ public:
 
     /// True when at least one edge is held after the last update.
     [[nodiscard]] bool held() const noexcept { return x_.held.has_value() || y_.held.has_value(); }
+    /// True when the left or right edge is held after the last update.
+    [[nodiscard]] bool held_x() const noexcept { return x_.held.has_value(); }
+    /// True when the top or bottom edge is held after the last update.
+    [[nodiscard]] bool held_y() const noexcept { return y_.held.has_value(); }
     /// The position returned by the last update (an empty Rect before the first one).
     [[nodiscard]] const Rect& current() const noexcept { return current_; }
     /// Number of times an edge started being held.

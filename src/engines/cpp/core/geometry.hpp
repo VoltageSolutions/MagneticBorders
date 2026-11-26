@@ -20,6 +20,16 @@ struct Rect {
     bool operator==(const Rect&) const = default;
 };
 
+/// A screen point in pixels, for example the mouse cursor.
+struct Point {
+    /// Horizontal coordinate.
+    int x{};
+    /// Vertical coordinate.
+    int y{};
+    /// Member-wise equality.
+    bool operator==(const Point&) const = default;
+};
+
 /// One side of a Rect. The grabbed side of a resize is the dragged edge of a seam.
 enum class Edge { Left, Top, Right, Bottom };
 

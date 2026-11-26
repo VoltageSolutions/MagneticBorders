@@ -211,7 +211,9 @@ int Attraction::resolve(Axis& axis, bool vertical, const Rect& ref, const Rect& 
         } else {
             return h.line - coord;  // SNAP-022: the other axis keeps following the mouse
         }
-        prune();
+        // The released line stays blocked (SNAP-042), and nothing else is held on this axis in the same update,
+        // so the edge goes free before it can be caught again.
+        return 0;
     }
     if (speed_ > cfg_.max_speed) return 0;  // SNAP-012, SNAP-040
     const auto c = best_candidate(vertical, ref, free);

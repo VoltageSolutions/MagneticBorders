@@ -20,6 +20,7 @@
 #include "win32/message_window.hpp"
 #include "win32/paths.hpp"
 #include "win32/pipe_server.hpp"
+#include "win32/pointer_hook.hpp"
 #include "win32/run_key.hpp"
 #include "win32/settings_watcher.hpp"
 #include "win32/system_adapters.hpp"
@@ -109,6 +110,7 @@ public:
         tray.add(tooltip());
 
         reload_settings(true);
+        controller_.set_pointer_hook(&pointer_hook_);
         win32::WinEventSource events{controller_};
         win32::SettingsWatcher watcher{win32::data_dir(), hwnd_, kMsgSettingsChanged};
         std::unique_ptr<win32::PipeServer> pipe;
@@ -332,6 +334,7 @@ private:
     win32::WindowRegistry registry_;
     win32::Win32Inventory inventory_;
     win32::Win32Mover mover_;
+    win32::Win32PointerHook pointer_hook_;  // declared before controller_, so it outlives it
     DragController controller_;
     Settings settings_;
     std::atomic<bool> alive_{true};

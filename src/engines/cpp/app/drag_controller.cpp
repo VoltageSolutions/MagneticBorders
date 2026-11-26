@@ -50,6 +50,7 @@ void DragController::on_move_size_start(WindowId id) {
     last_apply_ms_.reset();
     dragged_ = id;
     drag_start_ms_ = clock_.now_ms();
+    stop_pointer();
     attraction_.reset();
     last_held_.reset();
     drag_snaps_ = 0;
@@ -237,13 +238,51 @@ void DragController::begin_move() {
     }
     const SideTargets sides = screen_side_targets(snapshot_.work_area, snapshot_.work_areas);
     attraction_.emplace(cfg, std::move(others), snapshot_.work_area, sides);
+    start_pointer();
     last_free_ = start_frame_;
-    say("move start id=" + std::to_string(dragged_));
+    say("move start id=" + std::to_string(dragged_) + (pointer_ ? " pointer" : ""));
+}
+
+void DragController::start_pointer() {
+    if (hook_ == nullptr || !attraction_) return;
+    const auto frame = inventory_.frame_of(dragged_);
+    if (!frame || !hook_->start(*this)) return;  // SNAP-076: fall back to moving the window back
+    const auto cursor = hook_->cursor();
+    if (!cursor) {
+        hook_->stop();
+        return;
+    }
+    pointer_.emplace(std::move(*attraction_), *frame, *cursor);
+    attraction_.reset();
+}
+
+void DragController::stop_pointer() {
+    if (!pointer_) return;
+    if (hook_ != nullptr) hook_->stop();
+    pointer_.reset();
+}
+
+Attraction* DragController::active_attraction() {
+    if (pointer_) return &pointer_->attraction();
+    return attraction_ ? &*attraction_ : nullptr;
+}
+
+std::optional<Point> DragController::on_pointer_move(const Point& proposed) {
+    if (!pointer_ || state_ != State::Moving) return std::nullopt;
+    const Point out = pointer_->move(proposed, clock_.now_ms());
+    log_snap_events();
+    if (out == proposed) return std::nullopt;
+    return out;
+}
+
+void DragController::on_pointer_release() {
+    if (pointer_ && hook_ != nullptr) hook_->stop();
 }
 
 void DragController::log_snap_events() {
-    if (!attraction_) return;
-    for (const AttractionEvent& ev : attraction_->take_events()) {
+    Attraction* attraction = active_attraction();
+    if (attraction == nullptr) return;
+    for (const AttractionEvent& ev : attraction->take_events()) {
         if (ev.engaged) {
             ++snaps_;
             ++drag_snaps_;
@@ -275,6 +314,13 @@ void DragController::on_move(const Rect& frame) {
 }
 
 void DragController::finish_move(WindowId id) {
+    if (pointer_) {
+        // SNAP-075: Windows already put the window where the cursor is, so nothing is applied.
+        stop_pointer();
+        say("move end id=" + std::to_string(id) + " snaps=" + std::to_string(drag_snaps_) +
+            " pointer");
+        return;
+    }
     const auto frame = inventory_.frame_of(id);
     if (!attraction_) return;
     bool applied = false;

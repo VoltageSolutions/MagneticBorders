@@ -179,9 +179,19 @@ TEST(Attraction, ABreakawayBelowThePullInDistanceUsesThePullInDistance) {  // SN
 TEST(Attraction, AReleasedEdgeCanBeHeldAgainAfterLeavingTheZone) {  // SNAP-042
     Rig r;
     (void)r.step(box(10, 400));
-    EXPECT_EQ(r.step(box(-30, 400)), box(-30, 400));
+    EXPECT_EQ(r.step(box(-30, 400)), box(-30, 400));  // breakaway
+    EXPECT_EQ(r.step(box(-30, 400)),
+              box(-30, 400));  // a later position out of the zone unblocks the line
     EXPECT_EQ(r.step(box(12, 400)), box(0, 400));
     EXPECT_EQ(r.a.snaps(), 2u);
+}
+
+TEST(Attraction, AReleasedLineStaysBlockedWhenTheNextPositionIsBackInTheZone) {  // SNAP-042
+    Rig r;
+    (void)r.step(box(10, 400));
+    EXPECT_EQ(r.step(box(-30, 400)), box(-30, 400));  // breakaway
+    EXPECT_EQ(r.step(box(5, 400)), box(5, 400));      // straight back into the zone: still blocked
+    EXPECT_EQ(r.a.snaps(), 1u);
 }
 
 TEST(Attraction, ASlideOffTheEndOfAWindowReleasesAndBlocksTheLineUntilFarAway) {

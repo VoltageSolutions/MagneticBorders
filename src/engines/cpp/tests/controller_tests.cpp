@@ -721,3 +721,114 @@ TEST_F(MoveFixture, TheDraggedWindowNeverCoversATarget) {  // SNAP-038
     ASSERT_EQ(mover.batches.size(), 1u);
     EXPECT_EQ(mover.batches[0][0].frame, kHeld);
 }
+
+namespace {
+
+/// Pointer hook that records start and stop and reports a settable cursor.
+struct FakeHook : PointerHook {
+    PointerEvents* sink{nullptr};
+    bool fail{false};
+    int starts{0};
+    int stops{0};
+    std::optional<Point> at{Point{300, 260}};
+    bool start(PointerEvents& s) override {
+        if (fail) return false;
+        sink = &s;
+        ++starts;
+        return true;
+    }
+    void stop() override {
+        if (sink != nullptr) ++stops;
+        sink = nullptr;
+    }
+    std::optional<Point> cursor() override { return at; }
+};
+
+/// MoveFixture with a pointer hook. The cursor at (300, 260) grabs window 1 (200..400) 100 px right of its left.
+struct PointerFixture : MoveFixture {
+    FakeHook hook;
+    PointerFixture() { ctl.set_pointer_hook(&hook); }
+    /// Starts a move: the first location change leaves the window where it was.
+    void begin() {
+        ctl.on_move_size_start(1);
+        move_to(inv.snap.windows[0].frame);
+    }
+    /// Sends a mouse movement to the controller as the hook would, one step of the clock later.
+    std::optional<Point> pointer(int x, int y) {
+        clock.t += 100;
+        return ctl.on_pointer_move({x, y});
+    }
+};
+
+}  // namespace
+
+TEST_F(PointerFixture,
+       AMoveStartsTheHookAndHoldsTheCursorInsteadOfMovingTheWindow) {  // SNAP-070, SNAP-072
+    begin();
+    EXPECT_EQ(hook.starts, 1);
+    EXPECT_TRUE(log.contains("move start id=1 pointer"));
+    // Window 1's right edge would be 5 px short of window 2 (at 500): the cursor goes 5 px further instead.
+    EXPECT_EQ(pointer(395, 260), (Point{400, 260}));
+    EXPECT_TRUE(mover.batches.empty());
+    EXPECT_TRUE(log.contains("snap hold right=500 target=edge-to-edge"));
+}
+
+TEST_F(PointerFixture, AFreeMovementGoesThroughUnchanged) {  // SNAP-072
+    begin();
+    EXPECT_EQ(pointer(310, 270), std::nullopt);
+}
+
+TEST_F(PointerFixture, LocationChangesNeverMoveTheWindow) {  // SNAP-072
+    begin();
+    move_to(kNear);
+    EXPECT_TRUE(mover.batches.empty());
+}
+
+TEST_F(PointerFixture, TheEndStopsTheHookAndAppliesNothing) {  // SNAP-075
+    begin();
+    (void)pointer(395, 260);
+    inv.frames[1] = kHeld;
+    ctl.on_move_size_end(1);
+    EXPECT_EQ(hook.stops, 1);
+    EXPECT_TRUE(mover.batches.empty());
+    EXPECT_TRUE(log.contains("move end id=1 snaps=1 pointer"));
+    EXPECT_EQ(pointer(390, 260), std::nullopt);
+}
+
+TEST_F(PointerFixture, AButtonReleaseStopsTheHookBeforeTheEndEvent) {  // SNAP-075
+    begin();
+    ctl.on_pointer_release();
+    EXPECT_EQ(hook.stops, 1);
+    ctl.on_move_size_end(1);
+    EXPECT_EQ(hook.stops, 1);
+}
+
+TEST_F(PointerFixture, ANewDragStopsAHookLeftRunning) {  // SNAP-075
+    begin();
+    ctl.on_move_size_start(1);
+    EXPECT_EQ(hook.stops, 1);
+}
+
+TEST_F(PointerFixture, WithoutTheHookTheWindowIsMovedBack) {  // SNAP-076
+    hook.fail = true;
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    ASSERT_EQ(mover.batches.size(), 1u);
+    EXPECT_EQ(mover.batches[0][0].frame, kHeld);
+}
+
+TEST_F(PointerFixture, AnUnreadableCursorStopsTheHookAndFallsBack) {  // SNAP-076
+    hook.at.reset();
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    EXPECT_EQ(hook.starts, 1);
+    EXPECT_EQ(hook.stops, 1);
+    ASSERT_EQ(mover.batches.size(), 1u);
+}
+
+TEST_F(PointerFixture, AResizeNeverStartsTheHook) {  // SNAP-002
+    ctl.on_move_size_start(1);
+    move_to({200, 250, 420, 450});
+    EXPECT_EQ(hook.starts, 0);
+    EXPECT_EQ(ctl.on_pointer_move({1, 1}), std::nullopt);
+}

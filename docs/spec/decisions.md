@@ -79,11 +79,12 @@ Every part is held to the same bar, and CI enforces it.
 
 One strict bar was chosen over per-language leniency so the three engines stay comparable, and a failing check means something is wrong, not that it is noisy.
 
-## D-018: Magnetic attraction moves the window during Windows' own drag
+## D-018: Magnetic attraction holds the cursor during Windows' own drag
 
-Windows runs a window move in the dragged app's own thread. Each time the mouse moves, Windows puts the window where the mouse says, then Magnetic Borders hears the location change and moves the window to the held position. Nothing is injected into other processes ([D-003](#d-003-an-out-of-process-helper-not-a-window-manager)), and FancyZones, Windows Snap and Grab And Move keep working because the drag is still Windows' drag.
+Windows runs a window move in the dragged app's own thread and keeps the window at a fixed offset from the cursor. While a window is moved, Magnetic Borders runs a low-level mouse hook (`WH_MOUSE_LL`). For each mouse movement it works out the held position and, when the window must not follow the mouse on an axis, blocks the movement and sets the cursor where the held position puts it. Windows then moves the window there itself. Nothing is injected into other processes ([D-003](#d-003-an-out-of-process-helper-not-a-window-manager)), and FancyZones, Windows Snap and Grab And Move keep working because the drag is still Windows' drag.
 
-The cost is that Windows moves the window first, so a held window may show the free position for a moment before the correction. In-process hooks (a DLL that changes `WM_MOVING`, as AquaSnap does) avoid that, but they need one DLL per architecture, cannot reach elevated windows any better, and conflict with D-003. Replacing the drag with Magnetic Borders' own drag loop was rejected because it would break FancyZones and Windows Snap, which watch the system drag.
+Moving the window back to the held position after each of Windows' moves is only the fallback. Windows always moves the window first, so a held window jitters with every small movement across the line. Holding the cursor removes the jitter. The trade-off is that the cursor stops on a held axis, like a detent, where macOS lets the cursor run on while the window stays. In-process hooks (a DLL that changes `WM_MOVING`, as AquaSnap does) would keep the cursor free, but they need one DLL per architecture and conflict with D-003. Replacing the drag with Magnetic Borders' own drag loop was rejected because it would break FancyZones and Windows Snap, which watch the system drag.
+
+The hook only runs during a move and only sees mouse movement and button releases, never keys. When it cannot be installed, Magnetic attraction falls back to moving the window back.
 
 The speed limit, breakaway and sliding follow macOS. macOS also lets the Option key bypass snapping. Magnetic Borders never reads keys ([D-002](#d-002-no-modifier-keys-ever), SNAP-004), so a fast move is the bypass.
-

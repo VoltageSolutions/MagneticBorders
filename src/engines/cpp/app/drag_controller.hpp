@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "core/attraction.hpp"
+#include "core/pointer_drag.hpp"
 #include "core/seam.hpp"
 #include "ports.hpp"
 
@@ -46,7 +47,7 @@ struct ControllerOptions {
 /// back when a neighbor hits its minimum, and schedules a Verify pass. On a move it runs an Attraction and puts the
 /// dragged window on the held position after every location change that is not its own. Single-threaded: every method runs on the UI
 /// thread. Borrows its ports (they must outlive it); owns no OS resources.
-class DragController final : public DragEvents, public TimerEvents {
+class DragController final : public DragEvents, public TimerEvents, public PointerEvents {
 public:
     /// Wires the controller to its ports (held by reference, not owned).
     DragController(WindowInventory& inventory, WindowMover& mover, Clock& clock, Timer& timer,
@@ -63,6 +64,16 @@ public:
     void on_move_size_end(WindowId id) override;
     /// Dispatches Flush, Settle and Verify timer expiry.
     void on_timer(TimerKind kind) override;
+    /// During a move with the pointer hook, returns where the cursor must go so the window lands on its held
+    /// position (SNAP-070 to SNAP-074). Otherwise lets the movement through.
+    [[nodiscard]] std::optional<Point> on_pointer_move(const Point& proposed) override;
+    /// Stops the pointer hook as soon as the mouse button is released, so the cursor can never stay held after
+    /// a move (SNAP-075).
+    void on_pointer_release() override;
+
+    /// Uses `hook` (or none) to hold the cursor during moves; takes effect on the next drag. Without a hook, or
+    /// when it cannot start, a move moves the window back to the held position after Windows moves it. UI thread.
+    void set_pointer_hook(PointerHook* hook) { hook_ = hook; }
 
     /// Sets the glue tolerance in pixels; takes effect on the next drag. UI thread.
     void set_glue_tolerance(int px) { opts_.glue_tolerance_px = px; }
@@ -90,6 +101,9 @@ private:
 
     bool classify(const Rect& frame);
     void begin_move();
+    void start_pointer();
+    void stop_pointer();
+    [[nodiscard]] Attraction* active_attraction();
     void on_move(const Rect& frame);
     void finish_move(WindowId id);
     void log_snap_events();
@@ -134,9 +148,11 @@ private:
     std::unordered_map<WindowId, Rect> requested_;  // last requested frame per member
     std::optional<std::uint64_t> last_apply_ms_;
     bool pending_{false};
-    std::optional<Attraction> attraction_;  // set while Moving
-    Rect last_free_{};                      // last free position fed to attraction_
-    std::optional<Rect> last_held_;         // frame the window reported after our last held move
+    std::optional<Attraction> attraction_;  // set while Moving without the pointer hook
+    std::optional<PointerDrag> pointer_;    // set while Moving with the pointer hook (SNAP-070)
+    PointerHook* hook_{nullptr};
+    Rect last_free_{};               // last free position fed to attraction_
+    std::optional<Rect> last_held_;  // frame the window reported after our last held move
     std::uint64_t drag_snaps_{0};
     std::unordered_map<WindowId, std::pair<int, int>> learned_min_;  // id -> (min_w, min_h)
 };
