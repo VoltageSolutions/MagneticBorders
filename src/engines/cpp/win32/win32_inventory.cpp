@@ -41,6 +41,16 @@ bool eligible(HWND h, const EnumContext& ctx) {
     return !ctx.registry->is_excluded_exe(exe_name_of(pid));
 }
 
+BOOL CALLBACK monitor_proc(HMONITOR mon, HDC, LPRECT, LPARAM lp) {
+    MONITORINFO mi{};
+    mi.cbSize = sizeof(mi);
+    if (GetMonitorInfoW(mon, &mi)) {
+        reinterpret_cast<std::vector<Rect>*>(lp)->push_back(
+            {mi.rcWork.left, mi.rcWork.top, mi.rcWork.right, mi.rcWork.bottom});
+    }
+    return TRUE;
+}
+
 BOOL CALLBACK enum_proc(HWND h, LPARAM lp) {
     auto& ctx = *reinterpret_cast<EnumContext*>(lp);
     if (!eligible(h, ctx)) return TRUE;
@@ -65,6 +75,7 @@ Snapshot Win32Inventory::snapshot(WindowId dragged) {
     if (GetMonitorInfoW(mon, &mi)) {
         snap.work_area = {mi.rcWork.left, mi.rcWork.top, mi.rcWork.right, mi.rcWork.bottom};
     }
+    EnumDisplayMonitors(nullptr, nullptr, monitor_proc, reinterpret_cast<LPARAM>(&snap.work_areas));
     const UINT dpi = GetDpiForWindow(dh);
     snap.dpi_scale = dpi ? dpi / 96.0 : 1.0;
 

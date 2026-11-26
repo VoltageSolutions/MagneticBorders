@@ -178,6 +178,14 @@ private:
         controller_.set_glue_tolerance(settings_.glue_tolerance_px);
     }
 
+    /// Pushes magnetic attraction activity and tunables from settings into the controller.
+    void refresh_snap() {
+        controller_.set_snap_active(settings_.snap_active());
+        controller_.set_snap_options({settings_.snap_distance_px, settings_.snap_breakaway_px,
+                                      settings_.snap_max_speed, settings_.snap_screen_edges,
+                                      settings_.snap_windows});
+    }
+
     /// Flips the saved master switch (`enabled`) in settings.json, keeping every other key. The settings watcher
     /// then applies the change like any other edit.
     void toggle_enabled() {
@@ -198,6 +206,7 @@ private:
         settings_ = s;
         registry_.set_excluded(widen_all(s.excluded_apps));
         refresh_glue();
+        refresh_snap();
         if (tray_) tray_->set_tooltip(tooltip());
         if (initial || s.start_at_login != prev.start_at_login) {
             win32::set_start_at_login(s.start_at_login, win32::exe_path());
@@ -207,9 +216,13 @@ private:
             log_.info(std::string("settings: enabled=") + (s.enabled ? "true" : "false") +
                       " magnetic_coupling=" + (s.glue_enabled ? "on" : "off") +
                       " tolerance_px=" + std::to_string(s.glue_tolerance_px) +
+                      " magnetic_attraction=" + (s.snap_enabled ? "on" : "off") +
+                      " snap_distance_px=" + std::to_string(s.snap_distance_px) +
+                      " snap_breakaway_px=" + std::to_string(s.snap_breakaway_px) +
+                      " snap_max_speed=" + std::to_string(s.snap_max_speed) +
+                      " snap_screen_edges=" + (s.snap_screen_edges ? "on" : "off") +
+                      " snap_windows=" + (s.snap_windows ? "on" : "off") +
                       " excluded_apps=" + std::to_string(s.excluded_apps.size()));
-            if (s.snap_enabled && (initial || !prev.snap_enabled))
-                log_.info("snap: not implemented");
         }
     }
 

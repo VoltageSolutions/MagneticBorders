@@ -20,13 +20,17 @@ Right-click the tray icon and choose **Settings...** or press **Open settings** 
 | Flyout background | **Translucent** or **Solid**. |
 | Magnetic coupling | Turns [the window resizing feature](magnetic-coupling.md) on or off. |
 | Coupling detection zone | How far apart two edges can be and still resize together, from 0 to 64 pixels. The default is 12. |
-| Magnetic attraction | Turns [snap alignment feature](magnetic-attraction.md) on or off. It does nothing yet. |
-| Attraction detection zone | How close a window must get before it snaps. The default is 16. |
+| Magnetic attraction | Turns [snapping while you move a window](magnetic-attraction.md) on or off. |
+| Snap to screen edges | Snap against the edges of the screen and the taskbar. On by default. |
+| Snap to other windows | Snap against other windows on the same monitor. On by default. |
+| Pull-in distance | How close an edge must come before it snaps, from 0 to 64 pixels. The default is 16. |
+| Breakaway distance | How far past an edge you must move to pull the window free, from 0 to 128 pixels. The default is 24. |
+| Snapping speed | Windows moving faster than this pass edges without snapping, from 100 to 5000 pixels per second. The default is 600. |
 | Excluded apps | Programs Magnetic Borders leaves alone. |
 
 !!! example "GIF: scrolling through the settings window"
     File: `assets/gifs/settings-window.gif`
 
-A change to a switch, a detection zone, or Excluded apps applies on your next drag.
+A change to a switch, a slider, or Excluded apps applies on your next drag.
 
 The settings live in `%LOCALAPPDATA%\MagneticBorders\settings.json`. The full list of keys is in the [contract spec](spec/contract.md).

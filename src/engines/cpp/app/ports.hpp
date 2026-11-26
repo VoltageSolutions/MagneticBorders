@@ -15,7 +15,9 @@ struct Snapshot {
     std::vector<WinInfo> windows;  // dragged window (if eligible) + eligible others
     /// Work area of the dragged window's monitor.
     Rect work_area{};
-    /// DPI of the dragged window divided by 96; scales the glue tolerance.
+    /// Work areas of every monitor, the dragged window's one included; tells which screen sides touch another monitor.
+    std::vector<Rect> work_areas;
+    /// DPI of the dragged window divided by 96; scales the glue tolerance and the snap distances.
     double dpi_scale{1.0};
 };
 

@@ -60,7 +60,7 @@ FetchContent_Declare(nlohmann_json
 FetchContent_MakeAvailable(nlohmann_json)
 
 # Domain (pure) and application layers
-add_library(mb_core STATIC core/seam.cpp)
+add_library(mb_core STATIC core/seam.cpp core/attraction.cpp)
 target_include_directories(mb_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 mb_warnings(mb_core)
 
@@ -97,7 +97,7 @@ if(MB_BUILD_TESTS)
   FetchContent_MakeAvailable(googletest)
 
   set(MB_TEST_SOURCES
-    tests/core_tests.cpp tests/controller_tests.cpp tests/settings_tests.cpp
+    tests/core_tests.cpp tests/attraction_tests.cpp tests/controller_tests.cpp tests/settings_tests.cpp
     tests/fixture_tests.cpp)
   if(WIN32)
     list(APPEND MB_TEST_SOURCES tests/win32_tests.cpp host/settings.cpp)

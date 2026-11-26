@@ -14,11 +14,11 @@ bool get_bool(const json& o, const char* key, bool def) {
     return it != o.end() && it->is_boolean() ? it->get<bool>() : def;
 }
 
-int get_px(const json& o, const char* key, int def) {
+int get_int(const json& o, const char* key, int def, int lo, int hi) {
     const auto it = o.find(key);
     if (it == o.end() || !it->is_number()) return def;
     const double v = it->get<double>();
-    return static_cast<int>(std::clamp(v, 0.0, 64.0));
+    return static_cast<int>(std::clamp(v, static_cast<double>(lo), static_cast<double>(hi)));
 }
 
 const json* get_obj(const json& o, const char* key) {
@@ -38,11 +38,15 @@ std::optional<Settings> parse_settings(std::string_view text) {
     s.start_at_login = get_bool(doc, "start_at_login", s.start_at_login);
     if (const json* g = get_obj(doc, "glue")) {
         s.glue_enabled = get_bool(*g, "enabled", s.glue_enabled);
-        s.glue_tolerance_px = get_px(*g, "tolerance_px", s.glue_tolerance_px);
+        s.glue_tolerance_px = get_int(*g, "tolerance_px", s.glue_tolerance_px, 0, 64);
     }
     if (const json* sn = get_obj(doc, "snap")) {
         s.snap_enabled = get_bool(*sn, "enabled", s.snap_enabled);
-        s.snap_distance_px = get_px(*sn, "distance_px", s.snap_distance_px);
+        s.snap_distance_px = get_int(*sn, "distance_px", s.snap_distance_px, 0, 64);
+        s.snap_breakaway_px = get_int(*sn, "breakaway_px", s.snap_breakaway_px, 0, 128);
+        s.snap_max_speed = get_int(*sn, "max_speed", s.snap_max_speed, 100, 5000);
+        s.snap_screen_edges = get_bool(*sn, "screen_edges", s.snap_screen_edges);
+        s.snap_windows = get_bool(*sn, "windows", s.snap_windows);
     }
     if (const auto it = doc.find("excluded_apps"); it != doc.end() && it->is_array()) {
         for (const auto& e : *it)

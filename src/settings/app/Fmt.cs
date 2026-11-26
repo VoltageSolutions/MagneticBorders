@@ -23,6 +23,8 @@ public static class Fmt
     public static double Dim(bool enabled) => enabled ? 1.0 : 0.4;
     /// <summary>Formats a slider value as whole pixels, for example "12 px".</summary>
     public static string Px(double v) => F("PixelsFormat", (int)Math.Round(v));
+    /// <summary>Formats a slider value as whole pixels per second, for example "600 px/s".</summary>
+    public static string Speed(double v) => F("SpeedFormat", (int)Math.Round(v));
     /// <summary>Drag counters as text, or the placeholder when Magnetic Borders is not running.</summary>
     public static string Drags(EngineStatus? s) => s is null ? Get("NoValue") : F("DragsFormat", s.Drags, s.GluedDrags);
     /// <summary>One-line status of the flyout header: "Running · N coupled drags" or "Not running".</summary>

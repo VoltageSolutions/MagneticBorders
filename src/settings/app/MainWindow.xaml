@@ -1,4 +1,4 @@
-﻿<!--  Full settings window (Mica backdrop, custom title bar, one scrolling page and a fixed Ko-fi footer). Groups: General (enabled, start at login, Magnetic Borders status expander with Refresh and Quit), Magnetic coupling (toggle, detection zone), Magnetic attraction (toggle with a Coming soon tag, detection zone), Flyout (background), Excluded apps (list with Remove, add box) and About (VOLTAGE wordmark, version, copyright, links). Everything except General's start at login, Flyout and Excluded apps greys out when Enabled is off. Cards come from CommunityToolkit.WinUI.Controls.SettingsControls; everything is bound to the shared SettingsViewModel via x:Bind; strings come from Resources.resw through x:Uid.  -->
+﻿<!--  Full settings window (Mica backdrop, custom title bar, one scrolling page and a fixed Ko-fi footer). Groups: General (enabled, start at login, Magnetic Borders status expander with Refresh and Quit), Magnetic coupling (toggle, detection zone), Magnetic attraction (toggle, screen edges and other windows toggles, pull-in distance, breakaway distance and snapping speed sliders), Flyout (background), Excluded apps (list with Remove, add box) and About (VOLTAGE wordmark, version, copyright, links). Everything except General's start at login, Flyout and Excluded apps greys out when Enabled is off. Cards come from CommunityToolkit.WinUI.Controls.SettingsControls; everything is bound to the shared SettingsViewModel via x:Bind; strings come from Resources.resw through x:Uid.  -->
 <Window
     x:Class="MagneticBorders.Settings.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -123,25 +123,13 @@
                     Margin="1,16,0,4"
                     Style="{StaticResource BodyStrongTextBlockStyle}" />
                 <controls:SettingsCard x:Uid="AttractionCard" IsEnabled="{x:Bind ViewModel.FeaturesEnabled, Mode=OneWay}">
-                    <controls:SettingsCard.Header>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock x:Uid="AttractionCardTitle" VerticalAlignment="Center" />
-                            <Border
-                                x:Uid="ComingSoonBadge"
-                                Padding="6,1"
-                                VerticalAlignment="Center"
-                                Background="{ThemeResource ControlAltFillColorSecondaryBrush}"
-                                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
-                                BorderThickness="1"
-                                CornerRadius="4">
-                                <TextBlock
-                                    x:Uid="ComingSoonTag"
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                    Style="{StaticResource CaptionTextBlockStyle}" />
-                            </Border>
-                        </StackPanel>
-                    </controls:SettingsCard.Header>
                     <ToggleSwitch IsOn="{x:Bind ViewModel.SnapEnabled, Mode=TwoWay}" />
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Uid="AttractionEdgesCard" IsEnabled="{x:Bind ViewModel.AttractionZoneEnabled, Mode=OneWay}">
+                    <ToggleSwitch IsOn="{x:Bind ViewModel.SnapScreenEdges, Mode=TwoWay}" />
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Uid="AttractionWindowsCard" IsEnabled="{x:Bind ViewModel.AttractionZoneEnabled, Mode=OneWay}">
+                    <ToggleSwitch IsOn="{x:Bind ViewModel.SnapWindows, Mode=TwoWay}" />
                 </controls:SettingsCard>
                 <controls:SettingsCard x:Uid="AttractionZoneCard" IsEnabled="{x:Bind ViewModel.AttractionZoneEnabled, Mode=OneWay}">
                     <StackPanel Orientation="Horizontal" Spacing="12">
@@ -156,6 +144,46 @@
                             Width="48"
                             VerticalAlignment="Center"
                             Text="{x:Bind local:Fmt.Px(ViewModel.SnapDistance), Mode=OneWay}"
+                            TextAlignment="Right" />
+                    </StackPanel>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Uid="AttractionBreakawayCard" IsEnabled="{x:Bind ViewModel.AttractionZoneEnabled, Mode=OneWay}">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Slider
+                            x:Uid="AttractionBreakawaySlider"
+                            Width="220"
+                            Maximum="128"
+                            Minimum="0"
+                            StepFrequency="1"
+                            Value="{x:Bind ViewModel.SnapBreakaway, Mode=TwoWay}" />
+                        <TextBlock
+                            Width="48"
+                            VerticalAlignment="Center"
+                            Text="{x:Bind local:Fmt.Px(ViewModel.SnapBreakaway), Mode=OneWay}"
+                            TextAlignment="Right" />
+                    </StackPanel>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Uid="AttractionSpeedCard" IsEnabled="{x:Bind ViewModel.AttractionZoneEnabled, Mode=OneWay}">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock
+                            x:Uid="AttractionSpeedSlow"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <Slider
+                            x:Uid="AttractionSpeedSlider"
+                            Width="220"
+                            Maximum="5000"
+                            Minimum="100"
+                            StepFrequency="50"
+                            Value="{x:Bind ViewModel.SnapMaxSpeed, Mode=TwoWay}" />
+                        <TextBlock
+                            x:Uid="AttractionSpeedFast"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock
+                            Width="72"
+                            VerticalAlignment="Center"
+                            Text="{x:Bind local:Fmt.Speed(ViewModel.SnapMaxSpeed), Mode=OneWay}"
                             TextAlignment="Right" />
                     </StackPanel>
                 </controls:SettingsCard>
