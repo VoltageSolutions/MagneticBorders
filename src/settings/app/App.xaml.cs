@@ -23,6 +23,8 @@ public partial class App : Application
     private MainWindow? _main;
     /// <summary>The tray flyout, or null when it is closed.</summary>
     private FlyoutWindow? _flyout;
+    /// <summary>Smoke-test timers. Held here so the garbage collector cannot collect a timer before it fires.</summary>
+    private readonly List<DispatcherQueueTimer> _smokeTimers = [];
     /// <summary>When the flyout last closed; used to ignore the tray click that deactivated it.</summary>
     private DateTime _flyoutClosedAt = DateTime.MinValue;
 
@@ -122,6 +124,7 @@ public partial class App : Application
     private void RunSmoke()
     {
         var timeout = _queue!.CreateTimer();
+        _smokeTimers.Add(timeout);
         timeout.Interval = SmokeTimeout;
         timeout.IsRepeating = false;
         timeout.Tick += (_, _) =>
@@ -151,6 +154,7 @@ public partial class App : Application
     private void After(TimeSpan delay, Action action)
     {
         var t = _queue!.CreateTimer();
+        _smokeTimers.Add(t);
         t.Interval = delay;
         t.IsRepeating = false;
         t.Tick += (_, _) => action();
