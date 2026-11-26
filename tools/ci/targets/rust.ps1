@@ -44,7 +44,16 @@ function Invoke-Build($ctx) {
 function Invoke-Test($ctx) {
     if ($ctx.Arch -ne 'x64') { Write-Host 'Tests run on x64 only; ARM64 is cross-built.'; return }
     Initialize-RustEnv $ctx -DenyWarnings
-    Exec { cargo test --workspace --locked }
+    if (Get-Command cargo-nextest -ErrorAction SilentlyContinue) {
+        # nextest writes JUnit XML (profile ci in .config/nextest.toml) for the test report; it skips doc tests.
+        Exec { cargo nextest run --workspace --locked --profile ci }
+        Exec { cargo test --workspace --locked --doc }
+        Copy-Item (Join-Path $ctx.SourceDir 'target\nextest\ci\junit.xml') (Join-Path $ctx.TestResults 'rust.xml') -Force
+    }
+    else {
+        Write-Host 'cargo-nextest not found (tools/setup-dev.ps1 installs it); running cargo test without a JUnit report.' -ForegroundColor DarkGray
+        Exec { cargo test --workspace --locked }
+    }
 }
 
 function Invoke-Coverage($ctx) {

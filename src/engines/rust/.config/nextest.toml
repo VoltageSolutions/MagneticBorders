@@ -1,0 +1,6 @@
+# cargo-nextest settings. The ci profile (run.ps1 -Steps test) writes JUnit XML for the CI test report.
+[profile.ci]
+fail-fast = false
+
+[profile.ci.junit]
+path = "junit.xml"

@@ -20,7 +20,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $Steps = @($Steps | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-$known = 'restore', 'lint', 'build', 'test', 'coverage', 'publish'
+$known = 'restore', 'lint', 'build', 'test', 'coverage', 'publish', 'smoke'
 foreach ($s in $Steps) { if ($s -notin $known) { throw "Unknown step '$s'. Use one or more of: $($known -join ', ')." } }
 . (Join-Path $PSScriptRoot 'common.ps1')
 

@@ -25,7 +25,7 @@ Every engine uses the same folders, so the languages can be read side by side: `
 
 The engines and the settings app build on Windows only. The C++ domain library and fixture runner have no Windows headers and also build with g++/clang.
 
-Every build step is `pwsh tools/ci/run.ps1 -Target <cpp|rust|dotnet|settings|docs> -Steps <restore,lint,build,test,coverage,publish> [-Arch x64|arm64] [-Ci]`. The build watcher and the GitHub workflows both call it, so results match. Agents do not run compilers on the Windows machine directly. Go through the watcher (`tools/build-watcher.ps1`):
+Every build step is `pwsh tools/ci/run.ps1 -Target <cpp|rust|dotnet|settings|docs> -Steps <restore,lint,build,test,coverage,publish,smoke> [-Arch x64|arm64] [-Ci]`. `smoke` (settings only) starts the published app with `--smoke`, which opens the settings window and the flyout and exits; it catches start-up crashes that only the Native AOT build has. The build watcher and the GitHub workflows both call it, so results match. Agents do not run compilers on the Windows machine directly. Go through the watcher (`tools/build-watcher.ps1`):
 
 1. Write `.build/request-<name>.json`, for example `{"id":"cpp-12","targets":["cpp"],"steps":["lint","build","test","coverage"],"arch":"x64","ci":false}`. `targets` are `cpp`, `rust`, `dotnet`, `settings`, `docs` (and `commit`, `push`, `compare`). `steps` defaults to restore, build, and test or publish when `test` or `publish` is true. `arch` is `x64` or `arm64`. `ci` runs locked restores and deterministic builds as GitHub does.
 2. Poll `.build/status-<name>.json` until `state` is `done` and `id` matches.
@@ -59,7 +59,7 @@ The version lives in four files: `src/engines/cpp/CMakeLists.txt`, `src/engines/
 
 In `.github/workflows/`, named after GameControllerForZwift's workflows without the platform prefix:
 
-- `ci.yml` (**CI**): every app on every pull request and push to `main`, x64 and ARM64, plus version and parity jobs. All jobs run in parallel.
+- `ci.yml` (**CI**): every app on every pull request and push to `main`. Jobs: Version, Lint (per part), x64 (build, test, coverage, publish, and the settings smoke test), ARM64 (cross-built), ARM smoke test (on an ARM64 runner), Unit Test Results (one check with the totals), Coverage (Codecov, one flag per part), Vulnerabilities (NuGet and RustSec), Parity, and Tester build (a downloadable build linked from a comment on the pull request).
 - `cd.yml` (**CD**): builds, packages and drafts the GitHub release when a new version lands on `main`.
 - `docs-ci.yml` (**Docs CI**): strict docs build on pull requests that touch the docs.
 - `docs-cd.yml` (**Docs CD**): builds the docs and deploys them to GitHub Pages from `main`.

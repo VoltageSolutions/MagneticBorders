@@ -53,3 +53,9 @@ One scrolling page in the style of Windows 11 Settings, with these groups in ord
 | UI-040 | The app must never read or register a modifier key or hotkey. |
 | UI-041 | The app must never write a setting the schema does not define, and must keep unknown keys. |
 | UI-042 | The app must work with each of the three builds without knowing which is running. It must not show the build name or the word "engine" anywhere. |
+
+## Smoke test
+
+| ID | Rule |
+|---|---|
+| UI-043 | `MagneticBorders.Settings.exe --smoke [folder]` must open the settings window and then the flyout, let each load, and exit with code 0, without single-instance redirection. It must read and write settings and the crash log in `folder` (a temporary folder by default), never in `%LOCALAPPDATA%`. An unhandled exception must exit with 1 and a timeout with 2. CI runs it on the published x64 and ARM64 builds. |
