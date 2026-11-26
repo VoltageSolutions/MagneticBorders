@@ -46,9 +46,12 @@ jobs:
           build-mode: ${{ matrix.build-mode }}
           config-file: ./.github/codeql/codeql-config.yml
 
+      # Only the shipped app: for a traced build, paths-ignore cannot drop the tests and fixture runner.
       - name: Build C++
         if: matrix.build-mode == 'manual'
         shell: pwsh
+        env:
+          MB_BUILD_TESTS: 'OFF'
         run: pwsh tools/ci/run.ps1 -Target cpp -Steps restore,build -Arch x64 -Ci
 
       - uses: github/codeql-action/analyze@v4

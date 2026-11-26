@@ -118,7 +118,7 @@ public sealed class PipeServer : IDisposable
             using (s)
             {
                 using var to = new CancellationTokenSource(2000);
-                var reader = new StreamReader(s, new UTF8Encoding(false), false, 1024, leaveOpen: true);
+                using var reader = new StreamReader(s, new UTF8Encoding(false), false, 1024, leaveOpen: true);
                 string? line = await reader.ReadLineAsync(to.Token);
                 if (line is null) return;
                 string resp = _handler(line);

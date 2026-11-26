@@ -177,7 +177,7 @@ public sealed unsafe class TrayHost(string tooltip, string header, ILog log, Fun
         Append(menu, MENU_ITEM_FLAGS.MF_STRING | MENU_ITEM_FLAGS.MF_GRAYED, 0, _header);
         Append(menu, _isEnabled() ? MENU_ITEM_FLAGS.MF_STRING | MENU_ITEM_FLAGS.MF_CHECKED : MENU_ITEM_FLAGS.MF_STRING, IdEnabled, "Enabled");
         Append(menu, MENU_ITEM_FLAGS.MF_STRING, IdSettings, "Settings…");
-        Append(menu, MENU_ITEM_FLAGS.MF_SEPARATOR, 0, (string?)null);
+        Append(menu, MENU_ITEM_FLAGS.MF_SEPARATOR, 0, null);
         Append(menu, MENU_ITEM_FLAGS.MF_STRING, IdExit, "Exit");
         System.Drawing.Point p;
         PInvoke.GetCursorPos(&p);
@@ -196,7 +196,7 @@ public sealed unsafe class TrayHost(string tooltip, string header, ILog log, Fun
     /// <summary>Instance window procedure: tray callbacks, posted actions (WM_RUN), timers and TaskbarCreated.</summary>
     private LRESULT Handle(HWND h, uint msg, WPARAM w, LPARAM l)
     {
-        if (msg == WM_TRAY) { OnTray((uint)((nint)l.Value & 0xFFFF)); return (LRESULT)0; }
+        if (msg == WM_TRAY) { OnTray((uint)(l.Value & 0xFFFF)); return (LRESULT)0; }
         if (msg == WM_RUN)
         {
             while (_queue.TryDequeue(out var a))

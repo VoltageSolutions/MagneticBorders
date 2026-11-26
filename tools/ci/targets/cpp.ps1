@@ -11,7 +11,9 @@ function Initialize-CppEnv($ctx) {
 
 function Invoke-CppConfigure($ctx, [string]$Preset) {
     $det = if ($ctx.Ci) { 'ON' } else { 'OFF' }
-    Exec { cmake --preset $Preset "-DMB_DETERMINISTIC=$det" } "cmake --preset $Preset"
+    # MB_BUILD_TESTS=OFF in the environment builds only the app (the CodeQL workflow scans the shipped code only).
+    $tests = if ($env:MB_BUILD_TESTS -eq 'OFF') { 'OFF' } else { 'ON' }
+    Exec { cmake --preset $Preset "-DMB_DETERMINISTIC=$det" "-DMB_BUILD_TESTS=$tests" } "cmake --preset $Preset"
 }
 
 # Locates a tool of the "C++ Clang tools for Windows" Visual Studio component.
