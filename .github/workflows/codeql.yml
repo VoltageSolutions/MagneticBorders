@@ -31,18 +31,25 @@ jobs:
       matrix:
         include:
           # The engines are Windows-only code, so the extractors run on Windows.
-          - { language: c-cpp, os: windows-latest }
-          - { language: csharp, os: windows-latest }
-          - { language: rust, os: windows-latest }
-          - { language: actions, os: ubuntu-latest }
+          # C++ is traced from a real build: without the Windows SDK headers, build-mode none misreads
+          # macros such as CALLBACK and reports unreachable code and unread variables that are not there.
+          - { language: c-cpp, os: windows-latest, build-mode: manual }
+          - { language: csharp, os: windows-latest, build-mode: none }
+          - { language: rust, os: windows-latest, build-mode: none }
+          - { language: actions, os: ubuntu-latest, build-mode: none }
     steps:
       - uses: actions/checkout@v7
 
       - uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
-          build-mode: none
+          build-mode: ${{ matrix.build-mode }}
           config-file: ./.github/codeql/codeql-config.yml
+
+      - name: Build C++
+        if: matrix.build-mode == 'manual'
+        shell: pwsh
+        run: pwsh tools/ci/run.ps1 -Target cpp -Steps restore,build -Arch x64 -Ci
 
       - uses: github/codeql-action/analyze@v4
         with:

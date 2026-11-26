@@ -25,7 +25,22 @@ public sealed class Fixture
     /// <summary>Expected clamped position, if given.</summary>
     public int? ExpectClamp { get; set; }
 
-    static ulong Id(string s) => s.Length == 1 ? s[0] : (ulong)s.GetHashCode();
+    /// <summary>Window names by id. Ids are assigned in order of first appearance, so they are the same on every run.</summary>
+    public IDictionary<ulong, string> Names { get; } = new Dictionary<ulong, string>();
+    private readonly Dictionary<string, ulong> _ids = new(StringComparer.Ordinal);
+
+    /// <summary>Returns the id for a window name, assigning the next id the first time the name is seen.</summary>
+    ulong Id(string name)
+    {
+        if (_ids.TryGetValue(name, out var id)) return id;
+        id = (ulong)_ids.Count + 1;
+        _ids.Add(name, id);
+        Names.Add(id, name);
+        return id;
+    }
+
+    /// <summary>Returns the window name for an id, or the id itself when unknown.</summary>
+    public string NameOf(ulong id) => Names.TryGetValue(id, out var n) ? n : id.ToString(CultureInfo.InvariantCulture);
     static (int, int) Pair(string s, char sep)
     {
         var p = s.Split(sep);
@@ -54,16 +69,16 @@ public sealed class Fixture
                 case "win":
                     int mw = 1, mh = 1;
                     if (t.Length >= 6 && t[4] == "min") (mw, mh) = Pair(t[5], 'x');
-                    f.Windows.Add(new WinInfo(Id(t[1]), Frame(t[2], t[3]), mw, mh));
+                    f.Windows.Add(new WinInfo(f.Id(t[1]), Frame(t[2], t[3]), mw, mh));
                     break;
                 case "drag":
-                    f.DragId = Id(t[1]);
+                    f.DragId = f.Id(t[1]);
                     f.DragEdge = Enum.Parse<Edge>(t[2], true);
                     f.Delta = int.Parse(t[3], NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture);
                     f.HasDrag = true;
                     break;
                 case "expect" when t[1] == "clamp": f.ExpectClamp = int.Parse(t[2], CultureInfo.InvariantCulture); break;
-                case "expect": f.Expects.Add((Id(t[1]), Frame(t[2], t[3]))); break;
+                case "expect": f.Expects.Add((f.Id(t[1]), Frame(t[2], t[3]))); break;
             }
         }
         return f;
@@ -90,11 +105,11 @@ public sealed class Fixture
         foreach (var (id, exp) in Expects)
         {
             named.Add(id);
-            if (!final.TryGetValue(id, out var got)) return $"unknown window {(char)id}";
-            if (got != exp) return $"{(char)id} expected {Fmt(exp)} got {Fmt(got)}";
+            if (!final.TryGetValue(id, out var got)) return $"unknown window {NameOf(id)}";
+            if (got != exp) return $"{NameOf(id)} expected {Fmt(exp)} got {Fmt(got)}";
         }
         foreach (var w in Windows)
-            if (!named.Contains(w.Id) && final[w.Id] != w.Frame) return $"{(char)w.Id} should be unchanged but is {Fmt(final[w.Id])}";
+            if (!named.Contains(w.Id) && final[w.Id] != w.Frame) return $"{NameOf(w.Id)} should be unchanged but is {Fmt(final[w.Id])}";
         if (ExpectClamp is { } c && clamp != c) return $"clamp expected {c} got {clamp}";
         return null;
     }
