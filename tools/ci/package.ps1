@@ -2,15 +2,15 @@
 <#
 .SYNOPSIS
   Packages published builds into one zip per build per architecture, plus SHA256SUMS.txt.
+  With -Folders, leaves each package as a folder instead (the pull request tester build).
 
 .DESCRIPTION
   Output: <OutDir>/MagneticBorders-<version>-<x64|arm64>.zip (the C++ build, the primary product),
   <OutDir>/MagneticBorders-<version>-<rust|dotnet>-<x64|arm64>.zip (comparison builds) and <OutDir>/SHA256SUMS.txt.
   Each zip holds:
-    engine/<engine exe>     the engine (it finds the settings app in ..\settings)
+    MagneticBorders.exe     the app, whichever build it is (it finds the settings app in settings\)
     settings/               the settings app folder (no .pdb files)
     LICENSE
-    README.md
   Inputs come from `pwsh tools/ci/run.ps1 -Target <t> -Steps publish -Arch <a>`: <InputDir>/<t>/<a>. A folder named
   publish-<t>-<a> in <InputDir> (as download-artifact creates) is accepted too.
 
@@ -18,6 +18,8 @@
   pwsh tools/ci/package.ps1
 .EXAMPLE
   pwsh tools/ci/package.ps1 -Version 0.3.0 -Arch x64 -Engine cpp
+.EXAMPLE
+  pwsh tools/ci/package.ps1 -Version 0.3.0-pr2-0123abc -Engine cpp -Folders
 #>
 [CmdletBinding()]
 param(
@@ -26,7 +28,8 @@ param(
     [ValidateSet('cpp', 'rust', 'dotnet')][string[]]$Engine = @('cpp', 'rust', 'dotnet'),
     [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..' '..')).Path,
     [string]$InputDir,
-    [string]$OutDir
+    [string]$OutDir,
+    [switch]$Folders
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -62,14 +65,21 @@ foreach ($a in $Arch) {
 
         $name = if ($e -eq 'cpp') { "MagneticBorders-$Version-$a" } else { "MagneticBorders-$Version-$e-$a" }
         $stage = Join-Path $stageRoot $name
-        New-Item -ItemType Directory -Force -Path (Join-Path $stage 'engine') | Out-Null
-        Copy-Item -LiteralPath $exe -Destination (Join-Path $stage 'engine')
+        New-Item -ItemType Directory -Force -Path $stage | Out-Null
+        Copy-Item -LiteralPath $exe -Destination (Join-Path $stage 'MagneticBorders.exe')
         $dest = Join-Path $stage 'settings'
         New-Item -ItemType Directory -Force -Path $dest | Out-Null
         Get-ChildItem -LiteralPath $settings -Force | Where-Object { $_.Extension -ne '.pdb' } | Copy-Item -Destination $dest -Recurse -Force
         Get-ChildItem -LiteralPath $dest -Recurse -Filter '*.pdb' -File | Remove-Item -Force
-        foreach ($doc in 'LICENSE', 'README.md') { Copy-Item -LiteralPath (Join-Path $RepoRoot $doc) -Destination $stage }
+        Copy-Item -LiteralPath (Join-Path $RepoRoot 'LICENSE') -Destination $stage
 
+        if ($Folders) {
+            $folder = Join-Path $OutDir $name
+            if (Test-Path $folder) { Remove-Item -Recurse -Force $folder }
+            Move-Item -LiteralPath $stage -Destination $folder
+            Write-Host "Staged $folder"
+            continue
+        }
         $zip = Join-Path $OutDir "$name.zip"
         if (Test-Path $zip) { Remove-Item -Force $zip }
         [IO.Compression.ZipFile]::CreateFromDirectory($stage, $zip, [IO.Compression.CompressionLevel]::Optimal, $false)
@@ -78,6 +88,7 @@ foreach ($a in $Arch) {
     }
 }
 Remove-Item -Recurse -Force $stageRoot
+if ($Folders) { return }
 
 # Sums for every zip in the folder, so a partial run never drops earlier files.
 $sums = Get-ChildItem -LiteralPath $OutDir -Filter 'MagneticBorders-*.zip' -File | Sort-Object Name | ForEach-Object {

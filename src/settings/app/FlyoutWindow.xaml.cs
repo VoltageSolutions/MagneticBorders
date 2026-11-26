@@ -13,14 +13,16 @@ namespace MagneticBorders.Settings;
 
 /// <summary>
 /// Always-on-top tray quick-access flyout (about 360 x 300 epx), anchored bottom-right of the work area of the
-/// monitor under the cursor. It has no XAML border: Windows draws the border (default colour, so it follows the
-/// light or dark theme), the rounded corners and the shadow. The background, acrylic or solid, comes from the
+/// monitor under the cursor. It has no XAML border: Windows draws the border (a fixed neutral grey for the light or dark
+/// theme, never the accent color), the rounded corners and the shadow. The background, acrylic or solid, comes from the
 /// "flyout background" setting and is applied each time the flyout opens. Binds to the shared App.ViewModel
 /// (see FlyoutWindow.xaml). Closes on Escape, on losing activation, or through a 250 ms focus-watch timer when
 /// Windows refuses foreground. Created and closed on the UI thread by App.
 /// </summary>
 public sealed partial class FlyoutWindow : Window
 {
+    /// <summary>Border colors as COLORREF (0x00BBGGRR): a subtle grey edge on the dark and the light flyout.</summary>
+    private const int BorderDark = 0x00404040, BorderLight = 0x00D9D9D9;
     /// <summary>Flyout size and distance from the work-area edges, in effective pixels (scaled by monitor DPI).</summary>
     private const double WidthEpx = 360, HeightEpx = 300, MarginEpx = 12;
     /// <summary>Native window handle, used for DPI, foreground and DWM calls.</summary>
@@ -57,7 +59,9 @@ public sealed partial class FlyoutWindow : Window
 
         var round = DWMWCP_ROUND;
         _ = DwmSetWindowAttribute(_hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int));
-        var borderColor = DWMWA_COLOR_DEFAULT;   // the system border colour, which follows light and dark theme
+        // A fixed neutral border for the theme. DWMWA_COLOR_DEFAULT would follow "Show accent color on title bars and
+        // window borders", which draws the flyout's edge in the accent color.
+        var borderColor = Application.Current.RequestedTheme == ApplicationTheme.Dark ? BorderDark : BorderLight;
         _ = DwmSetWindowAttribute(_hwnd, DWMWA_BORDER_COLOR, ref borderColor, sizeof(int));
         var margins = new MARGINS { Bottom = 1 };   // a one pixel glass edge makes DWM draw the system shadow
         _ = DwmExtendFrameIntoClientArea(_hwnd, ref margins);

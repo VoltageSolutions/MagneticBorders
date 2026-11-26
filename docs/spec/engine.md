@@ -46,7 +46,7 @@ Each build is a background Windows app with a notification area icon, a context 
 | ID | Rule |
 |---|---|
 | ENG-040 | The engine must look first for `MagneticBorders.Settings.exe` next to its own exe. |
-| ENG-041 | The engine must look second at `..\settings\MagneticBorders.Settings.exe` relative to its folder. |
+| ENG-041 | The engine must look next in `settings\` (the release and tester layout), then in `..\settings\` and `..\..\settings\<arch>\` (the local build layouts), relative to its folder. |
 | ENG-042 | If both fail, the engine must give up without an error dialog. |
 
 ## Logs and counters

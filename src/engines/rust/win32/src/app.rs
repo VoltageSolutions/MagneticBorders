@@ -146,12 +146,12 @@ fn refresh_tip(hwnd: HWND) {
     }
 }
 
-/// `MagneticBorders.Settings.exe` next to the app, else in `..\settings\` (release zip and
-/// `artifacts\local\<arch>\`), else in `..\..\settings\<arch>\` (`artifacts\<build>\<arch>\`).
+/// `MagneticBorders.Settings.exe` next to the app, else in `settings\` (release zip and tester build),
+/// `..\settings\` (`artifacts\local\<arch>\`) or `..\..\settings\<arch>\` (`artifacts\<build>\<arch>\`).
 fn find_settings_app() -> Option<PathBuf> {
     const EXE: &str = "MagneticBorders.Settings.exe";
     let dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
-    let mut candidates = vec![dir.join(EXE), dir.join("..").join("settings").join(EXE)];
+    let mut candidates = vec![dir.join(EXE), dir.join("settings").join(EXE), dir.join("..").join("settings").join(EXE)];
     if let Some(arch) = dir.file_name() {
         candidates.push(dir.join("..").join("..").join("settings").join(arch).join(EXE));
     }

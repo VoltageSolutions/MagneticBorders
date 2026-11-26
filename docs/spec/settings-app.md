@@ -20,7 +20,7 @@ A small borderless window of about 360 by 420 effective pixels.
 | ID | Rule |
 |---|---|
 | UI-010 | The flyout must be anchored at the bottom right of the work area of the monitor under the cursor, above the taskbar. |
-| UI-011 | The flyout must have rounded corners and close when it loses focus. |
+| UI-011 | The flyout must have rounded corners, a thin neutral grey border for the light or dark theme that never takes the accent color, and close when it loses focus. |
 | UI-012 | The header must show the icon, "Magnetic Borders", and a status line such as "Running · 9 coupled drags", or "Not running". |
 | UI-013 | The **Enabled** toggle must save `enabled`. |
 | UI-014 | Retired. There is no pause button. |
