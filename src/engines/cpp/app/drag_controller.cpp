@@ -19,6 +19,14 @@ const char* edge_name(Edge e) {
     }
 }
 
+const char* kind_name(TargetKind k) {
+    switch (k) {
+        case TargetKind::Screen: return "screen";
+        case TargetKind::EdgeToEdge: return "edge-to-edge";
+        default: return "aligned";
+    }
+}
+
 std::string size_str(const Rect& r) {
     return std::to_string(r.width()) + "x" + std::to_string(r.height());
 }
@@ -42,7 +50,13 @@ void DragController::on_move_size_start(WindowId id) {
     last_apply_ms_.reset();
     dragged_ = id;
     drag_start_ms_ = clock_.now_ms();
-    if (!glue_active_) {
+    stop_pointer();
+    attraction_.reset();
+    last_held_.reset();
+    drag_snaps_ = 0;
+    drag_glue_ = glue_active_;
+    drag_snap_ = snap_active_;
+    if (!drag_glue_ && !drag_snap_) {
         state_ = State::Ignoring;
         return;
     }
@@ -63,8 +77,7 @@ void DragController::on_move_size_start(WindowId id) {
 }
 
 bool DragController::classify(const Rect& frame) {
-    if (frame.width() == start_frame_.width() && frame.height() == start_frame_.height())
-        return false;  // a move: P1 does nothing
+    if (!drag_glue_) return false;  // a resize needs magnetic coupling
     ++drags_;
 
     std::vector<Edge> grabbed;
@@ -157,12 +170,28 @@ void DragController::apply_frame(const Rect& frame) {
 }
 
 void DragController::on_location_change(WindowId id) {
-    if (id != dragged_ || (state_ != State::Classifying && state_ != State::Resizing)) return;
+    if (id != dragged_ ||
+        (state_ != State::Classifying && state_ != State::Resizing && state_ != State::Moving))
+        return;
     const auto frame = inventory_.frame_of(id);
     if (!frame) return;
+    if (state_ == State::Moving) {
+        on_move(*frame);
+        return;
+    }
     last_frame_ = *frame;
 
     if (state_ == State::Classifying) {
+        if (frame->width() == start_frame_.width() && frame->height() == start_frame_.height()) {
+            if (!drag_snap_) {
+                state_ = State::Ignoring;
+                return;
+            }
+            begin_move();
+            state_ = State::Moving;
+            on_move(*frame);
+            return;
+        }
         if (!classify(*frame)) {
             state_ = State::Ignoring;
             seams_.clear();
@@ -185,6 +214,128 @@ void DragController::on_location_change(WindowId id) {
     apply_frame(*frame);
 }
 
+void DragController::begin_move() {
+    ++move_drags_;
+    const double scale = snapshot_.dpi_scale;
+    const SnapOptions& o = opts_.snap;
+    AttractionConfig cfg;
+    cfg.pull_in = static_cast<int>(std::lround(o.distance_px * scale));
+    cfg.breakaway = static_cast<int>(std::lround(o.breakaway_px * scale));
+    cfg.max_speed = o.max_speed * scale;
+    cfg.screen_edges = o.screen_edges;
+    cfg.windows = o.windows;
+    std::vector<TargetWindow> others;
+    for (const auto& w : snapshot_.windows) {
+        if (w.id == dragged_) continue;
+        // SNAP-038: only the parts of w that the windows above it leave visible attract. The dragged window moves,
+        // so it never counts as covering anything.
+        std::vector<Rect> above;
+        for (const auto& [id, frame] : snapshot_.stack) {
+            if (id == w.id) break;
+            if (id != dragged_) above.push_back(frame);
+        }
+        others.push_back(make_target(w.frame, above));
+    }
+    const SideTargets sides = screen_side_targets(snapshot_.work_area, snapshot_.work_areas);
+    attraction_.emplace(cfg, std::move(others), snapshot_.work_area, sides);
+    start_pointer();
+    last_free_ = start_frame_;
+    say("move start id=" + std::to_string(dragged_) + (pointer_ ? " pointer" : ""));
+}
+
+void DragController::start_pointer() {
+    if (hook_ == nullptr || !attraction_) return;
+    const auto frame = inventory_.frame_of(dragged_);
+    if (!frame || !hook_->start(*this)) return;  // SNAP-076: fall back to moving the window back
+    const auto cursor = hook_->cursor();
+    if (!cursor) {
+        hook_->stop();
+        return;
+    }
+    pointer_.emplace(std::move(*attraction_), *frame, *cursor);
+    attraction_.reset();
+}
+
+void DragController::stop_pointer() {
+    if (!pointer_) return;
+    if (hook_ != nullptr) hook_->stop();
+    pointer_.reset();
+}
+
+Attraction* DragController::active_attraction() {
+    if (pointer_) return &pointer_->attraction();
+    return attraction_ ? &*attraction_ : nullptr;
+}
+
+std::optional<Point> DragController::on_pointer_move(const Point& proposed) {
+    if (!pointer_ || state_ != State::Moving) return std::nullopt;
+    const Point out = pointer_->move(proposed, clock_.now_ms());
+    log_snap_events();
+    if (out == proposed) return std::nullopt;
+    return out;
+}
+
+void DragController::on_pointer_release() {
+    if (pointer_ && hook_ != nullptr) hook_->stop();
+}
+
+void DragController::log_snap_events() {
+    Attraction* attraction = active_attraction();
+    if (attraction == nullptr) return;
+    for (const AttractionEvent& ev : attraction->take_events()) {
+        if (ev.engaged) {
+            ++snaps_;
+            ++drag_snaps_;
+            say(std::string("snap hold ") + edge_name(ev.edge) + "=" + std::to_string(ev.line) +
+                " target=" + kind_name(ev.kind) +
+                " speed=" + std::to_string(static_cast<int>(std::lround(ev.speed))));
+        } else {
+            say(std::string("snap release ") + edge_name(ev.edge) + "=" + std::to_string(ev.line) +
+                (ev.reason == ReleaseReason::Breakaway ? " reason=breakaway"
+                                                       : " reason=target-gone"));
+        }
+    }
+}
+
+void DragController::on_move(const Rect& frame) {
+    if (!attraction_) return;
+    if (last_held_ && frame == *last_held_ && frame != last_free_)
+        return;  // SNAP-024: our own move
+    last_free_ = frame;
+    const Rect held = attraction_->update(frame, clock_.now_ms());
+    log_snap_events();
+    if (held == frame) {
+        last_held_.reset();
+        return;
+    }
+    const std::vector<Move> moves{{dragged_, held}};
+    const auto applied = mover_.apply(moves);  // SNAP-025: never throttled
+    last_held_ = applied.empty() ? held : applied.front().frame;
+}
+
+void DragController::finish_move(WindowId id) {
+    if (pointer_) {
+        // SNAP-075: Windows already put the window where the cursor is, so nothing is applied.
+        stop_pointer();
+        say("move end id=" + std::to_string(id) + " snaps=" + std::to_string(drag_snaps_) +
+            " pointer");
+        return;
+    }
+    const auto frame = inventory_.frame_of(id);
+    if (!attraction_) return;
+    bool applied = false;
+    if (frame && attraction_->held() && *frame == last_free_ &&
+        frame->width() == start_frame_.width() && frame->height() == start_frame_.height() &&
+        attraction_->current() != *frame) {  // SNAP-050, SNAP-051
+        const std::vector<Move> moves{{id, attraction_->current()}};
+        mover_.apply(moves);
+        applied = true;
+    }
+    say("move end id=" + std::to_string(id) + " snaps=" + std::to_string(drag_snaps_) +
+        (applied ? " applied" : ""));
+    attraction_.reset();  // SNAP-052: nothing more is applied
+}
+
 std::vector<Move> DragController::final_moves(const Rect& frame, bool& snapped) {
     Planned planned = plan_for(frame);
     Rect fixed = frame;
@@ -204,6 +355,10 @@ void DragController::on_move_size_end(WindowId id) {
     if (id != dragged_) return;
     timer_.cancel_all();
     const State prev = std::exchange(state_, State::Idle);
+    if (prev == State::Moving) {
+        finish_move(id);
+        return;
+    }
     if (prev != State::Resizing) {
         seams_.clear();
         return;

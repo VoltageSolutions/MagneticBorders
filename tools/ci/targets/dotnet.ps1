@@ -37,7 +37,7 @@ function Invoke-Build($ctx) {
 function Invoke-Test($ctx) {
     if ($ctx.Arch -ne 'x64') { Write-Host 'Tests run on x64 only; skipping.'; return }
     $props = Get-DotnetProps $ctx
-    Exec { dotnet test $script:Sln @props --no-restore --results-directory $ctx.TestResults }
+    Exec { dotnet test $script:Sln @props --no-restore --results-directory $ctx.TestResults --logger trx }
     Exec { dotnet (Join-Path $PWD 'fixture-runner/bin/Release/net10.0/FixtureRunner.dll') $ctx.FixturesDir }
 }
 

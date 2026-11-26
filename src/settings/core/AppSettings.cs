@@ -20,6 +20,12 @@ public sealed class AppSettings
 {
     /// <summary>Upper bound in pixels for both detection zones.</summary>
     public const int MaxZone = 64;
+    /// <summary>Upper bound in pixels for the breakaway distance.</summary>
+    public const int MaxBreakaway = 128;
+    /// <summary>Lower bound of the snapping speed in pixels per second.</summary>
+    public const int MinSpeed = 100;
+    /// <summary>Upper bound of the snapping speed in pixels per second.</summary>
+    public const int MaxSpeed = 5000;
 
     /// <summary>Master switch (JSON "enabled").</summary>
     public bool Enabled { get; set; } = true;
@@ -27,10 +33,18 @@ public sealed class AppSettings
     public bool GlueEnabled { get; set; } = true;
     /// <summary>Coupling detection zone in pixels (JSON "glue.tolerance_px"), 0 to MaxZone.</summary>
     public int GlueTolerancePx { get; set; } = 12;
-    /// <summary>Magnetic attraction on or off (JSON "snap.enabled"). The engines do not act on it yet.</summary>
+    /// <summary>Magnetic attraction on or off (JSON "snap.enabled").</summary>
     public bool SnapEnabled { get; set; } = true;
-    /// <summary>Attraction detection zone in pixels (JSON "snap.distance_px"), 0 to MaxZone.</summary>
+    /// <summary>Pull-in distance in pixels (JSON "snap.distance_px"), 0 to MaxZone.</summary>
     public int SnapDistancePx { get; set; } = 16;
+    /// <summary>Breakaway distance in pixels (JSON "snap.breakaway_px"), 0 to MaxBreakaway.</summary>
+    public int SnapBreakawayPx { get; set; } = 24;
+    /// <summary>Snapping speed in pixels per second (JSON "snap.max_speed"), MinSpeed to MaxSpeed.</summary>
+    public int SnapMaxSpeed { get; set; } = 600;
+    /// <summary>Snap to screen edges (JSON "snap.screen_edges").</summary>
+    public bool SnapScreenEdges { get; set; } = true;
+    /// <summary>Snap to other windows (JSON "snap.windows").</summary>
+    public bool SnapWindows { get; set; } = true;
     /// <summary>Executable names whose windows never couple (JSON "excluded_apps").</summary>
     public List<string> ExcludedApps { get; set; } = new();
     /// <summary>Whether the engine registers itself to start at sign-in (JSON "start_at_login").</summary>
@@ -56,6 +70,12 @@ public sealed class AppSettings
     /// <summary>Limits a detection zone to 0 through MaxZone.</summary>
     public static int ClampZone(int v) => Math.Clamp(v, 0, MaxZone);
 
+    /// <summary>Limits a breakaway distance to 0 through MaxBreakaway.</summary>
+    public static int ClampBreakaway(int v) => Math.Clamp(v, 0, MaxBreakaway);
+
+    /// <summary>Limits a snapping speed to MinSpeed through MaxSpeed.</summary>
+    public static int ClampSpeed(int v) => Math.Clamp(v, MinSpeed, MaxSpeed);
+
     /// <summary>Reads known keys from a JSON object; anything missing or of the wrong type falls back to the default.</summary>
     public static AppSettings FromJson(JsonObject? root)
     {
@@ -72,6 +92,10 @@ public sealed class AppSettings
         {
             s.SnapEnabled = Bool(n["enabled"], s.SnapEnabled);
             s.SnapDistancePx = ClampZone(Int(n["distance_px"], s.SnapDistancePx));
+            s.SnapBreakawayPx = ClampBreakaway(Int(n["breakaway_px"], s.SnapBreakawayPx));
+            s.SnapMaxSpeed = ClampSpeed(Int(n["max_speed"], s.SnapMaxSpeed));
+            s.SnapScreenEdges = Bool(n["screen_edges"], s.SnapScreenEdges);
+            s.SnapWindows = Bool(n["windows"], s.SnapWindows);
         }
         if (root["ui"] is JsonObject ui)
         {
@@ -101,7 +125,14 @@ public sealed class AppSettings
         root["schema"] = 1;
         root["enabled"] = Enabled;
         root["glue"] = Merge(root["glue"], ("enabled", GlueEnabled), ("tolerance_px", ClampZone(GlueTolerancePx)));
-        root["snap"] = Merge(root["snap"], ("enabled", SnapEnabled), ("distance_px", ClampZone(SnapDistancePx)));
+        root["snap"] = Merge(
+            root["snap"],
+            ("enabled", SnapEnabled),
+            ("distance_px", ClampZone(SnapDistancePx)),
+            ("breakaway_px", ClampBreakaway(SnapBreakawayPx)),
+            ("max_speed", ClampSpeed(SnapMaxSpeed)),
+            ("screen_edges", SnapScreenEdges),
+            ("windows", SnapWindows));
         var arr = new JsonArray();
         foreach (var a in ExcludedApps) arr.Add((JsonNode?)JsonValue.Create(a));
         root["excluded_apps"] = arr;

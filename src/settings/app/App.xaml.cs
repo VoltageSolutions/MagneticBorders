@@ -27,12 +27,25 @@ public partial class App : Application
     private DateTime _flyoutClosedAt = DateTime.MinValue;
 
     /// <summary>The single view model shared by the flyout and the main window (real settings file, real pipe client).</summary>
-    public static SettingsViewModel ViewModel { get; } = new(new SettingsStore(), new PipeEngineClient(), appVersion: AppInfo.FromEntryAssembly().Version);
+    public static SettingsViewModel ViewModel { get; } = new(
+        new SettingsStore(Program.SmokeDir is null ? null : Path.Combine(Program.SmokeDir, "settings.json")),
+        new PipeEngineClient(), appVersion: AppInfo.FromEntryAssembly().Version);
+
+    /// <summary>Crash log file: the default one, or settings.log in the smoke-test folder.</summary>
+    private static string? CrashLogPath => Program.SmokeDir is null ? null : Path.Combine(Program.SmokeDir, "settings.log");
+
+    /// <summary>How long the smoke test lets each window load and lay out before it moves on.</summary>
+    private static readonly TimeSpan SmokeStep = TimeSpan.FromSeconds(2);
+    /// <summary>The smoke test fails when it has not finished after this long.</summary>
+    private static readonly TimeSpan SmokeTimeout = TimeSpan.FromSeconds(60);
 
     /// <summary>Stores the instance and loads App.xaml (theme resources).</summary>
     public App()
     {
         _instance = this;
+        UnhandledException += (_, e) => Crashed("UnhandledException", e.Exception);
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => Crashed("AppDomain", e.ExceptionObject as Exception);
+        TaskScheduler.UnobservedTaskException += (_, e) => Crashed("UnobservedTask", e.Exception);
         InitializeComponent();
     }
 
@@ -43,6 +56,11 @@ public partial class App : Application
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         _queue = DispatcherQueue.GetForCurrentThread();
+        if (Program.SmokeDir is not null)
+        {
+            RunSmoke();
+            return;
+        }
         _poll = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _poll.Tick += async (_, _) => await ViewModel.RefreshAsync();
         _poll.Start();
@@ -86,6 +104,57 @@ public partial class App : Application
         _flyout = new FlyoutWindow();
         _flyout.Closed += (_, _) => { _flyout = null; _flyoutClosedAt = DateTime.UtcNow; };
         _flyout.ShowNearTray();
+    }
+
+    /// <summary>Logs an unhandled exception. In a smoke test it also ends the process with exit code 1.</summary>
+    private static void Crashed(string source, Exception? exception)
+    {
+        CrashLog.Write(source, exception, CrashLogPath);
+        if (Program.SmokeDir is not null) Environment.Exit(1);
+    }
+
+    /// <summary>
+    /// Smoke test (<c>--smoke</c>): opens the settings window, then the flyout, letting each load and lay out, and
+    /// exits with code 0. The flyout may close itself early when Windows refuses it the foreground; the app then
+    /// exits with 0 as soon as it closes, which still means both windows loaded. Any unhandled exception exits with 1 (see Crashed), and not finishing in time exits with 2.
+    /// This catches start-up failures that only the published Native AOT build has.
+    /// </summary>
+    private void RunSmoke()
+    {
+        var timeout = _queue!.CreateTimer();
+        timeout.Interval = SmokeTimeout;
+        timeout.IsRepeating = false;
+        timeout.Tick += (_, _) =>
+        {
+            CrashLog.Write("Smoke", new TimeoutException("The smoke test did not finish in time."), CrashLogPath);
+            Environment.Exit(2);
+        };
+        timeout.Start();
+
+        ShowMain();
+        After(SmokeStep, () =>
+        {
+            // Flyout first: closing the last open window ends the app.
+            ShowFlyout();
+            _main?.Close();
+            After(SmokeStep, () =>
+            {
+                _flyout?.Close();
+                timeout.Stop();
+                Program.ExitCode = 0;
+                Exit();
+            });
+        });
+    }
+
+    /// <summary>Runs an action once on the UI thread after a delay.</summary>
+    private void After(TimeSpan delay, Action action)
+    {
+        var t = _queue!.CreateTimer();
+        t.Interval = delay;
+        t.IsRepeating = false;
+        t.Tick += (_, _) => action();
+        t.Start();
     }
 
     /// <summary>Called by FlyoutWindow to open the full window.</summary>

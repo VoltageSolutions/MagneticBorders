@@ -24,14 +24,6 @@
     <value>Magnetic attraction</value>
     <comment>Feature name. A window being moved snaps against the screen edge or another window. (Settings key: snap.)</comment>
   </data>
-  <data name="ComingSoonTag.Text" xml:space="preserve">
-    <value>Coming soon</value>
-    <comment>Small tag next to a feature that the app does not apply yet. Keep it very short.</comment>
-  </data>
-  <data name="ComingSoonBadge.ToolTipService.ToolTip" xml:space="preserve">
-    <value>Magnetic Borders doesn't apply this setting yet. Your choice is saved for when it does.</value>
-    <comment>Tooltip on the Coming soon tag.</comment>
-  </data>
   <data name="OpenSettingsButton.Content" xml:space="preserve">
     <value>Open settings</value>
     <comment>Flyout. Button that opens the full settings window.</comment>
@@ -120,25 +112,77 @@
     <value>Magnetic attraction</value>
     <comment>Group heading in the settings window.</comment>
   </data>
-  <data name="AttractionCardTitle.Text" xml:space="preserve">
+  <data name="AttractionCard.Header" xml:space="preserve">
     <value>Magnetic attraction</value>
-    <comment>Settings card title. A moving window snaps to an edge. (Settings key: snap.)</comment>
+    <comment>Settings card title. A moving window snaps to an edge. (Settings key: snap.enabled.)</comment>
   </data>
   <data name="AttractionCard.Description" xml:space="preserve">
     <value>Snap a window against the edge of your screen or another window as you move it.</value>
     <comment>Settings card description for magnetic attraction.</comment>
   </data>
+  <data name="AttractionEdgesCard.Header" xml:space="preserve">
+    <value>Snap to screen edges</value>
+    <comment>Settings card title. Windows snap to the edges of the screen. (Settings key: snap.screen_edges.)</comment>
+  </data>
+  <data name="AttractionEdgesCard.Description" xml:space="preserve">
+    <value>Includes the taskbar.</value>
+    <comment>Description of the screen edges toggle. The taskbar is a screen edge a window can snap against.</comment>
+  </data>
+  <data name="AttractionWindowsCard.Header" xml:space="preserve">
+    <value>Snap to other windows</value>
+    <comment>Settings card title. Windows snap to the edges of other windows. (Settings key: snap.windows.)</comment>
+  </data>
+  <data name="AttractionWindowsCard.Description" xml:space="preserve">
+    <value>Line up with the edges of the windows around it.</value>
+    <comment>Description of the other windows toggle.</comment>
+  </data>
   <data name="AttractionZoneCard.Header" xml:space="preserve">
-    <value>Detection zone</value>
-    <comment>Settings card title. The distance in pixels within which a feature reacts.</comment>
+    <value>Pull-in distance</value>
+    <comment>Settings card title. How near an edge must be before it is pulled onto a screen edge or window edge. (Settings key: snap.distance_px.)</comment>
   </data>
   <data name="AttractionZoneCard.Description" xml:space="preserve">
-    <value>How close a window must get before it snaps.</value>
-    <comment>Description of the attraction detection zone slider.</comment>
+    <value>How close an edge must come before it snaps.</value>
+    <comment>Description of the pull-in distance slider.</comment>
   </data>
   <data name="AttractionZoneSlider.AutomationProperties.Name" xml:space="preserve">
-    <value>Attraction detection zone in pixels</value>
-    <comment>Screen reader name of the attraction slider.</comment>
+    <value>Pull-in distance in pixels</value>
+    <comment>Screen reader name of the pull-in distance slider.</comment>
+  </data>
+  <data name="AttractionBreakawayCard.Header" xml:space="preserve">
+    <value>Breakaway distance</value>
+    <comment>Settings card title. How far a window must be moved past a held edge to come free. (Settings key: snap.breakaway_px.)</comment>
+  </data>
+  <data name="AttractionBreakawayCard.Description" xml:space="preserve">
+    <value>How far past an edge you must move to pull the window free.</value>
+    <comment>Description of the breakaway distance slider.</comment>
+  </data>
+  <data name="AttractionBreakawaySlider.AutomationProperties.Name" xml:space="preserve">
+    <value>Breakaway distance in pixels</value>
+    <comment>Screen reader name of the breakaway distance slider.</comment>
+  </data>
+  <data name="AttractionSpeedCard.Header" xml:space="preserve">
+    <value>Snapping speed</value>
+    <comment>Settings card title. The fastest a window can move and still snap. (Settings key: snap.max_speed.)</comment>
+  </data>
+  <data name="AttractionSpeedCard.Description" xml:space="preserve">
+    <value>Windows moving faster than this pass edges without snapping.</value>
+    <comment>Description of the snapping speed slider.</comment>
+  </data>
+  <data name="AttractionSpeedSlider.AutomationProperties.Name" xml:space="preserve">
+    <value>Snapping speed in pixels per second</value>
+    <comment>Screen reader name of the snapping speed slider.</comment>
+  </data>
+  <data name="AttractionSpeedSlow.Text" xml:space="preserve">
+    <value>Slow</value>
+    <comment>Label at the low end of the snapping speed slider. Keep it very short.</comment>
+  </data>
+  <data name="AttractionSpeedFast.Text" xml:space="preserve">
+    <value>Fast</value>
+    <comment>Label at the high end of the snapping speed slider. Keep it very short.</comment>
+  </data>
+  <data name="SpeedFormat" xml:space="preserve">
+    <value>{0} px/s</value>
+    <comment>A speed in pixels per second, for example 600 px/s.</comment>
   </data>
   <data name="FlyoutHeader.Text" xml:space="preserve">
     <value>Flyout</value>

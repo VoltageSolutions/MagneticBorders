@@ -151,3 +151,62 @@ TEST(Settings, NonNumericPixelValuesFallBackToDefaults) {
     EXPECT_EQ(s->glue_tolerance_px, 12);
     EXPECT_EQ(s->snap_distance_px, 16);
 }
+
+TEST(Settings, SnapKeysHaveDefaults) {  // CFG-005, CFG-006, CFG-015 to CFG-018
+    const Settings s;
+    EXPECT_TRUE(s.snap_enabled);
+    EXPECT_EQ(s.snap_distance_px, 16);
+    EXPECT_EQ(s.snap_breakaway_px, 24);
+    EXPECT_EQ(s.snap_max_speed, 600);
+    EXPECT_TRUE(s.snap_screen_edges);
+    EXPECT_TRUE(s.snap_windows);
+    EXPECT_EQ(*parse_settings("{}"), s);
+}
+
+TEST(Settings, ParsesTheSnapObject) {  // CFG-015 to CFG-018
+    const auto s = parse_settings(
+        R"({"snap":{"enabled":false,"distance_px":8,"breakaway_px":40,"max_speed":1200,"screen_edges":false,"windows":false}})");
+    ASSERT_TRUE(s);
+    EXPECT_FALSE(s->snap_enabled);
+    EXPECT_EQ(s->snap_distance_px, 8);
+    EXPECT_EQ(s->snap_breakaway_px, 40);
+    EXPECT_EQ(s->snap_max_speed, 1200);
+    EXPECT_FALSE(s->snap_screen_edges);
+    EXPECT_FALSE(s->snap_windows);
+}
+
+TEST(Settings, SnapValuesAreClampedPerKey) {  // CFG-011
+    auto s = parse_settings(R"({"snap":{"distance_px":500,"breakaway_px":500,"max_speed":99999}})");
+    ASSERT_TRUE(s);
+    EXPECT_EQ(s->snap_distance_px, 64);
+    EXPECT_EQ(s->snap_breakaway_px, 128);
+    EXPECT_EQ(s->snap_max_speed, 5000);
+    s = parse_settings(R"({"snap":{"distance_px":-1,"breakaway_px":-1,"max_speed":5}})");
+    ASSERT_TRUE(s);
+    EXPECT_EQ(s->snap_distance_px, 0);
+    EXPECT_EQ(s->snap_breakaway_px, 0);
+    EXPECT_EQ(s->snap_max_speed, 100);
+    s = parse_settings(R"({"glue":{"tolerance_px":100}})");
+    ASSERT_TRUE(s);
+    EXPECT_EQ(s->glue_tolerance_px, 64);
+}
+
+TEST(Settings, IllTypedSnapValuesFallBackToDefaults) {
+    const auto s = parse_settings(
+        R"({"snap":{"breakaway_px":"far","max_speed":null,"screen_edges":1,"windows":"yes"}})");
+    ASSERT_TRUE(s);
+    EXPECT_EQ(s->snap_breakaway_px, 24);
+    EXPECT_EQ(s->snap_max_speed, 600);
+    EXPECT_TRUE(s->snap_screen_edges);
+    EXPECT_TRUE(s->snap_windows);
+}
+
+TEST(Settings, SnapActiveRule) {  // SNAP-001
+    Settings s;
+    EXPECT_TRUE(s.snap_active());
+    s.snap_enabled = false;
+    EXPECT_FALSE(s.snap_active());
+    s.snap_enabled = true;
+    s.enabled = false;
+    EXPECT_FALSE(s.snap_active());
+}

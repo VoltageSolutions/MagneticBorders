@@ -59,8 +59,16 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private double _glueTolerance;
     /// <summary>Magnetic attraction on or off. Generates SnapEnabled.</summary>
     [ObservableProperty] private bool _snapEnabled;
-    /// <summary>Attraction detection zone in pixels (Slider-bound). Generates SnapDistance.</summary>
+    /// <summary>Pull-in distance in pixels (Slider-bound). Generates SnapDistance.</summary>
     [ObservableProperty] private double _snapDistance;
+    /// <summary>Breakaway distance in pixels (Slider-bound). Generates SnapBreakaway.</summary>
+    [ObservableProperty] private double _snapBreakaway;
+    /// <summary>Snapping speed in pixels per second (Slider-bound). Generates SnapMaxSpeed.</summary>
+    [ObservableProperty] private double _snapMaxSpeed;
+    /// <summary>Snap to screen edges. Generates SnapScreenEdges.</summary>
+    [ObservableProperty] private bool _snapScreenEdges;
+    /// <summary>Snap to other windows. Generates SnapWindows.</summary>
+    [ObservableProperty] private bool _snapWindows;
     /// <summary>Text in the "add excluded app" box. Generates NewApp; not persisted.</summary>
     [ObservableProperty] private string _newApp = "";
 
@@ -78,7 +86,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     public bool FeaturesEnabled => Enabled;
     /// <summary>True when the coupling detection zone slider is usable: Enabled and GlueEnabled.</summary>
     public bool CouplingZoneEnabled => Enabled && GlueEnabled;
-    /// <summary>True when the attraction detection zone slider is usable: Enabled and SnapEnabled.</summary>
+    /// <summary>True when the attraction sub-controls (edge and window toggles, distance and speed sliders) are usable: Enabled and SnapEnabled.</summary>
     public bool AttractionZoneEnabled => Enabled && SnapEnabled;
 
     /// <summary>ComboBox selection of FlyoutBackdrop: 0 translucent, 1 solid. Out-of-range values are ignored.</summary>
@@ -113,6 +121,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     }
     partial void OnFlyoutBackdropChanged(FlyoutBackdrop value) => Touch();
     partial void OnSnapDistanceChanged(double value) => Touch();
+    partial void OnSnapBreakawayChanged(double value) => Touch();
+    partial void OnSnapMaxSpeedChanged(double value) => Touch();
+    partial void OnSnapScreenEdgesChanged(bool value) => Touch();
+    partial void OnSnapWindowsChanged(bool value) => Touch();
 
     /// <summary>Re-reads settings.json into the view model without scheduling a save.</summary>
     public void ReloadFromDisk()
@@ -130,6 +142,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                 GlueTolerance = _current.GlueTolerancePx;
                 SnapEnabled = _current.SnapEnabled;
                 SnapDistance = _current.SnapDistancePx;
+                SnapBreakaway = _current.SnapBreakawayPx;
+                SnapMaxSpeed = _current.SnapMaxSpeed;
+                SnapScreenEdges = _current.SnapScreenEdges;
+                SnapWindows = _current.SnapWindows;
                 FlyoutBackdrop = _current.FlyoutBackdrop;
                 ExcludedApps.Clear();
                 foreach (var a in _current.ExcludedApps) ExcludedApps.Add(a);
@@ -160,6 +176,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             s.GlueTolerancePx = AppSettings.ClampZone((int)Math.Round(GlueTolerance));
             s.SnapEnabled = SnapEnabled;
             s.SnapDistancePx = AppSettings.ClampZone((int)Math.Round(SnapDistance));
+            s.SnapBreakawayPx = AppSettings.ClampBreakaway((int)Math.Round(SnapBreakaway));
+            s.SnapMaxSpeed = AppSettings.ClampSpeed((int)Math.Round(SnapMaxSpeed));
+            s.SnapScreenEdges = SnapScreenEdges;
+            s.SnapWindows = SnapWindows;
             s.FlyoutBackdrop = FlyoutBackdrop;
             s.ExcludedApps = ExcludedApps.ToList();
             _store.Save(s);

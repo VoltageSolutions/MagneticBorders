@@ -23,6 +23,10 @@ public class SettingsStoreTests
         Assert.Equal(12, s.GlueTolerancePx);
         Assert.True(s.SnapEnabled);
         Assert.Equal(16, s.SnapDistancePx);
+        Assert.Equal(24, s.SnapBreakawayPx);
+        Assert.Equal(600, s.SnapMaxSpeed);
+        Assert.True(s.SnapScreenEdges);
+        Assert.True(s.SnapWindows);
         Assert.Empty(s.ExcludedApps);
         Assert.False(s.StartAtLogin);
         Assert.Equal(FlyoutBackdrop.Translucent, s.FlyoutBackdrop);

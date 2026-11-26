@@ -86,7 +86,8 @@ TEST_F(Fixture, ResizeAppliesNeighbourInOneBatch) {
     EXPECT_EQ(mover.batches[0][0].frame, (Rect{1820, 0, 3440, 1440}));
 }
 
-TEST_F(Fixture, MoveIsIgnored) {
+TEST_F(Fixture, MoveIsIgnoredWithAttractionOff) {  // SNAP-001
+    ctl.set_snap_active(false);
     ctl.on_move_size_start(1);
     inv.frames[1] = {50, 50, 1770, 1490};
     ctl.on_location_change(1);
@@ -443,4 +444,391 @@ TEST_F(Fixture, FlushOutsideResizeIsIgnored) {
     ctl.on_move_size_start(1);
     ctl.on_timer(TimerKind::Flush);
     EXPECT_TRUE(mover.batches.empty());
+}
+
+namespace {
+
+/// A dragged window (id 1, 200x200) with one other window (id 2) to its right on a 1000x800 work area.
+struct MoveFixture : ::testing::Test {
+    FakeInventory inv;
+    FakeMover mover;
+    FakeClock clock;
+    FakeTimer timer;
+    RecordingLog log;
+    DragController ctl{inv, mover, clock, timer, log, ControllerOptions{12, "Test", false, {}}};
+
+    MoveFixture() {
+        inv.snap.work_area = {0, 0, 1000, 800};
+        inv.snap.work_areas = {inv.snap.work_area};
+        inv.snap.windows = {{1, {200, 250, 400, 450}, 1, 1}, {2, {500, 200, 700, 400}, 1, 1}};
+        inv.frames[1] = inv.snap.windows[0].frame;
+    }
+    /// Reports the dragged window at `frame` and delivers a location change.
+    void move_to(const Rect& frame) {
+        inv.frames[1] = frame;
+        clock.t += 100;
+        ctl.on_location_change(1);
+    }
+    /// The held position for a free position whose right edge is 5 px short of window 2.
+    static constexpr Rect kNear{295, 250, 495, 450};
+    static constexpr Rect kHeld{300, 250, 500, 450};
+};
+
+}  // namespace
+
+TEST_F(MoveFixture, AMoveWithAttractionAppliesTheHeldPosition) {  // SNAP-020, SNAP-023, SNAP-040
+    ctl.on_move_size_start(1);
+    move_to(kNear);  // the first location change classifies the move and is handled too
+    ASSERT_EQ(mover.batches.size(), 1u);
+    ASSERT_EQ(mover.batches[0].size(), 1u);
+    EXPECT_EQ(mover.batches[0][0].id, 1u);
+    EXPECT_EQ(mover.batches[0][0].frame, kHeld);
+    EXPECT_EQ(ctl.move_drags(), 1u);
+    EXPECT_EQ(ctl.snaps(), 1u);
+    EXPECT_EQ(ctl.drags(), 0u);
+    EXPECT_TRUE(log.contains("snap hold right=500 target=edge-to-edge"));
+}
+
+TEST_F(MoveFixture, AFreePositionIsNotMoved) {  // SNAP-023
+    ctl.on_move_size_start(1);
+    move_to({100, 250, 300, 450});
+    EXPECT_TRUE(mover.batches.empty());
+}
+
+TEST_F(MoveFixture, TheOwnMoveEchoIsIgnoredAndTheNextFreePositionIsHandled) {  // SNAP-024, SNAP-025
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    ASSERT_EQ(mover.batches.size(), 1u);
+    move_to(kHeld);  // Windows reports the position we just set
+    EXPECT_EQ(mover.batches.size(), 1u);
+    clock.t += 1;  // no throttling of the dragged window
+    move_to({296, 250, 496, 450});
+    ASSERT_EQ(mover.batches.size(), 2u);
+    EXPECT_EQ(mover.batches[1][0].frame, kHeld);
+}
+
+TEST_F(MoveFixture, TheEchoAsReadBackFromTheMoverIsIgnoredToo) {  // SNAP-024
+    mover.force[1] = {301, 250, 501, 450};
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    ASSERT_EQ(mover.batches.size(), 1u);
+    move_to({301, 250, 501, 450});
+    EXPECT_EQ(mover.batches.size(), 1u);
+}
+
+TEST_F(MoveFixture, SlidingAndBreakaway) {  // SNAP-022, SNAP-041
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    move_to({292, 300, 492, 500});  // the window slides down while held
+    ASSERT_EQ(mover.batches.size(), 2u);
+    EXPECT_EQ(mover.batches[1][0].frame, (Rect{300, 300, 500, 500}));
+    move_to({270, 300, 470,
+             500});  // 30 px from the line: released, the window is already at the free position
+    EXPECT_EQ(mover.batches.size(), 2u);
+    EXPECT_TRUE(log.contains("snap release right=500 reason=breakaway"));
+}
+
+TEST_F(MoveFixture, AFastMoveDoesNotSnap) {  // SNAP-012
+    ctl.on_move_size_start(1);
+    move_to({100, 250, 300, 450});
+    clock.t += 5;
+    inv.frames[1] = {295, 250, 495, 450};
+    ctl.on_location_change(1);  // 195 px in 5 ms
+    EXPECT_TRUE(mover.batches.empty());
+    EXPECT_EQ(ctl.snaps(), 0u);
+}
+
+TEST_F(MoveFixture, TheEndAppliesTheHeldPositionOnceWhenWindowsPutTheWindowBackAtTheFreePosition) {
+    // SNAP-050, SNAP-052
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    ASSERT_EQ(mover.batches.size(), 1u);
+    inv.frames[1] = kNear;
+    ctl.on_move_size_end(1);
+    ASSERT_EQ(mover.batches.size(), 2u);
+    EXPECT_EQ(mover.batches[1][0].frame, kHeld);
+    EXPECT_FALSE(timer.is_armed(TimerKind::Verify));
+    EXPECT_TRUE(log.contains("move end id=1 snaps=1 applied"));
+    ctl.on_timer(TimerKind::Verify);
+    ctl.on_timer(TimerKind::Settle);
+    ctl.on_timer(TimerKind::Flush);
+    EXPECT_EQ(mover.batches.size(), 2u);
+}
+
+TEST_F(MoveFixture, TheEndDoesNothingWhenTheWindowIsAlreadyHeld) {  // SNAP-050
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    inv.frames[1] = kHeld;
+    ctl.on_move_size_end(1);
+    EXPECT_EQ(mover.batches.size(), 1u);
+}
+
+TEST_F(MoveFixture, TheEndDoesNothingWhenAnotherToolPlacedTheWindow) {  // SNAP-051
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    inv.frames[1] = {0, 0, 500, 800};  // FancyZones or Windows Snap
+    ctl.on_move_size_end(1);
+    EXPECT_EQ(mover.batches.size(), 1u);
+}
+
+TEST_F(MoveFixture, TheEndDoesNothingWhenTheSizeChanged) {  // SNAP-051
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    move_to({296, 250, 496, 500});  // another tool resized the window during the drag
+    const auto before = mover.batches.size();
+    ctl.on_move_size_end(1);
+    EXPECT_EQ(mover.batches.size(), before);
+}
+
+TEST_F(MoveFixture, TheEndDoesNothingWhenNothingIsHeldOrTheFrameIsUnreadable) {  // SNAP-050
+    ctl.on_move_size_start(1);
+    move_to({100, 250, 300, 450});
+    ctl.on_move_size_end(1);
+    EXPECT_TRUE(mover.batches.empty());
+    EXPECT_TRUE(log.contains("move end id=1 snaps=0"));
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    inv.frames.erase(1);
+    ctl.on_move_size_end(1);
+    EXPECT_EQ(mover.batches.size(), 1u);
+}
+
+TEST_F(MoveFixture, AttractionOffIgnoresMoves) {  // SNAP-001
+    ctl.set_snap_active(false);
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    ctl.on_move_size_end(1);
+    EXPECT_TRUE(mover.batches.empty());
+    EXPECT_EQ(ctl.move_drags(), 0u);
+}
+
+TEST_F(MoveFixture, AttractionStillHandlesMovesWhenCouplingIsOff) {
+    ctl.set_glue_active(false);
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    ASSERT_EQ(mover.batches.size(), 1u);
+    EXPECT_EQ(mover.batches[0][0].frame, kHeld);
+    ctl.on_move_size_end(1);
+    const auto before = mover.batches.size();
+    ctl.on_move_size_start(1);
+    inv.frames[1] = {200, 250, 450, 450};  // a resize is ignored without coupling
+    ctl.on_location_change(1);
+    ctl.on_move_size_end(1);
+    EXPECT_EQ(ctl.drags(), 0u);
+    EXPECT_EQ(mover.batches.size(), before);
+}
+
+TEST_F(MoveFixture, ResizesStayGluedWhenAttractionIsOff) {
+    ctl.set_snap_active(false);
+    inv.snap.windows = {{1, {0, 0, 500, 800}, 1, 1}, {2, {500, 0, 1000, 800}, 1, 1}};
+    inv.frames[1] = {0, 0, 500, 800};
+    ctl.on_move_size_start(1);
+    inv.frames[1] = {0, 0, 600, 800};
+    ctl.on_location_change(1);
+    ASSERT_EQ(mover.batches.size(), 1u);
+    EXPECT_EQ(mover.batches[0][0].frame, (Rect{600, 0, 1000, 800}));
+}
+
+TEST_F(MoveFixture, AnIneligibleDraggedWindowIsIgnored) {
+    inv.snap.windows.erase(inv.snap.windows.begin());
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    EXPECT_TRUE(mover.batches.empty());
+}
+
+TEST_F(MoveFixture, DistancesAreScaledByTheDpi) {  // SNAP-010
+    const Rect free{280, 250, 480, 450};           // 20 px from window 2
+    ctl.on_move_size_start(1);
+    move_to(free);
+    EXPECT_TRUE(mover.batches.empty());
+    inv.snap.dpi_scale = 2.0;  // 16 px become 32 px
+    ctl.on_move_size_end(1);
+    ctl.on_move_size_start(1);
+    move_to(free);
+    ASSERT_EQ(mover.batches.size(), 1u);
+    EXPECT_EQ(mover.batches[0][0].frame, kHeld);
+}
+
+TEST_F(MoveFixture, OptionsApplyOnTheNextDrag) {  // SNAP-032, SNAP-043
+    SnapOptions o;
+    o.windows = false;
+    ctl.set_snap_options(o);
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    EXPECT_TRUE(mover.batches.empty());
+    ctl.on_move_size_end(1);
+    o.windows = true;
+    o.distance_px = 0;
+    ctl.set_snap_options(o);
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    EXPECT_TRUE(mover.batches.empty());  // 5 px is out of a 0 px pull-in
+}
+
+TEST_F(MoveFixture, ASideOnAnotherMonitorIsNotATarget) {  // SNAP-031
+    inv.snap.windows = {{1, {700, 250, 900, 450}, 1, 1}};
+    inv.snap.work_areas = {inv.snap.work_area, {1000, 0, 2000, 800}};
+    inv.frames[1] = {700, 250, 900, 450};
+    ctl.on_move_size_start(1);
+    move_to({795, 250, 995, 450});
+    EXPECT_TRUE(mover.batches.empty());
+    move_to({600, 250, 800, 450});  // nothing near
+    EXPECT_TRUE(mover.batches.empty());
+}
+
+TEST_F(MoveFixture, AMoveOnAScreenEdgeIsLogged) {  // SNAP-060
+    inv.snap.windows = {{1, {200, 250, 400, 450}, 1, 1}};
+    ctl.on_move_size_start(1);
+    move_to({10, 250, 210, 450});
+    ASSERT_EQ(mover.batches.size(), 1u);
+    EXPECT_EQ(mover.batches[0][0].frame, (Rect{0, 250, 200, 450}));
+    EXPECT_TRUE(log.contains("snap hold left=0 target=screen"));
+    EXPECT_TRUE(log.contains("move start id=1"));
+    move_to({-30, 250, 170, 450});
+    EXPECT_TRUE(log.contains("snap release left=0 reason=breakaway"));
+    ctl.on_move_size_end(1);
+    EXPECT_TRUE(log.contains("move end id=1 snaps=1"));
+}
+
+TEST_F(MoveFixture, ASlideOffAWindowIsLoggedAsTargetGone) {  // SNAP-035, SNAP-060
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    move_to({295, 600, 495, 800});  // far below window 2: it is no longer a target
+    EXPECT_TRUE(log.contains("reason=target-gone"));
+}
+
+TEST_F(MoveFixture, AnAlignedHoldIsLogged) {  // SNAP-034, SNAP-060
+    inv.snap.windows = {{1, {200, 250, 400, 450}, 1, 1}, {2, {500, 200, 700, 400}, 1, 1}};
+    ctl.on_move_size_start(1);
+    move_to({505, 410, 705, 610});  // below window 2, left edge 5 px from its left edge
+    EXPECT_TRUE(log.contains("target=aligned"));
+}
+
+TEST_F(MoveFixture, AWindowHiddenBehindAnotherDoesNotAttract) {  // SNAP-038
+    // Window 3 sits above window 2 and covers it completely.
+    inv.snap.stack = {
+        {1, inv.snap.windows[0].frame}, {3, {450, 150, 750, 450}}, {2, inv.snap.windows[1].frame}};
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    EXPECT_TRUE(mover.batches.empty());
+}
+
+TEST_F(MoveFixture, TheDraggedWindowNeverCoversATarget) {  // SNAP-038
+    // The dragged window is on top and overlaps window 2's left edge at drag start.
+    inv.snap.stack = {{1, {450, 200, 650, 400}}, {2, inv.snap.windows[1].frame}};
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    ASSERT_EQ(mover.batches.size(), 1u);
+    EXPECT_EQ(mover.batches[0][0].frame, kHeld);
+}
+
+namespace {
+
+/// Pointer hook that records start and stop and reports a settable cursor.
+struct FakeHook : PointerHook {
+    PointerEvents* sink{nullptr};
+    bool fail{false};
+    int starts{0};
+    int stops{0};
+    std::optional<Point> at{Point{300, 260}};
+    bool start(PointerEvents& s) override {
+        if (fail) return false;
+        sink = &s;
+        ++starts;
+        return true;
+    }
+    void stop() override {
+        if (sink != nullptr) ++stops;
+        sink = nullptr;
+    }
+    std::optional<Point> cursor() override { return at; }
+};
+
+/// MoveFixture with a pointer hook. The cursor at (300, 260) grabs window 1 (200..400) 100 px right of its left.
+struct PointerFixture : MoveFixture {
+    FakeHook hook;
+    PointerFixture() { ctl.set_pointer_hook(&hook); }
+    /// Starts a move: the first location change leaves the window where it was.
+    void begin() {
+        ctl.on_move_size_start(1);
+        move_to(inv.snap.windows[0].frame);
+    }
+    /// Sends a mouse movement to the controller as the hook would, one step of the clock later.
+    std::optional<Point> pointer(int x, int y) {
+        clock.t += 100;
+        return ctl.on_pointer_move({x, y});
+    }
+};
+
+}  // namespace
+
+TEST_F(PointerFixture,
+       AMoveStartsTheHookAndHoldsTheCursorInsteadOfMovingTheWindow) {  // SNAP-070, SNAP-072
+    begin();
+    EXPECT_EQ(hook.starts, 1);
+    EXPECT_TRUE(log.contains("move start id=1 pointer"));
+    // Window 1's right edge would be 5 px short of window 2 (at 500): the cursor goes 5 px further instead.
+    EXPECT_EQ(pointer(395, 260), (Point{400, 260}));
+    EXPECT_TRUE(mover.batches.empty());
+    EXPECT_TRUE(log.contains("snap hold right=500 target=edge-to-edge"));
+}
+
+TEST_F(PointerFixture, AFreeMovementGoesThroughUnchanged) {  // SNAP-072
+    begin();
+    EXPECT_EQ(pointer(310, 270), std::nullopt);
+}
+
+TEST_F(PointerFixture, LocationChangesNeverMoveTheWindow) {  // SNAP-072
+    begin();
+    move_to(kNear);
+    EXPECT_TRUE(mover.batches.empty());
+}
+
+TEST_F(PointerFixture, TheEndStopsTheHookAndAppliesNothing) {  // SNAP-075
+    begin();
+    (void)pointer(395, 260);
+    inv.frames[1] = kHeld;
+    ctl.on_move_size_end(1);
+    EXPECT_EQ(hook.stops, 1);
+    EXPECT_TRUE(mover.batches.empty());
+    EXPECT_TRUE(log.contains("move end id=1 snaps=1 pointer"));
+    EXPECT_EQ(pointer(390, 260), std::nullopt);
+}
+
+TEST_F(PointerFixture, AButtonReleaseStopsTheHookBeforeTheEndEvent) {  // SNAP-075
+    begin();
+    ctl.on_pointer_release();
+    EXPECT_EQ(hook.stops, 1);
+    ctl.on_move_size_end(1);
+    EXPECT_EQ(hook.stops, 1);
+}
+
+TEST_F(PointerFixture, ANewDragStopsAHookLeftRunning) {  // SNAP-075
+    begin();
+    ctl.on_move_size_start(1);
+    EXPECT_EQ(hook.stops, 1);
+}
+
+TEST_F(PointerFixture, WithoutTheHookTheWindowIsMovedBack) {  // SNAP-076
+    hook.fail = true;
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    ASSERT_EQ(mover.batches.size(), 1u);
+    EXPECT_EQ(mover.batches[0][0].frame, kHeld);
+}
+
+TEST_F(PointerFixture, AnUnreadableCursorStopsTheHookAndFallsBack) {  // SNAP-076
+    hook.at.reset();
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    EXPECT_EQ(hook.starts, 1);
+    EXPECT_EQ(hook.stops, 1);
+    ASSERT_EQ(mover.batches.size(), 1u);
+}
+
+TEST_F(PointerFixture, AResizeNeverStartsTheHook) {  // SNAP-002
+    ctl.on_move_size_start(1);
+    move_to({200, 250, 420, 450});
+    EXPECT_EQ(hook.starts, 0);
+    EXPECT_EQ(ctl.on_pointer_move({1, 1}), std::nullopt);
 }

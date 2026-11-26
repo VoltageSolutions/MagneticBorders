@@ -20,13 +20,14 @@ A spec changes in the same change that changes the behavior. A behavior change l
 
 An ID is a prefix, a dash, and a three-digit number, for example `CFG-007`. Numbers are never reused. If a rule is deleted, its number stays retired. New rules take the next free number on their page.
 
-The user-facing names are [Magnetic coupling](magnetic-coupling.md) and Magnetic attraction. The settings keys keep the older `glue` and `snap` names so saved files keep working, and the IDs use the prefix `RESIZE` (see [D-014](decisions.md)).
+The user-facing names are [Magnetic coupling](magnetic-coupling.md) and [Magnetic attraction](magnetic-attraction.md). The settings keys keep the older `glue` and `snap` names so saved files keep working, and the IDs use the prefix `RESIZE` (see [D-014](decisions.md)).
 
 ## The specs
 
 | Spec | Prefix | What it covers |
 |---|---|---|
 | [Magnetic coupling](magnetic-coupling.md) | `RESIZE` | Eligibility, classifying a drag, seams, propagation, minimums, snap-back, timers. |
+| [Magnetic attraction](magnetic-attraction.md) | `SNAP` | Snapping a moved window to screen edges and other windows, sliding, breakaway, speed. |
 | [Background app](engine.md) | `ENG` | The background app: notification area icon, menu, single instance, logs, start at login. |
 | [Contract](contract.md) | `CFG`, `PIPE` | `settings.json` and the named pipe protocol shared by all four apps. |
 | [Settings app](settings-app.md) | `UI` | The flyout and the full settings window. |

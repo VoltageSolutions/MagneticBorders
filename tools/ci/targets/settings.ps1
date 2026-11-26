@@ -43,7 +43,16 @@ function Invoke-Build($ctx) {
 
 function Invoke-Test($ctx) {
     if ($ctx.Arch -ieq 'arm64') { Write-Host 'Tests run on x64 only; skipped.' -ForegroundColor DarkGray; return }
-    Exec { dotnet test tests\MagneticBorders.Settings.Tests.csproj -c Release -p:Platform=x64 --no-restore --results-directory $ctx.TestResults } 'dotnet test'
+    Exec { dotnet test tests\MagneticBorders.Settings.Tests.csproj -c Release -p:Platform=x64 --no-restore --results-directory $ctx.TestResults --logger 'trx;LogFileName=settings.trx' } 'dotnet test'
+}
+
+# Starts the published app with --smoke: it opens the settings window and the flyout, then exits. Run after publish.
+# An ARM64 build only runs on an ARM64 machine; an x64 build also runs on ARM64 under emulation.
+function Invoke-Smoke($ctx) {
+    if ($ctx.Arch -ieq 'arm64' -and $env:PROCESSOR_ARCHITECTURE -ine 'ARM64') { Write-Host 'An ARM64 build needs an ARM64 machine; skipped.' -ForegroundColor DarkGray; return }
+    $exe = Join-Path $ctx.ArtifactsDir 'MagneticBorders.Settings.exe'
+    if (-not (Test-Path $exe)) { throw "Missing $exe. Run the publish step for $($ctx.Arch) first." }
+    Exec { pwsh -NoProfile -File (Join-Path $ctx.RepoRoot 'tools\ci\smoke-settings.ps1') -ExePath $exe } 'settings smoke test'
 }
 
 function Invoke-Coverage($ctx) {

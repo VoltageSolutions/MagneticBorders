@@ -17,6 +17,61 @@ public class AppSettingsTests
         Assert.True(s.Enabled);
         Assert.Equal(12, s.GlueTolerancePx);
         Assert.Empty(s.ExcludedApps);
+        Assert.Equal(16, s.SnapDistancePx);
+        Assert.Equal(24, s.SnapBreakawayPx);
+        Assert.Equal(600, s.SnapMaxSpeed);
+        Assert.True(s.SnapScreenEdges);
+        Assert.True(s.SnapWindows);
+    }
+
+    [Fact]
+    public void FromJson_ReadsNewSnapKeys()
+    {
+        var s = Parse("{\"snap\":{\"breakaway_px\":40,\"max_speed\":1500,\"screen_edges\":false,\"windows\":false}}");
+        Assert.Equal(40, s.SnapBreakawayPx);
+        Assert.Equal(1500, s.SnapMaxSpeed);
+        Assert.False(s.SnapScreenEdges);
+        Assert.False(s.SnapWindows);
+    }
+
+    [Fact]
+    public void FromJson_NewSnapKeysWithWrongTypes_FallBackToDefaults()
+    {
+        var s = Parse("{\"snap\":{\"breakaway_px\":\"far\",\"max_speed\":false,\"screen_edges\":1,\"windows\":\"yes\"}}");
+        Assert.Equal(24, s.SnapBreakawayPx);
+        Assert.Equal(600, s.SnapMaxSpeed);
+        Assert.True(s.SnapScreenEdges);
+        Assert.True(s.SnapWindows);
+    }
+
+    [Theory]
+    [InlineData("{\"snap\":{\"breakaway_px\":-1}}", 0)]
+    [InlineData("{\"snap\":{\"breakaway_px\":128}}", 128)]
+    [InlineData("{\"snap\":{\"breakaway_px\":129}}", 128)]
+    [InlineData("{\"snap\":{\"breakaway_px\":30.6}}", 31)]
+    public void FromJson_Breakaway_IsRoundedAndClamped(string json, int expected) =>
+        Assert.Equal(expected, Parse(json).SnapBreakawayPx);
+
+    [Theory]
+    [InlineData("{\"snap\":{\"max_speed\":0}}", 100)]
+    [InlineData("{\"snap\":{\"max_speed\":99}}", 100)]
+    [InlineData("{\"snap\":{\"max_speed\":5000}}", 5000)]
+    [InlineData("{\"snap\":{\"max_speed\":5001}}", 5000)]
+    [InlineData("{\"snap\":{\"max_speed\":750.4}}", 750)]
+    public void FromJson_MaxSpeed_IsRoundedAndClamped(string json, int expected) =>
+        Assert.Equal(expected, Parse(json).SnapMaxSpeed);
+
+    [Fact]
+    public void WriteTo_NewSnapKeys_AreClampedAndUnknownSnapKeysSurvive()
+    {
+        var root = JsonNode.Parse("{\"snap\":{\"future\":\"x\"}}")!.AsObject();
+        new AppSettings { SnapBreakawayPx = 500, SnapMaxSpeed = 5, SnapScreenEdges = false, SnapWindows = false }.WriteTo(root);
+        var snap = root["snap"]!;
+        Assert.Equal("x", snap["future"]!.GetValue<string>());
+        Assert.Equal(128, snap["breakaway_px"]!.GetValue<int>());
+        Assert.Equal(100, snap["max_speed"]!.GetValue<int>());
+        Assert.False(snap["screen_edges"]!.GetValue<bool>());
+        Assert.False(snap["windows"]!.GetValue<bool>());
     }
 
     [Fact]
@@ -126,6 +181,10 @@ public class AppSettingsTests
             GlueTolerancePx = 20,
             SnapEnabled = false,
             SnapDistancePx = 33,
+            SnapBreakawayPx = 70,
+            SnapMaxSpeed = 2000,
+            SnapScreenEdges = false,
+            SnapWindows = false,
             StartAtLogin = true,
             FlyoutBackdrop = FlyoutBackdrop.Solid,
             ExcludedApps = new List<string> { "one.exe", "two.exe" },
@@ -138,6 +197,10 @@ public class AppSettingsTests
         Assert.Equal(20, copy.GlueTolerancePx);
         Assert.False(copy.SnapEnabled);
         Assert.Equal(33, copy.SnapDistancePx);
+        Assert.Equal(70, copy.SnapBreakawayPx);
+        Assert.Equal(2000, copy.SnapMaxSpeed);
+        Assert.False(copy.SnapScreenEdges);
+        Assert.False(copy.SnapWindows);
         Assert.True(copy.StartAtLogin);
         Assert.Equal(FlyoutBackdrop.Solid, copy.FlyoutBackdrop);
         Assert.Equal(original.ExcludedApps, copy.ExcludedApps);

@@ -20,6 +20,7 @@
 #include "win32/message_window.hpp"
 #include "win32/paths.hpp"
 #include "win32/pipe_server.hpp"
+#include "win32/pointer_hook.hpp"
 #include "win32/settings_watcher.hpp"
 #include "win32/system_adapters.hpp"
 #include "win32/tray_icon.hpp"
@@ -345,4 +346,30 @@ TEST(Win32Pipe, ServerAnswersRequestLines) {
     }
     ASSERT_TRUE(reply);
     EXPECT_EQ(*reply, "echo:hi");
+}
+
+namespace {
+/// Pointer sink that lets every movement through.
+struct PassThrough : PointerEvents {
+    std::optional<Point> on_pointer_move(const Point&) override { return std::nullopt; }
+    void on_pointer_release() override {}
+};
+}  // namespace
+
+TEST(Win32PointerHook, StartsOncePerThreadAndStops) {  // SNAP-070
+    PassThrough sink;
+    win32::Win32PointerHook first;
+    win32::Win32PointerHook second;
+    if (!first.start(sink)) GTEST_SKIP() << "no low-level hooks on this desktop";
+    EXPECT_FALSE(second.start(sink));
+    first.stop();
+    EXPECT_TRUE(second.start(sink));
+    second.stop();
+    second.stop();  // safe when not started
+}
+
+TEST(Win32PointerHook, ReadsTheCursorWhenThereIsOne) {
+    win32::Win32PointerHook hook;
+    POINT p{};
+    EXPECT_EQ(hook.cursor().has_value(), GetCursorPos(&p) != FALSE);
 }

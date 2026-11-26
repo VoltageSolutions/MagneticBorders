@@ -11,7 +11,22 @@ struct EnumContext {
     HMONITOR monitor;
     DWORD own_pid;
     std::vector<WinInfo>* out;
+    std::vector<std::pair<WindowId, Rect>>* stack;
 };
+
+/// True when a window hides what is below it: visible, not minimized, not cloaked, not click-through (overlays
+/// such as the FancyZones editor), and not this process's own window (SNAP-038).
+bool covers(HWND h, DWORD own_pid) {
+    if (!IsWindowVisible(h) || IsIconic(h)) return false;
+    DWORD cloaked = 0;
+    if (SUCCEEDED(DwmGetWindowAttribute(h, DWMWA_CLOAKED, &cloaked, sizeof(cloaked))) && cloaked)
+        return false;
+    const auto ex = static_cast<DWORD>(GetWindowLongPtrW(h, GWL_EXSTYLE));
+    if (ex & WS_EX_TRANSPARENT) return false;
+    DWORD pid = 0;
+    GetWindowThreadProcessId(h, &pid);
+    return pid != own_pid;
+}
 
 std::wstring exe_name_of(DWORD pid) {
     UniqueHandle proc{OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid)};
@@ -41,8 +56,23 @@ bool eligible(HWND h, const EnumContext& ctx) {
     return !ctx.registry->is_excluded_exe(exe_name_of(pid));
 }
 
+BOOL CALLBACK monitor_proc(HMONITOR mon, HDC, LPRECT, LPARAM lp) {
+    MONITORINFO mi{};
+    mi.cbSize = sizeof(mi);
+    if (GetMonitorInfoW(mon, &mi)) {
+        reinterpret_cast<std::vector<Rect>*>(lp)->push_back(
+            {mi.rcWork.left, mi.rcWork.top, mi.rcWork.right, mi.rcWork.bottom});
+    }
+    return TRUE;
+}
+
 BOOL CALLBACK enum_proc(HWND h, LPARAM lp) {
     auto& ctx = *reinterpret_cast<EnumContext*>(lp);
+    // EnumWindows walks the z-order from the top, so the stack comes out top first.
+    if (covers(h, ctx.own_pid)) {
+        if (const auto f = visual_frame(h); f && f->width() > 0 && f->height() > 0)
+            ctx.stack->emplace_back(to_id(h), *f);
+    }
     if (!eligible(h, ctx)) return TRUE;
     const auto frame = visual_frame(h);
     RECT wr{};
@@ -65,10 +95,11 @@ Snapshot Win32Inventory::snapshot(WindowId dragged) {
     if (GetMonitorInfoW(mon, &mi)) {
         snap.work_area = {mi.rcWork.left, mi.rcWork.top, mi.rcWork.right, mi.rcWork.bottom};
     }
+    EnumDisplayMonitors(nullptr, nullptr, monitor_proc, reinterpret_cast<LPARAM>(&snap.work_areas));
     const UINT dpi = GetDpiForWindow(dh);
     snap.dpi_scale = dpi ? dpi / 96.0 : 1.0;
 
-    EnumContext ctx{&registry_, mon, GetCurrentProcessId(), &snap.windows};
+    EnumContext ctx{&registry_, mon, GetCurrentProcessId(), &snap.windows, &snap.stack};
     EnumWindows(enum_proc, reinterpret_cast<LPARAM>(&ctx));
     return snap;
 }

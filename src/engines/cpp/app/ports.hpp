@@ -3,6 +3,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "core/geometry.hpp"
@@ -15,7 +16,12 @@ struct Snapshot {
     std::vector<WinInfo> windows;  // dragged window (if eligible) + eligible others
     /// Work area of the dragged window's monitor.
     Rect work_area{};
-    /// DPI of the dragged window divided by 96; scales the glue tolerance.
+    /// Work areas of every monitor, the dragged window's one included; tells which screen sides touch another monitor.
+    std::vector<Rect> work_areas;
+    /// Every visible, uncloaked, not minimized top-level window that hides what is below it, in z-order from the top,
+    /// on any monitor. Magnetic attraction uses it to find which parts of other windows can be seen (SNAP-038).
+    std::vector<std::pair<WindowId, Rect>> stack;
+    /// DPI of the dragged window divided by 96; scales the glue tolerance and the snap distances.
     double dpi_scale{1.0};
 };
 
@@ -75,6 +81,31 @@ public:
     virtual void info(std::string_view msg) = 0;
     /// Writes one line only when debug output is enabled.
     virtual void debug(std::string_view msg) = 0;
+};
+
+/// Sink for mouse movement during a move. Implemented by DragController; win32::PointerHook calls it on the UI
+/// thread for every mouse movement while it runs.
+class PointerEvents {
+public:
+    virtual ~PointerEvents() = default;
+    /// Windows is about to put the cursor at `proposed`. Returns the position to put it at instead, or nullopt to
+    /// let the movement through unchanged.
+    [[nodiscard]] virtual std::optional<Point> on_pointer_move(const Point& proposed) = 0;
+    /// A mouse button was released. The move is over even if its end event has not arrived yet.
+    virtual void on_pointer_release() = 0;
+};
+
+/// Port: watches the mouse while a window is moved (SNAP-070). Implemented by win32::PointerHook with a low-level
+/// mouse hook that is installed only between start and stop. Called on the UI thread.
+class PointerHook {
+public:
+    virtual ~PointerHook() = default;
+    /// Starts sending mouse movement to `sink`. Returns false when the hook cannot be installed.
+    virtual bool start(PointerEvents& sink) = 0;
+    /// Stops sending mouse movement. Safe to call when not started.
+    virtual void stop() = 0;
+    /// The cursor position now, or nullopt if it cannot be read.
+    [[nodiscard]] virtual std::optional<Point> cursor() = 0;
 };
 
 /// Sink for drag lifecycle events. Implemented by DragController; win32::WinEventSource calls it on the UI thread.

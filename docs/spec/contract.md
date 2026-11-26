@@ -17,7 +17,14 @@ The three engines and the settings app share two interfaces: the file `settings.
   "schema": 1,
   "enabled": true,
   "glue": { "enabled": true, "tolerance_px": 12 },
-  "snap": { "enabled": true, "distance_px": 16 },
+  "snap": {
+    "enabled": true,
+    "distance_px": 16,
+    "breakaway_px": 24,
+    "max_speed": 600,
+    "screen_edges": true,
+    "windows": true
+  },
   "ui": { "flyout_backdrop": "translucent" },
   "excluded_apps": [],
   "start_at_login": false
@@ -33,15 +40,19 @@ The three engines and the settings app share two interfaces: the file `settings.
 | CFG-003 | `glue.enabled` must be a boolean, default `true`. |
 | CFG-004 | `glue.tolerance_px` must be an integer from 0 to 64, default 12. 0 means edges must touch exactly. |
 | CFG-005 | `snap.enabled` must be a boolean, default `true`. |
-| CFG-006 | `snap.distance_px` must be an integer from 0 to 64, default 16. |
+| CFG-006 | `snap.distance_px` must be an integer from 0 to 64, default 16. It is the pull-in distance of Magnetic attraction. |
 | CFG-007 | `excluded_apps` must be an array of executable names, default empty (no apps are excluded by default). |
 | CFG-008 | `start_at_login` must be a boolean, default `false`. |
-| CFG-009 | The engines must store `snap.*` and ignore it, logging "snap: not implemented". |
+| CFG-009 | Retired. Engines used to ignore `snap.*`; Magnetic attraction now uses it. |
 | CFG-010 | A key that is missing or has the wrong type must fall back to its default. |
-| CFG-011 | A number outside 0 to 64 must be clamped into range. |
+| CFG-011 | A number outside its range must be clamped into range. |
 | CFG-012 | A blank string in `excluded_apps` must be ignored. |
 | CFG-013 | A missing file must mean all defaults. |
 | CFG-014 | `ui.flyout_backdrop` must be the string `translucent` or `solid`, default `translucent`. It sets the flyout background. Engines must ignore it. |
+| CFG-015 | `snap.breakaway_px` must be an integer from 0 to 128, default 24. |
+| CFG-016 | `snap.max_speed` must be an integer from 100 to 5000, default 600, in effective pixels per second. |
+| CFG-017 | `snap.screen_edges` must be a boolean, default `true`. |
+| CFG-018 | `snap.windows` must be a boolean, default `true`. |
 
 ### Reading and writing
 

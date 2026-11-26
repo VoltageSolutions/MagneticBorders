@@ -15,10 +15,18 @@ struct Settings {
     bool glue_enabled{true};
     /// Glue tolerance in pixels (`glue.tolerance_px`).
     int glue_tolerance_px{12};
-    /// Snap switch (`snap.enabled`); parsed and reported but not acted on.
+    /// Magnetic attraction switch (`snap.enabled`).
     bool snap_enabled{true};
-    /// Snap distance in pixels (`snap.distance_px`).
+    /// Pull-in distance in pixels (`snap.distance_px`, 0..64).
     int snap_distance_px{16};
+    /// Breakaway distance in pixels (`snap.breakaway_px`, 0..128).
+    int snap_breakaway_px{24};
+    /// Snapping speed limit in pixels per second (`snap.max_speed`, 100..5000).
+    int snap_max_speed{600};
+    /// Work-area sides are targets (`snap.screen_edges`).
+    bool snap_screen_edges{true};
+    /// Other windows are targets (`snap.windows`).
+    bool snap_windows{true};
     /// Executable names (UTF-8) of apps never glued (`excluded_apps`).
     std::vector<std::string> excluded_apps;  // UTF-8
     /// Run at login (`start_at_login`).
@@ -28,9 +36,11 @@ struct Settings {
     friend bool operator==(const Settings&, const Settings&) = default;
     /// True when magnetic coupling should act: enabled && glue_enabled.
     [[nodiscard]] bool glue_active() const { return enabled && glue_enabled; }
+    /// True when magnetic attraction should act: enabled && snap_enabled (SNAP-001).
+    [[nodiscard]] bool snap_active() const { return enabled && snap_enabled; }
 };
 
-/// Parses a settings document. Missing or ill-typed keys fall back to defaults; pixel values are clamped to 0..64.
+/// Parses a settings document. Missing or ill-typed keys fall back to defaults; numbers are clamped into the range of their key (CFG-011).
 /// Returns nullopt when the text is not a JSON object (the caller keeps the previous settings). Called by the host.
 [[nodiscard]] std::optional<Settings> parse_settings(std::string_view text);
 

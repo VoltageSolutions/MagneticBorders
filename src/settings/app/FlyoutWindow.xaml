@@ -1,4 +1,4 @@
-﻿<!--  Tray flyout (about 360 x 300 epx). The system draws the border, rounded corners and shadow, like the Windows 11 quick settings flyouts; there is no XAML border. The background (acrylic or a solid theme fill) is chosen in code each time the flyout opens. Top to bottom: header with icon and status line, Enabled toggle, Magnetic coupling toggle, Magnetic attraction toggle with a Coming soon tag, and an Open settings button. Everything but Enabled greys out when Enabled is off. Bound to the shared SettingsViewModel via x:Bind; strings come from Resources.resw through x:Uid.  -->
+﻿<!--  Tray flyout (about 360 x 300 epx). The system draws the border, rounded corners and shadow, like the Windows 11 quick settings flyouts; there is no XAML border. The background (acrylic or a solid theme fill) is chosen in code each time the flyout opens. Top to bottom: header with icon and status line, Enabled toggle, Magnetic coupling toggle, Magnetic attraction toggle, and an Open settings button. Everything but Enabled greys out when Enabled is off. Bound to the shared SettingsViewModel via x:Bind; strings come from Resources.resw through x:Uid.  -->
 <Window
     x:Class="MagneticBorders.Settings.FlyoutWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -69,26 +69,10 @@
 
             <!--  Magnetic attraction  -->
             <Grid Grid.Row="3" MinHeight="44">
-                <StackPanel
+                <TextBlock
+                    x:Uid="AttractionLabel"
                     VerticalAlignment="Center"
-                    Opacity="{x:Bind local:Fmt.Dim(ViewModel.FeaturesEnabled), Mode=OneWay}"
-                    Orientation="Horizontal"
-                    Spacing="8">
-                    <TextBlock x:Uid="AttractionLabel" VerticalAlignment="Center" />
-                    <Border
-                        x:Uid="ComingSoonBadge"
-                        Padding="6,1"
-                        VerticalAlignment="Center"
-                        Background="{ThemeResource ControlAltFillColorSecondaryBrush}"
-                        BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
-                        BorderThickness="1"
-                        CornerRadius="4">
-                        <TextBlock
-                            x:Uid="ComingSoonTag"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Style="{StaticResource CaptionTextBlockStyle}" />
-                    </Border>
-                </StackPanel>
+                    Opacity="{x:Bind local:Fmt.Dim(ViewModel.FeaturesEnabled), Mode=OneWay}" />
                 <ToggleSwitch
                     MinWidth="0"
                     HorizontalAlignment="Right"

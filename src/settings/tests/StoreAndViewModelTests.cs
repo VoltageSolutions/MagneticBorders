@@ -107,6 +107,10 @@ public class SettingsViewModelExtraTests
         Assert.True(vm.Enabled);
         Assert.Equal(12, vm.GlueTolerance);
         Assert.Equal(16, vm.SnapDistance);
+        Assert.Equal(24, vm.SnapBreakaway);
+        Assert.Equal(600, vm.SnapMaxSpeed);
+        Assert.True(vm.SnapScreenEdges);
+        Assert.True(vm.SnapWindows);
         Assert.Empty(vm.ExcludedApps);
         Assert.False(vm.EngineRunning);
         Assert.Equal("", vm.NewApp);
@@ -157,6 +161,51 @@ public class SettingsViewModelExtraTests
         vm.GlueTolerance = -5;
         vm.FlushSave();
         Assert.Equal(0, new SettingsStore(t.File).Load().GlueTolerancePx);
+    }
+
+    [Fact]
+    public void FlushSave_RoundsAndClampsNewSnapSliders()
+    {
+        using var t = new TempDir();
+        using var vm = Make(t);
+        vm.SnapBreakaway = 500;
+        vm.SnapMaxSpeed = 20;
+        vm.FlushSave();
+        var s = new SettingsStore(t.File).Load();
+        Assert.Equal(128, s.SnapBreakawayPx);
+        Assert.Equal(100, s.SnapMaxSpeed);
+        vm.SnapBreakaway = 50.4;
+        vm.SnapMaxSpeed = 5400;
+        vm.FlushSave();
+        s = new SettingsStore(t.File).Load();
+        Assert.Equal(50, s.SnapBreakawayPx);
+        Assert.Equal(5000, s.SnapMaxSpeed);
+    }
+
+    [Fact]
+    public void NewSnapSettings_AreLoadedSavedAndKeepUnknownKeys()
+    {
+        using var t = new TempDir();
+        File.WriteAllText(t.File, "{\"snap\":{\"breakaway_px\":60,\"max_speed\":900,\"screen_edges\":false,\"windows\":true,\"future\":5},\"other\":1}");
+        using (var vm = Make(t))
+        {
+            Assert.Equal(60, vm.SnapBreakaway);
+            Assert.Equal(900, vm.SnapMaxSpeed);
+            Assert.False(vm.SnapScreenEdges);
+            Assert.True(vm.SnapWindows);
+            vm.SnapScreenEdges = true;
+            vm.SnapWindows = false;
+            vm.SnapBreakaway = 10;
+            vm.SnapMaxSpeed = 1200;
+            vm.FlushSave();
+        }
+        var root = JsonNode.Parse(File.ReadAllText(t.File))!.AsObject();
+        Assert.Equal(5, root["snap"]!["future"]!.GetValue<int>());
+        Assert.Equal(1, root["other"]!.GetValue<int>());
+        Assert.Equal(10, root["snap"]!["breakaway_px"]!.GetValue<int>());
+        Assert.Equal(1200, root["snap"]!["max_speed"]!.GetValue<int>());
+        Assert.True(root["snap"]!["screen_edges"]!.GetValue<bool>());
+        Assert.False(root["snap"]!["windows"]!.GetValue<bool>());
     }
 
     [Fact]

@@ -56,6 +56,7 @@ try {
     Step 'llvm-tools-preview'      { (rustup component list --installed) -match 'llvm-tools' } { rustup component add llvm-tools-preview }
     Step 'aarch64-pc-windows-msvc' { (rustup target list --installed) -match 'aarch64-pc-windows-msvc' } { rustup target add aarch64-pc-windows-msvc }
     Step 'cargo-llvm-cov'          { Has cargo-llvm-cov } { cargo install cargo-llvm-cov --locked }
+    Step 'cargo-nextest'           { Has cargo-nextest } { cargo install cargo-nextest --locked }
 } finally { Pop-Location }
 
 Write-Host 'C++ coverage' -ForegroundColor White

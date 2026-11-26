@@ -19,6 +19,8 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <PublishAot>true</PublishAot>
+    <!-- C#/WinRT generates unsafe interop code (vtables) for .NET types handed to WinUI; without this it generates none. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
   <ItemGroup>

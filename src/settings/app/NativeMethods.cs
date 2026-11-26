@@ -17,6 +17,12 @@ internal static class NativeMethods
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(nint hwnd);
     /// <summary>Handle of the current foreground window; used by the flyout focus watch.</summary>
     [DllImport("user32.dll")] public static extern nint GetForegroundWindow();
+    /// <summary>True when the window is minimized.</summary>
+    [DllImport("user32.dll")] public static extern bool IsIconic(nint hwnd);
+    /// <summary>Shows, hides, minimizes or restores a window.</summary>
+    [DllImport("user32.dll")] public static extern bool ShowWindow(nint hwnd, int cmd);
+    /// <summary>ShowWindow command that restores a minimized window.</summary>
+    public const int SW_RESTORE = 9;
     /// <summary>Sets a DWM window attribute (corner preference and border colour).</summary>
     [DllImport("dwmapi.dll")] public static extern int DwmSetWindowAttribute(nint hwnd, int attr, ref int value, int size);
     /// <summary>Extends the window frame into the client area by the given margins.</summary>
