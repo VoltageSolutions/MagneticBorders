@@ -1,0 +1,6 @@
+# Right edge at the work-area boundary is never a seam
+workarea 0,0 3440x1440
+win A 1720,0 1720x1440
+win B 0,0 1720x1440
+drag A right -100
+expect A 1720,0 1620x1440

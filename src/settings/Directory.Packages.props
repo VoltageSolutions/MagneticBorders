@@ -1,0 +1,24 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Component packages instead of the Microsoft.WindowsAppSDK metapackage: no ONNX Runtime, DirectML or AI/ML payload. Versions are the ones the 1.8.260921001 metapackage resolved. -->
+    <PackageVersion Include="Microsoft.WindowsAppSDK" Version="1.8.260921001" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.AI" Version="1.8.79" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.ML" Version="1.8.2223" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.Widgets" Version="1.8.251231004" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.DWrite" Version="1.8.25122902" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.Runtime" Version="1.8.260921001" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.Base" Version="1.8.251216001" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.Foundation" Version="1.8.260803002" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="1.8.260708001" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.WinUI" Version="1.8.260803003" />
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageVersion Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+  </ItemGroup>
+</Project>

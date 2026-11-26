@@ -1,0 +1,9 @@
+#pragma once
+#include <string_view>
+
+namespace mb {
+
+// Generated from project(VERSION) in CMakeLists.txt. Do not edit.
+inline constexpr std::string_view kVersion = "@PROJECT_VERSION@";
+
+}  // namespace mb

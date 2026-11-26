@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/engine/">
+    <Project Path="core/MagneticBorders.Core.csproj" />
+    <Project Path="app/MagneticBorders.Application.csproj" />
+    <Project Path="win32/MagneticBorders.Win32.csproj" />
+    <Project Path="host/MagneticBorders.Host.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/core/MagneticBorders.Core.Tests.csproj" />
+    <Project Path="tests/app/MagneticBorders.Application.Tests.csproj" />
+  </Folder>
+  <Folder Name="/fixture-runner/">
+    <Project Path="fixture-runner/FixtureRunner.csproj" />
+  </Folder>
+</Solution>

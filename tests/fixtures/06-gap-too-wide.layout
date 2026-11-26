@@ -1,0 +1,6 @@
+# 40px gap is wider than the 12px tolerance: not glued
+workarea 0,0 3440x1440
+win A 0,0 1700x1440
+win B 1740,0 1700x1440
+drag A right +20
+expect A 0,0 1720x1440

@@ -1,0 +1,23 @@
+name: Magnetic Borders CodeQL config
+queries:
+  - uses: security-and-quality
+# The engines call Win32 on purpose (P/Invoke through CsWin32, the windows crate, native C++), so the
+# "use managed code" recommendations do not apply.
+query-filters:
+  - exclude:
+      id:
+        - cs/call-to-unmanaged-code
+        - cs/unmanaged-code
+# paths-ignore removes these from the analysis for build-mode none (C#, Rust): unit tests, the fixture runners and
+# the shared .layout fixtures, plus build output and generated code. The C++ scan traces a build, where
+# paths-ignore does not apply, so codeql.yml builds C++ with MB_BUILD_TESTS=OFF instead.
+paths-ignore:
+  - '**/tests/**'
+  - tests/**
+  - '**/fixture-runner/**'
+  - '**/bin/**'
+  - '**/obj/**'
+  - '**/build/**'
+  - '**/target/**'
+  - '**/*.g.cs'
+  - '**/*.g.i.cs'

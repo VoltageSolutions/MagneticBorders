@@ -1,0 +1,93 @@
+﻿<!--  Tray flyout (about 360 x 300 epx). The system draws the border, rounded corners and shadow, like the Windows 11 quick settings flyouts; there is no XAML border. The background (acrylic or a solid theme fill) is chosen in code each time the flyout opens. Top to bottom: header with icon and status line, Enabled toggle, Magnetic coupling toggle, Magnetic attraction toggle, and an Open settings button. Everything but Enabled greys out when Enabled is off. Bound to the shared SettingsViewModel via x:Bind; strings come from Resources.resw through x:Uid.  -->
+<Window
+    x:Class="MagneticBorders.Settings.FlyoutWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:MagneticBorders.Settings">
+
+    <Grid KeyDown="OnKeyDown">
+        <!--  Opaque theme fill; visible only when the flyout background setting is Solid.  -->
+        <Rectangle
+            x:Name="SolidFill"
+            Fill="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+            Visibility="Collapsed" />
+
+        <Grid Padding="16" RowSpacing="4">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!--  Header  -->
+            <Grid Margin="0,0,0,12" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Image
+                    Width="40"
+                    Height="40"
+                    Source="ms-appx:///Assets/icon-256.png" />
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock x:Uid="AppName" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind local:Fmt.StatusLine(ViewModel.Status), Mode=OneWay}" />
+                </StackPanel>
+            </Grid>
+
+            <!--  Enabled  -->
+            <Grid Grid.Row="1" MinHeight="44">
+                <TextBlock x:Uid="EnabledLabel" VerticalAlignment="Center" />
+                <ToggleSwitch
+                    MinWidth="0"
+                    HorizontalAlignment="Right"
+                    IsOn="{x:Bind ViewModel.Enabled, Mode=TwoWay}"
+                    OffContent=""
+                    OnContent="" />
+            </Grid>
+
+            <!--  Magnetic coupling  -->
+            <Grid Grid.Row="2" MinHeight="44">
+                <TextBlock
+                    x:Uid="CouplingLabel"
+                    VerticalAlignment="Center"
+                    Opacity="{x:Bind local:Fmt.Dim(ViewModel.FeaturesEnabled), Mode=OneWay}" />
+                <ToggleSwitch
+                    MinWidth="0"
+                    HorizontalAlignment="Right"
+                    IsEnabled="{x:Bind ViewModel.FeaturesEnabled, Mode=OneWay}"
+                    IsOn="{x:Bind ViewModel.GlueEnabled, Mode=TwoWay}"
+                    OffContent=""
+                    OnContent="" />
+            </Grid>
+
+            <!--  Magnetic attraction  -->
+            <Grid Grid.Row="3" MinHeight="44">
+                <TextBlock
+                    x:Uid="AttractionLabel"
+                    VerticalAlignment="Center"
+                    Opacity="{x:Bind local:Fmt.Dim(ViewModel.FeaturesEnabled), Mode=OneWay}" />
+                <ToggleSwitch
+                    MinWidth="0"
+                    HorizontalAlignment="Right"
+                    IsEnabled="{x:Bind ViewModel.FeaturesEnabled, Mode=OneWay}"
+                    IsOn="{x:Bind ViewModel.SnapEnabled, Mode=TwoWay}"
+                    OffContent=""
+                    OnContent="" />
+            </Grid>
+
+            <!--  Footer  -->
+            <Button
+                x:Uid="OpenSettingsButton"
+                Grid.Row="5"
+                HorizontalAlignment="Stretch"
+                Click="OnOpenSettings" />
+        </Grid>
+    </Grid>
+</Window>

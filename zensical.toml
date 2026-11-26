@@ -1,0 +1,95 @@
+# Zensical configuration. Docs: https://zensical.org/docs/setup/basics/
+[project]
+site_name = "Magnetic Borders"
+site_url = "https://VoltageSolutions.github.io/MagneticBorders"
+site_author = "Eric Lauber"
+site_description = "A small Windows utility. Drag the border between docked windows and they resize together."
+repo_name = "VoltageSolutions/MagneticBorders"
+repo_url = "https://github.com/VoltageSolutions/MagneticBorders"
+
+nav = [
+  { "Home" = [
+    "index.md",
+    { "Resize windows" = "magnetic-coupling.md" },
+    { "Snap to windows" = "magnetic-attraction.md" },
+    { "Settings" = "flyout-and-settings.md" },
+    "troubleshooting.md",
+  ] },
+  { "How it works" = [
+    "how-it-works/index.md",
+    "how-it-works/architecture.md",
+    "how-it-works/start-at-login.md",
+    "how-it-works/watching-windows.md",
+    "how-it-works/window-position.md",
+    "how-it-works/seams.md",
+    "how-it-works/moving-windows.md",
+    "how-it-works/message-loop.md",
+    "how-it-works/timers.md",
+    "how-it-works/unmovable-windows.md",
+    "how-it-works/notification-area-icon.md",
+    { "Code tour" = [
+      "how-it-works/code-tour/cpp.md",
+      "how-it-works/code-tour/rust.md",
+      "how-it-works/code-tour/dotnet.md",
+      "how-it-works/code-tour/settings.md",
+    ] },
+  ] },
+  { "Spec" = [
+    "spec/index.md",
+    "spec/magnetic-coupling.md",
+    "spec/magnetic-attraction.md",
+    "spec/engine.md",
+    "spec/contract.md",
+    "spec/settings-app.md",
+    "spec/icon.md",
+    "spec/localization.md",
+    "spec/parity.md",
+    "spec/fixtures.md",
+    "spec/decisions.md",
+  ] },
+]
+
+# requirements.txt is for pip, not for readers.
+[project.plugins.exclude]
+regex = ["^requirements\\.txt$"]
+
+[project.theme]
+logo = "assets/images/logo.png"
+favicon = "assets/images/icon.svg"
+features = [
+  "navigation.tabs",
+  "navigation.sections",
+  "navigation.indexes",
+  "navigation.top",
+  "search.highlight",
+  "search.suggest",
+  "content.code.copy",
+  "content.tabs.link",
+  "toc.follow",
+]
+
+[[project.theme.palette]]
+scheme = "default"
+primary = "deep-orange"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+scheme = "slate"
+primary = "deep-orange"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to light mode"
+
+[project.markdown_extensions]
+admonition = {}
+attr_list = {}
+md_in_html = {}
+tables = {}
+toc.permalink = true
+pymdownx.details = {}
+pymdownx.highlight = {}
+pymdownx.inlinehilite = {}
+pymdownx.superfences.custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+pymdownx.tabbed.alternate_style = true

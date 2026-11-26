@@ -1,0 +1,11 @@
+# 2x2 quadrants: the whole vertical centre line moves together
+workarea 0,0 3440x1440
+win TL 0,0 1720x720
+win TR 1720,0 1720x720
+win BL 0,720 1720x720
+win BR 1720,720 1720x720
+drag TL right +100
+expect TL 0,0 1820x720
+expect TR 1820,0 1620x720
+expect BL 0,720 1820x720
+expect BR 1820,720 1620x720

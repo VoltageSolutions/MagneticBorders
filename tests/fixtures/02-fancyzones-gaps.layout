@@ -1,0 +1,10 @@
+# 3 columns, middle split into 2 rows, 8px gaps; drag A's right edge
+workarea 0,0 3440x1440
+win A 0,0 1272x1440
+win B 1280,0 1272x716
+win C 1280,724 1272x716
+win D 2560,0 880x1440
+drag A right +100
+expect A 0,0 1372x1440
+expect B 1380,0 1172x716
+expect C 1380,724 1172x716

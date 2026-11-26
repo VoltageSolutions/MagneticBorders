@@ -1,0 +1,10 @@
+# Same layout; drag B's left edge. C (stacked under B, 8px gap) moves with it; A gives way.
+workarea 0,0 3440x1440
+win A 0,0 1272x1440
+win B 1280,0 1272x716
+win C 1280,724 1272x716
+win D 2560,0 880x1440
+drag B left -80
+expect A 0,0 1192x1440
+expect B 1200,0 1352x716
+expect C 1200,724 1352x716

@@ -1,0 +1,487 @@
+name: CI
+
+# Every lint, build, test, coverage, publish and smoke step calls tools/ci/run.ps1, the same entry point as local builds.
+# Every app is built on every change. Lint, the x64 and ARM64 builds, parity and vulnerabilities run in parallel; the
+# test report, coverage upload, ARM smoke test and tester build follow the builds they need.
+# The docs build is docs-ci.yml. `CI result` is the one check to require.
+on:
+  pull_request:
+    branches: [main, 'release/**']
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  CARGO_TERM_COLOR: always
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check version sources
+        run: pwsh tools/ci/check-version.ps1
+
+  lint:
+    name: Lint (${{ matrix.target }})
+    runs-on: windows-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [cpp, rust, dotnet, settings]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        if: matrix.target == 'dotnet' || matrix.target == 'settings'
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      - name: Install Rust toolchain
+        if: matrix.target == 'rust'
+        working-directory: src/engines/rust
+        run: rustup toolchain install
+
+      - uses: actions/cache@v5
+        if: matrix.target == 'rust'
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            src/engines/rust/target
+          key: cargo-${{ runner.os }}-x64-${{ hashFiles('src/engines/rust/Cargo.lock', 'src/engines/rust/rust-toolchain.toml') }}
+          restore-keys: cargo-${{ runner.os }}-x64-
+
+      - uses: actions/cache@v5
+        if: matrix.target == 'cpp'
+        with:
+          path: src/engines/cpp/build/*/_deps
+          key: fetchcontent-${{ runner.os }}-x64-${{ hashFiles('src/engines/cpp/CMakeLists.txt') }}
+
+      - name: Restore
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps restore -Arch x64 -Ci
+
+      - name: Lint
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps lint -Arch x64 -Ci
+
+  x64:
+    name: x64 (${{ matrix.target }})
+    runs-on: windows-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [cpp, rust, dotnet, settings]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        if: matrix.target == 'dotnet' || matrix.target == 'settings'
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      # rust-toolchain.toml pins the compiler, components and both Windows targets.
+      - name: Install Rust toolchain
+        if: matrix.target == 'rust'
+        working-directory: src/engines/rust
+        run: rustup toolchain install
+
+      - uses: actions/cache@v5
+        if: matrix.target == 'rust'
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            src/engines/rust/target
+          key: cargo-${{ runner.os }}-x64-${{ hashFiles('src/engines/rust/Cargo.lock', 'src/engines/rust/rust-toolchain.toml') }}
+          restore-keys: cargo-${{ runner.os }}-x64-
+
+      - uses: taiki-e/install-action@v2
+        if: matrix.target == 'rust'
+        with:
+          tool: cargo-llvm-cov,cargo-nextest
+
+      - uses: actions/cache@v5
+        if: matrix.target == 'cpp'
+        with:
+          path: src/engines/cpp/build/*/_deps
+          key: fetchcontent-${{ runner.os }}-x64-${{ hashFiles('src/engines/cpp/CMakeLists.txt') }}
+
+      - name: Install OpenCppCoverage
+        if: matrix.target == 'cpp'
+        run: choco install opencppcoverage --no-progress -y
+
+      - name: Restore
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps restore -Arch x64 -Ci
+
+      - name: Build
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps build -Arch x64 -Ci
+
+      - name: Test
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps test -Arch x64 -Ci
+
+      - name: Coverage
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps coverage -Arch x64 -Ci
+
+      - name: Publish
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps publish -Arch x64 -Ci
+
+      # The published Native AOT settings app opens its window and its flyout, then exits (tools/ci/smoke-settings.ps1).
+      - name: Smoke test
+        if: matrix.target == 'settings'
+        run: pwsh tools/ci/run.ps1 -Target settings -Steps smoke -Arch x64 -Ci
+
+      - name: Upload coverage
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ matrix.target }}
+          path: artifacts/coverage/${{ matrix.target }}.cobertura.xml
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-${{ matrix.target }}
+          path: artifacts/test-results/${{ matrix.target }}
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload published build
+        uses: actions/upload-artifact@v7
+        with:
+          name: publish-${{ matrix.target }}-x64
+          path: artifacts/${{ matrix.target }}/x64
+          retention-days: 14
+          if-no-files-found: error
+
+  # ARM64 is cross-compiled on the x64 runner (run.ps1 enters the MSVC arm64 environment). Tests, lint and coverage
+  # run on x64 only; the ARM smoke test runs the published ARM64 settings app on an ARM64 runner.
+  arm64:
+    name: arm64 (${{ matrix.target }})
+    runs-on: windows-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [cpp, rust, dotnet, settings]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        if: matrix.target == 'dotnet' || matrix.target == 'settings'
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      - name: Install Rust toolchain
+        if: matrix.target == 'rust'
+        working-directory: src/engines/rust
+        run: rustup toolchain install
+
+      - uses: actions/cache@v5
+        if: matrix.target == 'rust'
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            src/engines/rust/target
+          key: cargo-${{ runner.os }}-arm64-${{ hashFiles('src/engines/rust/Cargo.lock', 'src/engines/rust/rust-toolchain.toml') }}
+          restore-keys: cargo-${{ runner.os }}-arm64-
+
+      - uses: actions/cache@v5
+        if: matrix.target == 'cpp'
+        with:
+          path: src/engines/cpp/build/*/_deps
+          key: fetchcontent-${{ runner.os }}-arm64-${{ hashFiles('src/engines/cpp/CMakeLists.txt') }}
+
+      - name: Restore
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps restore -Arch arm64 -Ci
+
+      - name: Build
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps build -Arch arm64 -Ci
+
+      - name: Publish
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps publish -Arch arm64 -Ci
+
+      - name: Upload published build
+        uses: actions/upload-artifact@v7
+        with:
+          name: publish-${{ matrix.target }}-arm64
+          path: artifacts/${{ matrix.target }}/arm64
+          retention-days: 14
+          if-no-files-found: error
+
+  # The three engines must print identical final frames for every fixture. This job builds the fixture runners
+  # itself (restore and build through run.ps1), so it works when only one engine changed.
+  parity:
+    name: Parity
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      - name: Install Rust toolchain
+        working-directory: src/engines/rust
+        run: rustup toolchain install
+
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            src/engines/rust/target
+          key: cargo-${{ runner.os }}-x64-${{ hashFiles('src/engines/rust/Cargo.lock', 'src/engines/rust/rust-toolchain.toml') }}
+          restore-keys: cargo-${{ runner.os }}-x64-
+
+      - uses: actions/cache@v5
+        with:
+          path: src/engines/cpp/build/*/_deps
+          key: fetchcontent-${{ runner.os }}-x64-${{ hashFiles('src/engines/cpp/CMakeLists.txt') }}
+
+      - name: Build C++ fixture runner
+        run: pwsh tools/ci/run.ps1 -Target cpp -Steps restore,build -Arch x64 -Ci
+
+      - name: Build Rust fixture runner
+        run: pwsh tools/ci/run.ps1 -Target rust -Steps restore,build -Arch x64 -Ci
+
+      - name: Build C# fixture runner
+        run: pwsh tools/ci/run.ps1 -Target dotnet -Steps restore,build -Arch x64 -Ci
+
+      - name: Compare engine output
+        run: pwsh tools/ci/parity.ps1
+
+  # Runs the published ARM64 settings app on Windows 11 on ARM, the only place an ARM64 build can start.
+  arm-smoke:
+    name: ARM smoke test
+    needs: arm64
+    runs-on: windows-11-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: publish-settings-arm64
+          path: artifacts/settings/arm64
+
+      - name: Smoke test (ARM64 settings app)
+        run: pwsh tools/ci/smoke-settings.ps1 -ExePath artifacts/settings/arm64/MagneticBorders.Settings.exe
+
+  # One check with the test totals of every part: JUnit XML from C++ (ctest) and Rust (cargo-nextest), TRX from C#.
+  test-results:
+    name: Test results
+    needs: x64
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: test-results-*
+          path: test-results
+
+      # check_run needs checks: write, which pull requests from forks do not get.
+      - name: Unit Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          check_name: Unit Test Results
+          # Named files only: the coverage step leaves Cobertura XML in the same folders.
+          files: |
+            test-results/**/cpp.xml
+            test-results/**/rust.xml
+            test-results/**/*.trx
+          comment_mode: 'off'
+          check_run: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          job_summary: 'true'
+          github_retries: '10'
+
+  # One upload per part, each with its Codecov flag (codecov.yml). Search is off, so only these files are sent.
+  coverage:
+    name: Coverage
+    needs: x64
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [cpp, rust, dotnet, settings]
+    steps:
+      # Checkout gives Codecov the repository layout for path fixing.
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: coverage-${{ matrix.target }}
+          path: coverage
+
+      - uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/${{ matrix.target }}.cobertura.xml
+          disable_search: true
+          flags: ${{ matrix.target }}
+          name: ${{ matrix.target }}
+          fail_ci_if_error: true
+
+  # Known vulnerabilities in dependencies: NuGet packages of the C# engine and the settings app, and Rust crates
+  # (RustSec advisory database). The C++ engine fetches pinned tags of nlohmann/json and GoogleTest (tests only).
+  # High and critical NuGet findings and any RustSec advisory fail the job.
+  vulnerabilities:
+    name: Vulnerabilities
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      - name: Install Rust toolchain
+        working-directory: src/engines/rust
+        run: rustup toolchain install
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: Check NuGet packages
+        run: pwsh tools/ci/check-vulnerabilities.ps1 -Kind nuget
+
+      - name: Check Rust crates
+        if: ${{ !cancelled() }}
+        run: pwsh tools/ci/check-vulnerabilities.ps1 -Kind rust
+
+  # A work-in-progress build for testers: the C++ app and the settings app for x64 and ARM64, attached to the run and
+  # linked from a comment on the pull request. Not a release: nothing is signed and it expires after 30 days.
+  tester-build:
+    name: Tester build
+    needs: [x64, arm64]
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: publish-*
+          path: artifacts
+
+      - name: Assemble
+        id: assemble
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: pwsh tools/ci/tester-build.ps1 -InputDir artifacts -OutDir tester -PullRequest $env:PR -Sha $env:SHA
+
+      - name: Upload x64
+        id: x64
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.assemble.outputs.x64 }}
+          path: tester/${{ steps.assemble.outputs.x64 }}
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload ARM64
+        id: arm64
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.assemble.outputs.arm64 }}
+          path: tester/${{ steps.assemble.outputs.arm64 }}
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Comment on the pull request
+        uses: actions/github-script@v9
+        env:
+          X64: ${{ steps.assemble.outputs.x64 }}
+          ARM64: ${{ steps.assemble.outputs.arm64 }}
+          X64_URL: ${{ steps.x64.outputs.artifact-url }}
+          ARM64_URL: ${{ steps.arm64.outputs.artifact-url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          script: |
+            const marker = '<!-- tester-build -->';
+            const { X64, ARM64, X64_URL, ARM64_URL, RUN_URL } = process.env;
+            const body = [
+              marker,
+              '### Tester build',
+              '',
+              'Work-in-progress build of this pull request.',
+              '',
+              `- [${X64}](${X64_URL})`,
+              `- [${ARM64}](${ARM64_URL})`,
+              '',
+              'Unzip it and run `MagneticBorders.exe`. It is not signed, so Windows SmartScreen may ask before it starts.',
+              `Downloads need a GitHub sign-in and expire after 30 days. [Workflow run](${RUN_URL})`,
+            ].join('\n');
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number, per_page: 100 });
+            const mine = comments.find(c => c.body && c.body.includes(marker));
+            if (mine) await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
+            else await github.rest.issues.createComment({ owner, repo, issue_number, body });
+
+  result:
+    name: CI result
+    needs: [version, lint, x64, arm64, arm-smoke, test-results, parity, vulnerabilities]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail when a required job failed
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        shell: bash
+        run: |
+          echo "::error title=CI failed::At least one CI job failed or was cancelled."
+          exit 1
+
+      - name: All jobs passed or were skipped
+        shell: bash
+        run: echo "All CI jobs passed or were skipped because they did not apply."

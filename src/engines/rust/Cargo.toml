@@ -1,0 +1,44 @@
+[workspace]
+resolver = "2"
+members = ["core", "app", "win32", "host", "fixture-runner"]
+
+[workspace.package]
+edition = "2021"
+version = "0.2.0"
+
+# Exact versions: with the committed Cargo.lock and `--locked`, every build resolves the same crates.
+[workspace.dependencies]
+mb-core = { path = "core" }
+mb-app = { path = "app" }
+mb-win32 = { path = "win32" }
+thiserror = "=2.0.21"
+anyhow = "=1.0.105"
+serde = { version = "=1.0.229", features = ["derive"] }
+# preserve_order keeps the key order of settings.json when the tray toggle rewrites it.
+serde_json = { version = "=1.0.154", features = ["preserve_order"] }
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+# Win32 interop converts between i32/u32/usize/u64 handles, coordinates and sizes constantly; the values are
+# bounded by the OS, so these casts are intentional.
+cast_possible_truncation = "allow"
+cast_possible_wrap = "allow"
+cast_sign_loss = "allow"
+# The win32 and app modules import whole Win32 and port namespaces by design.
+wildcard_imports = "allow"
+# Settings mirrors the settings.json switches one to one.
+struct_excessive_bools = "allow"
+# Result and panic docs add noise to small internal APIs; behavior is described in the summary line.
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+must_use_candidate = "allow"
+module_name_repetitions = "allow"
+too_many_lines = "allow"
+
+[profile.release]
+opt-level = 3
+lto = true

@@ -1,0 +1,8 @@
+# Two windows sharing a border, no gap
+workarea 0,0 3440x1440
+win A 0,0 1720x1440
+win B 1720,0 1720x1440
+drag A right +200
+expect A 0,0 1920x1440
+expect B 1920,0 1520x1440
+expect clamp 1920

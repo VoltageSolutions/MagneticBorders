@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="AppName.Text" xml:space="preserve">
+    <value>Magnetic Borders</value>
+    <comment>Product name. Keep it in English or use the local brand name. Shown in the flyout header and the window title bar.</comment>
+  </data>
+  <data name="WindowTitle" xml:space="preserve">
+    <value>Magnetic Borders Settings</value>
+    <comment>Title of the settings window as shown in the taskbar and Alt+Tab.</comment>
+  </data>
+  <data name="EnabledLabel.Text" xml:space="preserve">
+    <value>Enabled</value>
+    <comment>Flyout. Label of the master on/off switch for the whole app.</comment>
+  </data>
+  <data name="CouplingLabel.Text" xml:space="preserve">
+    <value>Magnetic coupling</value>
+    <comment>Feature name. When two window borders touch, they act as one seam and resize together. (Settings key: glue.)</comment>
+  </data>
+  <data name="AttractionLabel.Text" xml:space="preserve">
+    <value>Magnetic attraction</value>
+    <comment>Feature name. A window being moved snaps against the screen edge or another window. (Settings key: snap.)</comment>
+  </data>
+  <data name="OpenSettingsButton.Content" xml:space="preserve">
+    <value>Open settings</value>
+    <comment>Flyout. Button that opens the full settings window.</comment>
+  </data>
+  <data name="OpenSettingsButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Open the full settings window</value>
+    <comment>Tooltip of the Open settings button in the flyout.</comment>
+  </data>
+  <data name="SettingsTitle.Text" xml:space="preserve">
+    <value>Settings</value>
+    <comment>Page title at the top of the settings window.</comment>
+  </data>
+  <data name="GeneralHeader.Text" xml:space="preserve">
+    <value>General</value>
+    <comment>Group heading in the settings window.</comment>
+  </data>
+  <data name="EnabledCard.Header" xml:space="preserve">
+    <value>Enabled</value>
+    <comment>Settings card title. Master switch for the whole app.</comment>
+  </data>
+  <data name="EnabledCard.Description" xml:space="preserve">
+    <value>Master switch for Magnetic Borders. When it is off, window borders behave normally.</value>
+    <comment>Settings card description for the master switch.</comment>
+  </data>
+  <data name="StartAtLoginCard.Header" xml:space="preserve">
+    <value>Start at login</value>
+    <comment>Settings card title.</comment>
+  </data>
+  <data name="StartAtLoginCard.Description" xml:space="preserve">
+    <value>Start Magnetic Borders when you sign in.</value>
+    <comment>Settings card description.</comment>
+  </data>
+  <data name="AppStatusExpander.Header" xml:space="preserve">
+    <value>Magnetic Borders</value>
+    <comment>Settings card title. Product name; the description shows the version or Not running.</comment>
+  </data>
+  <data name="RefreshButton.Content" xml:space="preserve">
+    <value>Refresh</value>
+    <comment>Button that checks again whether Magnetic Borders is running.</comment>
+  </data>
+  <data name="RefreshButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Refresh</value>
+    <comment>Tooltip of the Refresh button.</comment>
+  </data>
+  <data name="QuitButton.Content" xml:space="preserve">
+    <value>Quit Magnetic Borders</value>
+    <comment>Button that closes the app.</comment>
+  </data>
+  <data name="QuitButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Close Magnetic Borders and remove its tray icon</value>
+    <comment>Tooltip of the Quit button.</comment>
+  </data>
+  <data name="UptimeCard.Header" xml:space="preserve">
+    <value>Uptime</value>
+    <comment>Label for how long Magnetic Borders has been running.</comment>
+  </data>
+  <data name="DragsCard.Header" xml:space="preserve">
+    <value>Drags</value>
+    <comment>Label for the count of window drags Magnetic Borders has seen.</comment>
+  </data>
+  <data name="CouplingHeader.Text" xml:space="preserve">
+    <value>Magnetic coupling</value>
+    <comment>Group heading in the settings window.</comment>
+  </data>
+  <data name="CouplingCard.Header" xml:space="preserve">
+    <value>Magnetic coupling</value>
+    <comment>Settings card title. Touching window borders act as one seam. (Settings key: glue.)</comment>
+  </data>
+  <data name="CouplingCard.Description" xml:space="preserve">
+    <value>Touching window borders become a seam that resizes together.</value>
+    <comment>Settings card description for magnetic coupling.</comment>
+  </data>
+  <data name="CouplingZoneCard.Header" xml:space="preserve">
+    <value>Detection zone</value>
+    <comment>Settings card title. The distance in pixels within which a feature reacts.</comment>
+  </data>
+  <data name="CouplingZoneCard.Description" xml:space="preserve">
+    <value>How far apart two borders can be and still couple. 0 means they must touch.</value>
+    <comment>Description of the coupling detection zone slider.</comment>
+  </data>
+  <data name="CouplingZoneSlider.AutomationProperties.Name" xml:space="preserve">
+    <value>Coupling detection zone in pixels</value>
+    <comment>Screen reader name of the coupling slider.</comment>
+  </data>
+  <data name="AttractionHeader.Text" xml:space="preserve">
+    <value>Magnetic attraction</value>
+    <comment>Group heading in the settings window.</comment>
+  </data>
+  <data name="AttractionCard.Header" xml:space="preserve">
+    <value>Magnetic attraction</value>
+    <comment>Settings card title. A moving window snaps to an edge. (Settings key: snap.enabled.)</comment>
+  </data>
+  <data name="AttractionCard.Description" xml:space="preserve">
+    <value>Snap a window against the edge of your screen or another window as you move it.</value>
+    <comment>Settings card description for magnetic attraction.</comment>
+  </data>
+  <data name="AttractionEdgesCard.Header" xml:space="preserve">
+    <value>Snap to screen edges</value>
+    <comment>Settings card title. Windows snap to the edges of the screen. (Settings key: snap.screen_edges.)</comment>
+  </data>
+  <data name="AttractionEdgesCard.Description" xml:space="preserve">
+    <value>Includes the taskbar.</value>
+    <comment>Description of the screen edges toggle. The taskbar is a screen edge a window can snap against.</comment>
+  </data>
+  <data name="AttractionWindowsCard.Header" xml:space="preserve">
+    <value>Snap to other windows</value>
+    <comment>Settings card title. Windows snap to the edges of other windows. (Settings key: snap.windows.)</comment>
+  </data>
+  <data name="AttractionWindowsCard.Description" xml:space="preserve">
+    <value>Line up with the edges of the windows around it.</value>
+    <comment>Description of the other windows toggle.</comment>
+  </data>
+  <data name="AttractionZoneCard.Header" xml:space="preserve">
+    <value>Pull-in distance</value>
+    <comment>Settings card title. How near an edge must be before it is pulled onto a screen edge or window edge. (Settings key: snap.distance_px.)</comment>
+  </data>
+  <data name="AttractionZoneCard.Description" xml:space="preserve">
+    <value>How close an edge must come before it snaps.</value>
+    <comment>Description of the pull-in distance slider.</comment>
+  </data>
+  <data name="AttractionZoneSlider.AutomationProperties.Name" xml:space="preserve">
+    <value>Pull-in distance in pixels</value>
+    <comment>Screen reader name of the pull-in distance slider.</comment>
+  </data>
+  <data name="AttractionBreakawayCard.Header" xml:space="preserve">
+    <value>Breakaway distance</value>
+    <comment>Settings card title. How far a window must be moved past a held edge to come free. (Settings key: snap.breakaway_px.)</comment>
+  </data>
+  <data name="AttractionBreakawayCard.Description" xml:space="preserve">
+    <value>How far past an edge you must move to pull the window free.</value>
+    <comment>Description of the breakaway distance slider.</comment>
+  </data>
+  <data name="AttractionBreakawaySlider.AutomationProperties.Name" xml:space="preserve">
+    <value>Breakaway distance in pixels</value>
+    <comment>Screen reader name of the breakaway distance slider.</comment>
+  </data>
+  <data name="AttractionSpeedCard.Header" xml:space="preserve">
+    <value>Snapping speed</value>
+    <comment>Settings card title. The fastest a window can move and still snap. (Settings key: snap.max_speed.)</comment>
+  </data>
+  <data name="AttractionSpeedCard.Description" xml:space="preserve">
+    <value>Windows moving faster than this pass edges without snapping.</value>
+    <comment>Description of the snapping speed slider.</comment>
+  </data>
+  <data name="AttractionSpeedSlider.AutomationProperties.Name" xml:space="preserve">
+    <value>Snapping speed in pixels per second</value>
+    <comment>Screen reader name of the snapping speed slider.</comment>
+  </data>
+  <data name="AttractionSpeedSlow.Text" xml:space="preserve">
+    <value>Slow</value>
+    <comment>Label at the low end of the snapping speed slider. Keep it very short.</comment>
+  </data>
+  <data name="AttractionSpeedFast.Text" xml:space="preserve">
+    <value>Fast</value>
+    <comment>Label at the high end of the snapping speed slider. Keep it very short.</comment>
+  </data>
+  <data name="SpeedFormat" xml:space="preserve">
+    <value>{0} px/s</value>
+    <comment>A speed in pixels per second, for example 600 px/s.</comment>
+  </data>
+  <data name="FlyoutHeader.Text" xml:space="preserve">
+    <value>Flyout</value>
+    <comment>Group heading. The flyout is the small panel that opens from the tray icon.</comment>
+  </data>
+  <data name="FlyoutBackdropCard.Header" xml:space="preserve">
+    <value>Flyout background</value>
+    <comment>Settings card title. How the tray flyout is painted.</comment>
+  </data>
+  <data name="FlyoutBackdropCard.Description" xml:space="preserve">
+    <value>Translucent lets the desktop show through. Solid uses the plain theme color.</value>
+    <comment>Settings card description.</comment>
+  </data>
+  <data name="FlyoutBackdropTranslucent.Content" xml:space="preserve">
+    <value>Translucent</value>
+    <comment>Drop-down choice: see-through acrylic background.</comment>
+  </data>
+  <data name="FlyoutBackdropSolid.Content" xml:space="preserve">
+    <value>Solid</value>
+    <comment>Drop-down choice: opaque background.</comment>
+  </data>
+  <data name="ExcludedHeader.Text" xml:space="preserve">
+    <value>Excluded apps</value>
+    <comment>Group heading in the settings window.</comment>
+  </data>
+  <data name="ExcludedExpander.Header" xml:space="preserve">
+    <value>Excluded apps</value>
+    <comment>Settings card title.</comment>
+  </data>
+  <data name="ExcludedExpander.Description" xml:space="preserve">
+    <value>Windows of these apps never couple.</value>
+    <comment>Settings card description. Couple refers to Magnetic coupling.</comment>
+  </data>
+  <data name="RemoveAppButton.Content" xml:space="preserve">
+    <value>Remove</value>
+    <comment>Button that removes an app from the excluded list.</comment>
+  </data>
+  <data name="RemoveAppButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Remove this app from the list</value>
+    <comment>Tooltip of the Remove button.</comment>
+  </data>
+  <data name="NewAppBox.PlaceholderText" xml:space="preserve">
+    <value>Executable name, for example game.exe</value>
+    <comment>Placeholder in the text box for adding an excluded app. Keep the example file name.</comment>
+  </data>
+  <data name="AddAppButton.Content" xml:space="preserve">
+    <value>Add</value>
+    <comment>Button that adds the typed app to the excluded list.</comment>
+  </data>
+  <data name="AddAppButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Add this app to the excluded list</value>
+    <comment>Tooltip of the Add button.</comment>
+  </data>
+  <data name="AboutHeader.Text" xml:space="preserve">
+    <value>About</value>
+    <comment>Group heading in the settings window.</comment>
+  </data>
+  <data name="AboutAppCard.Header" xml:space="preserve">
+    <value>Magnetic Borders</value>
+    <comment>About card title. Product name.</comment>
+  </data>
+  <data name="AboutBrandCard.Description" xml:space="preserve">
+    <value>© 2026 Voltage Solutions LLC. Free and open source under the MIT License.</value>
+    <comment>Copyright line. Keep the company name and license name.</comment>
+  </data>
+  <data name="VoltageWordmark.AutomationProperties.Name" xml:space="preserve">
+    <value>VOLTAGE</value>
+    <comment>Screen reader name of the VOLTAGE company wordmark image. Keep it as the brand name.</comment>
+  </data>
+  <data name="DocsLink.Content" xml:space="preserve">
+    <value>Documentation</value>
+    <comment>Link to the online documentation.</comment>
+  </data>
+  <data name="DocsLink.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Open the documentation website</value>
+    <comment>Tooltip of the Documentation link.</comment>
+  </data>
+  <data name="SourceLink.Content" xml:space="preserve">
+    <value>Source code</value>
+    <comment>Link to the code repository.</comment>
+  </data>
+  <data name="SourceLink.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Open the source code on GitHub</value>
+    <comment>Tooltip of the Source code link.</comment>
+  </data>
+  <data name="IssueLink.Content" xml:space="preserve">
+    <value>Report an issue</value>
+    <comment>Link to the page for reporting a problem.</comment>
+  </data>
+  <data name="IssueLink.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Report a problem or suggest an idea on GitHub</value>
+    <comment>Tooltip of the Report an issue link.</comment>
+  </data>
+  <data name="KofiText.Text" xml:space="preserve">
+    <value>Magnetic Borders is free and open source. If it makes your day a little smoother, you can say thanks with a coffee.</value>
+    <comment>Friendly footer message asking for an optional donation. Keep the tone warm and light.</comment>
+  </data>
+  <data name="KofiLink.Content" xml:space="preserve">
+    <value>Donate to this project on Ko-fi</value>
+    <comment>Link text of the donation button. Ko-fi is a service name.</comment>
+  </data>
+  <data name="KofiLink.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Open the Ko-fi page in your browser</value>
+    <comment>Tooltip of the donation link.</comment>
+  </data>
+  <data name="StatusRunning" xml:space="preserve">
+    <value>Running · {0} coupled drags</value>
+    <comment>Flyout status line. {0} is a number of window drags where borders were coupled. Keep the placeholder.</comment>
+  </data>
+  <data name="StatusNotRunning" xml:space="preserve">
+    <value>Not running</value>
+    <comment>Status line shown when Magnetic Borders is not running.</comment>
+  </data>
+  <data name="UptimeHoursMinutes" xml:space="preserve">
+    <value>{0}h {1}m</value>
+    <comment>Duration: hours and minutes, for example 2h 5m. h and m are unit abbreviations.</comment>
+  </data>
+  <data name="UptimeMinutesSeconds" xml:space="preserve">
+    <value>{0}m {1}s</value>
+    <comment>Duration: minutes and seconds, for example 3m 20s.</comment>
+  </data>
+  <data name="UptimeSeconds" xml:space="preserve">
+    <value>{0}s</value>
+    <comment>Duration: seconds, for example 45s.</comment>
+  </data>
+  <data name="PixelsFormat" xml:space="preserve">
+    <value>{0} px</value>
+    <comment>A length in pixels, for example 12 px.</comment>
+  </data>
+  <data name="NoValue" xml:space="preserve">
+    <value>-</value>
+    <comment>Placeholder shown when a value is not available.</comment>
+  </data>
+  <data name="DragsFormat" xml:space="preserve">
+    <value>{0} seen, {1} coupled</value>
+    <comment>Drag counters. {0} is how many window drags were seen; {1} is how many of them coupled borders.</comment>
+  </data>
+  <data name="VersionFormat" xml:space="preserve">
+    <value>Version {0}</value>
+    <comment>App version line. {0} is a version number such as 0.2.0.</comment>
+  </data>
+</root>
