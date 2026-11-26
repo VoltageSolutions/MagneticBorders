@@ -33,6 +33,9 @@ public partial class App : Application
     public App()
     {
         _instance = this;
+        UnhandledException += (_, e) => CrashLog.Write("UnhandledException", e.Exception);
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => CrashLog.Write("AppDomain", e.ExceptionObject as Exception);
+        TaskScheduler.UnobservedTaskException += (_, e) => CrashLog.Write("UnobservedTask", e.Exception);
         InitializeComponent();
     }
 
