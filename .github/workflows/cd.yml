@@ -156,7 +156,7 @@ jobs:
 
           Pick the x64 or arm64 zip: MagneticBorders-${VERSION}-x64.zip or MagneticBorders-${VERSION}-arm64.zip.
           Most PCs are x64. Windows on Arm devices use arm64.
-          Each zip holds the app in engine/, the settings app in settings/, LICENSE and README.md.
+          Each zip holds MagneticBorders.exe, the settings app in settings/, and LICENSE.
           Verify downloads with SHA256SUMS.txt.
 
           ## Comparison builds

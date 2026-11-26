@@ -53,9 +53,11 @@ std::optional<std::filesystem::path> find_settings_app() {
     const auto folder = exe_path().parent_path();
     std::error_code ec;
     constexpr auto exe = L"MagneticBorders.Settings.exe";
-    // Next to the app; ..\settings\ (release zip, artifacts\local\<arch>\); ..\..\settings\<arch>\ (artifacts\<build>\<arch>\).
-    for (const auto& cand : {folder / exe, folder / L".." / L"settings" / exe,
-                             folder / L".." / L".." / L"settings" / folder.filename() / exe}) {
+    // Next to the app; settings\ (release zip and tester build); ..\settings\ (artifacts\local\<arch>\);
+    // ..\..\settings\<arch>\ (artifacts\<build>\<arch>\).
+    for (const auto& cand :
+         {folder / exe, folder / L"settings" / exe, folder / L".." / L"settings" / exe,
+          folder / L".." / L".." / L"settings" / folder.filename() / exe}) {
         if (std::filesystem::exists(cand, ec)) return std::filesystem::weakly_canonical(cand, ec);
     }
     return std::nullopt;

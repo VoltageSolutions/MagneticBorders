@@ -19,7 +19,8 @@ namespace mb::win32 {
 [[nodiscard]] std::filesystem::path log_path(const std::string& engine);
 /// Returns the full path of the running executable.
 [[nodiscard]] std::filesystem::path exe_path();
-/// Finds MagneticBorders.Settings.exe next to the engine, else in ..\settings\ relative to the engine's folder.
+/// Finds MagneticBorders.Settings.exe next to the app, else in settings\, ..\settings\ or ..\..\settings\<arch>\
+/// relative to the app's folder (ENG-040, ENG-041).
 [[nodiscard]] std::optional<std::filesystem::path> find_settings_app();
 /// Launches the settings app with the given arguments; returns false if it was not found or could not start.
 /// Uses CreateProcessW with STARTF_FORCEOFFFEEDBACK so Windows does not show the "app starting" busy cursor

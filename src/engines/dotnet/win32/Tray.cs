@@ -241,8 +241,8 @@ public sealed unsafe class TrayHost(string tooltip, string header, ILog log, Fun
 public static unsafe class SettingsApp
 {
     /// <summary>
-    /// Returns the path of MagneticBorders.Settings.exe next to the app, in ..\settings\ (release zip,
-    /// artifacts\local\&lt;arch&gt;\), or in ..\..\settings\&lt;arch&gt;\ (artifacts\&lt;build&gt;\&lt;arch&gt;\), or null.
+    /// Returns the path of MagneticBorders.Settings.exe next to the app, in settings\ (release zip and tester build),
+    /// in ..\settings\ (artifacts\local\&lt;arch&gt;\), or in ..\..\settings\&lt;arch&gt;\ (artifacts\&lt;build&gt;\&lt;arch&gt;\), or null.
     /// </summary>
     public static string? Find()
     {
@@ -252,6 +252,7 @@ public static unsafe class SettingsApp
         foreach (var c in new[]
         {
             Path.Combine(dir, "MagneticBorders.Settings.exe"),
+            Path.Combine(dir, "settings", "MagneticBorders.Settings.exe"),
             Path.GetFullPath(Path.Combine(dir, "..", "settings", "MagneticBorders.Settings.exe")),
             Path.GetFullPath(Path.Combine(dir, "..", "..", "settings", Path.GetFileName(dir), "MagneticBorders.Settings.exe")),
         })

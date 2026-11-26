@@ -423,8 +423,8 @@ jobs:
         id: x64
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ steps.assemble.outputs.name }}-x64
-          path: tester/x64
+          name: ${{ steps.assemble.outputs.x64 }}
+          path: tester/${{ steps.assemble.outputs.x64 }}
           retention-days: 30
           if-no-files-found: error
 
@@ -432,32 +432,33 @@ jobs:
         id: arm64
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ steps.assemble.outputs.name }}-arm64
-          path: tester/arm64
+          name: ${{ steps.assemble.outputs.arm64 }}
+          path: tester/${{ steps.assemble.outputs.arm64 }}
           retention-days: 30
           if-no-files-found: error
 
       - name: Comment on the pull request
         uses: actions/github-script@v9
         env:
-          NAME: ${{ steps.assemble.outputs.name }}
+          X64: ${{ steps.assemble.outputs.x64 }}
+          ARM64: ${{ steps.assemble.outputs.arm64 }}
           X64_URL: ${{ steps.x64.outputs.artifact-url }}
           ARM64_URL: ${{ steps.arm64.outputs.artifact-url }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
           script: |
             const marker = '<!-- tester-build -->';
-            const { NAME, X64_URL, ARM64_URL, RUN_URL } = process.env;
+            const { X64, ARM64, X64_URL, ARM64_URL, RUN_URL } = process.env;
             const body = [
               marker,
               '### Tester build',
               '',
-              `Work-in-progress build of this pull request: \`${NAME}\`.`,
+              'Work-in-progress build of this pull request.',
               '',
-              `- [Download for x64](${X64_URL})`,
-              `- [Download for ARM64](${ARM64_URL})`,
+              `- [${X64}](${X64_URL})`,
+              `- [${ARM64}](${ARM64_URL})`,
               '',
-              'Unzip it and run `engine\\MagneticBorders.Cpp.exe`. It is not signed, so Windows SmartScreen may ask before it starts.',
+              'Unzip it and run `MagneticBorders.exe`. It is not signed, so Windows SmartScreen may ask before it starts.',
               `Downloads need a GitHub sign-in and expire after 30 days. [Workflow run](${RUN_URL})`,
             ].join('\n');
             const { owner, repo } = context.repo;
