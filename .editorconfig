@@ -1,0 +1,19 @@
+# Top-most EditorConfig.
+root = true
+
+[*]
+charset = utf-8
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{cs,cpp,hpp,h,rs,xaml,csproj,props,targets}]
+indent_style = space
+indent_size = 4
+
+[*.{json,toml,yml,yaml,md}]
+indent_style = space
+indent_size = 2
+
+# xUnit test names use underscores (Method_Scenario_Expected).
+[src/**/tests/**.cs]
+dotnet_diagnostic.CA1707.severity = none

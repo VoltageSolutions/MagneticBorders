@@ -1,0 +1,11 @@
+root = false
+
+[*.cs]
+dotnet_sort_system_directives_first = true
+csharp_style_namespace_declarations = file_scoped:suggestion
+
+# xUnit test names use underscores (Method_Scenario_Expected).
+[tests/**.cs]
+dotnet_diagnostic.CA1707.severity = none
+# Expected-value arrays in assertions are not worth hoisting into fields.
+dotnet_diagnostic.CA1861.severity = none

@@ -1,0 +1,22 @@
+name: Magnetic Borders CodeQL config
+queries:
+  - uses: security-and-quality
+# The engines call Win32 on purpose (P/Invoke through CsWin32, the windows crate, native C++), so the
+# "use managed code" recommendations do not apply.
+query-filters:
+  - exclude:
+      id:
+        - cs/call-to-unmanaged-code
+        - cs/unmanaged-code
+# With build-mode none, paths-ignore removes these from the analysis: unit tests, the fixture runners and the
+# shared .layout fixtures, plus build output and generated code.
+paths-ignore:
+  - '**/tests/**'
+  - tests/**
+  - '**/fixture-runner/**'
+  - '**/bin/**'
+  - '**/obj/**'
+  - '**/build/**'
+  - '**/target/**'
+  - '**/*.g.cs'
+  - '**/*.g.i.cs'

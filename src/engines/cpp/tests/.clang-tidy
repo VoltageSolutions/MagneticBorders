@@ -1,0 +1,8 @@
+---
+# Tests share the engine's checks except the ones GoogleTest macros and fakes trip by design.
+InheritParentConfig: true
+Checks: >
+  -bugprone-unchecked-optional-access,
+  -cppcoreguidelines-owning-memory,
+  -cppcoreguidelines-special-member-functions
+

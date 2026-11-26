@@ -1,0 +1,268 @@
+﻿<!--  Full settings window (Mica backdrop, custom title bar, one scrolling page and a fixed Ko-fi footer). Groups: General (enabled, start at login, Magnetic Borders status expander with Refresh and Quit), Magnetic coupling (toggle, detection zone), Magnetic attraction (toggle with a Coming soon tag, detection zone), Flyout (background), Excluded apps (list with Remove, add box) and About (VOLTAGE wordmark, version, copyright, links). Everything except General's start at login, Flyout and Excluded apps greys out when Enabled is off. Cards come from CommunityToolkit.WinUI.Controls.SettingsControls; everything is bound to the shared SettingsViewModel via x:Bind; strings come from Resources.resw through x:Uid.  -->
+<Window
+    x:Class="MagneticBorders.Settings.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:local="using:MagneticBorders.Settings">
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <Grid>
+        <Grid.Resources>
+            <ResourceDictionary>
+                <ResourceDictionary.ThemeDictionaries>
+                    <!--  The orange wordmark reads on light backgrounds, the white one on dark.  -->
+                    <ResourceDictionary x:Key="Light">
+                        <SvgImageSource x:Key="VoltageWordmark" UriSource="ms-appx:///Assets/brand/voltage_wordmark_light.svg" />
+                    </ResourceDictionary>
+                    <ResourceDictionary x:Key="Dark">
+                        <SvgImageSource x:Key="VoltageWordmark" UriSource="ms-appx:///Assets/brand/voltage_wordmark_dark.svg" />
+                    </ResourceDictionary>
+                    <ResourceDictionary x:Key="HighContrast">
+                        <SvgImageSource x:Key="VoltageWordmark" UriSource="ms-appx:///Assets/brand/voltage_wordmark_dark.svg" />
+                    </ResourceDictionary>
+                </ResourceDictionary.ThemeDictionaries>
+            </ResourceDictionary>
+        </Grid.Resources>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="32" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!--  Title bar  -->
+        <Grid x:Name="AppTitleBar" Margin="12,0,0,0">
+            <StackPanel
+                VerticalAlignment="Center"
+                Orientation="Horizontal"
+                Spacing="8">
+                <Image
+                    Width="16"
+                    Height="16"
+                    Source="ms-appx:///Assets/icon-small-64.png" />
+                <TextBlock x:Uid="AppName" Style="{StaticResource CaptionTextBlockStyle}" />
+            </StackPanel>
+        </Grid>
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel
+                MaxWidth="1000"
+                Margin="36,8,36,36"
+                HorizontalAlignment="Stretch"
+                Spacing="4">
+                <TextBlock
+                    x:Uid="SettingsTitle"
+                    Margin="0,0,0,12"
+                    Style="{StaticResource TitleTextBlockStyle}" />
+
+                <!--  General  -->
+                <TextBlock
+                    x:Uid="GeneralHeader"
+                    Margin="1,16,0,4"
+                    Style="{StaticResource BodyStrongTextBlockStyle}" />
+                <controls:SettingsCard x:Uid="EnabledCard">
+                    <ToggleSwitch IsOn="{x:Bind ViewModel.Enabled, Mode=TwoWay}" />
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Uid="StartAtLoginCard">
+                    <ToggleSwitch IsOn="{x:Bind ViewModel.StartAtLogin, Mode=TwoWay}" />
+                </controls:SettingsCard>
+                <controls:SettingsExpander
+                    x:Uid="AppStatusExpander"
+                    Description="{x:Bind local:Fmt.Summary(ViewModel.Status), Mode=OneWay}"
+                    IsExpanded="True">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE9D9;" />
+                    </controls:SettingsExpander.HeaderIcon>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button x:Uid="RefreshButton" Command="{x:Bind ViewModel.RefreshCommand}" />
+                        <Button
+                            x:Uid="QuitButton"
+                            Command="{x:Bind ViewModel.QuitEngineCommand}"
+                            IsEnabled="{x:Bind ViewModel.EngineRunning, Mode=OneWay}" />
+                    </StackPanel>
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard x:Uid="UptimeCard">
+                            <TextBlock Text="{x:Bind local:Fmt.Uptime(ViewModel.Status), Mode=OneWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="DragsCard">
+                            <TextBlock Text="{x:Bind local:Fmt.Drags(ViewModel.Status), Mode=OneWay}" />
+                        </controls:SettingsCard>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+
+                <!--  Magnetic coupling  -->
+                <TextBlock
+                    x:Uid="CouplingHeader"
+                    Margin="1,16,0,4"
+                    Style="{StaticResource BodyStrongTextBlockStyle}" />
+                <controls:SettingsCard x:Uid="CouplingCard" IsEnabled="{x:Bind ViewModel.FeaturesEnabled, Mode=OneWay}">
+                    <ToggleSwitch IsOn="{x:Bind ViewModel.GlueEnabled, Mode=TwoWay}" />
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Uid="CouplingZoneCard" IsEnabled="{x:Bind ViewModel.CouplingZoneEnabled, Mode=OneWay}">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Slider
+                            x:Uid="CouplingZoneSlider"
+                            Width="220"
+                            Maximum="64"
+                            Minimum="0"
+                            StepFrequency="1"
+                            Value="{x:Bind ViewModel.GlueTolerance, Mode=TwoWay}" />
+                        <TextBlock
+                            Width="48"
+                            VerticalAlignment="Center"
+                            Text="{x:Bind local:Fmt.Px(ViewModel.GlueTolerance), Mode=OneWay}"
+                            TextAlignment="Right" />
+                    </StackPanel>
+                </controls:SettingsCard>
+
+                <!--  Magnetic attraction  -->
+                <TextBlock
+                    x:Uid="AttractionHeader"
+                    Margin="1,16,0,4"
+                    Style="{StaticResource BodyStrongTextBlockStyle}" />
+                <controls:SettingsCard x:Uid="AttractionCard" IsEnabled="{x:Bind ViewModel.FeaturesEnabled, Mode=OneWay}">
+                    <controls:SettingsCard.Header>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock x:Uid="AttractionCardTitle" VerticalAlignment="Center" />
+                            <Border
+                                x:Uid="ComingSoonBadge"
+                                Padding="6,1"
+                                VerticalAlignment="Center"
+                                Background="{ThemeResource ControlAltFillColorSecondaryBrush}"
+                                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4">
+                                <TextBlock
+                                    x:Uid="ComingSoonTag"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Style="{StaticResource CaptionTextBlockStyle}" />
+                            </Border>
+                        </StackPanel>
+                    </controls:SettingsCard.Header>
+                    <ToggleSwitch IsOn="{x:Bind ViewModel.SnapEnabled, Mode=TwoWay}" />
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Uid="AttractionZoneCard" IsEnabled="{x:Bind ViewModel.AttractionZoneEnabled, Mode=OneWay}">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Slider
+                            x:Uid="AttractionZoneSlider"
+                            Width="220"
+                            Maximum="64"
+                            Minimum="0"
+                            StepFrequency="1"
+                            Value="{x:Bind ViewModel.SnapDistance, Mode=TwoWay}" />
+                        <TextBlock
+                            Width="48"
+                            VerticalAlignment="Center"
+                            Text="{x:Bind local:Fmt.Px(ViewModel.SnapDistance), Mode=OneWay}"
+                            TextAlignment="Right" />
+                    </StackPanel>
+                </controls:SettingsCard>
+
+                <!--  Flyout  -->
+                <TextBlock
+                    x:Uid="FlyoutHeader"
+                    Margin="1,16,0,4"
+                    Style="{StaticResource BodyStrongTextBlockStyle}" />
+                <controls:SettingsCard x:Uid="FlyoutBackdropCard">
+                    <ComboBox MinWidth="160" SelectedIndex="{x:Bind ViewModel.FlyoutBackdropIndex, Mode=TwoWay}">
+                        <ComboBoxItem x:Uid="FlyoutBackdropTranslucent" />
+                        <ComboBoxItem x:Uid="FlyoutBackdropSolid" />
+                    </ComboBox>
+                </controls:SettingsCard>
+
+                <!--  Excluded apps  -->
+                <TextBlock
+                    x:Uid="ExcludedHeader"
+                    Margin="1,16,0,4"
+                    Style="{StaticResource BodyStrongTextBlockStyle}" />
+                <controls:SettingsExpander
+                    x:Uid="ExcludedExpander"
+                    IsExpanded="True"
+                    ItemsSource="{x:Bind ViewModel.ExcludedApps}">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE8F8;" />
+                    </controls:SettingsExpander.HeaderIcon>
+                    <controls:SettingsExpander.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <controls:SettingsCard Header="{x:Bind}">
+                                <Button
+                                    x:Uid="RemoveAppButton"
+                                    Click="OnRemoveApp"
+                                    Tag="{x:Bind}" />
+                            </controls:SettingsCard>
+                        </DataTemplate>
+                    </controls:SettingsExpander.ItemTemplate>
+                    <controls:SettingsExpander.ItemsFooter>
+                        <Grid Padding="16,12" ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox
+                                x:Uid="NewAppBox"
+                                KeyDown="OnNewAppKeyDown"
+                                Text="{x:Bind ViewModel.NewApp, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <Button
+                                x:Uid="AddAppButton"
+                                Grid.Column="1"
+                                Command="{x:Bind ViewModel.AddAppCommand}"
+                                Style="{StaticResource AccentButtonStyle}" />
+                        </Grid>
+                    </controls:SettingsExpander.ItemsFooter>
+                </controls:SettingsExpander>
+
+                <!--  About  -->
+                <TextBlock
+                    x:Uid="AboutHeader"
+                    Margin="1,16,0,4"
+                    Style="{StaticResource BodyStrongTextBlockStyle}" />
+                <controls:SettingsCard x:Uid="AboutAppCard" Description="{x:Bind local:Fmt.Version(ViewModel.AppVersion)}">
+                    <controls:SettingsCard.HeaderIcon>
+                        <ImageIcon Source="ms-appx:///Assets/icon-256.png" />
+                    </controls:SettingsCard.HeaderIcon>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Uid="AboutBrandCard">
+                    <controls:SettingsCard.Header>
+                        <Image
+                            x:Uid="VoltageWordmark"
+                            Height="16"
+                            HorizontalAlignment="Left"
+                            Source="{ThemeResource VoltageWordmark}"
+                            Stretch="Uniform" />
+                    </controls:SettingsCard.Header>
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <HyperlinkButton x:Uid="DocsLink" NavigateUri="https://voltagesolutions.github.io/MagneticBorders/" />
+                        <HyperlinkButton x:Uid="SourceLink" NavigateUri="https://github.com/VoltageSolutions/MagneticBorders" />
+                        <HyperlinkButton x:Uid="IssueLink" NavigateUri="https://github.com/VoltageSolutions/MagneticBorders/issues" />
+                    </StackPanel>
+                </controls:SettingsCard>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!--  Ko-fi prompt, always visible at the bottom of the window  -->
+        <Grid
+            Grid.Row="2"
+            Padding="36,12"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+            BorderThickness="0,1,0,0"
+            ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock
+                x:Uid="KofiText"
+                VerticalAlignment="Center"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                TextWrapping="Wrap" />
+            <HyperlinkButton
+                x:Uid="KofiLink"
+                Grid.Column="1"
+                VerticalAlignment="Center"
+                NavigateUri="https://ko-fi.com/voltagesolutions" />
+        </Grid>
+    </Grid>
+</Window>

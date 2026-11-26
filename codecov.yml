@@ -1,0 +1,47 @@
+coverage:
+  # Set a minimum coverage threshold for PRs
+  status:
+    project:
+      default:
+        target: 40%
+        threshold: 0%
+    patch:
+      default:
+        target: 60%
+
+# One flag per target. CI only builds the parts a change touches, so a flag keeps its last report (carryforward)
+# when a pull request does not upload it.
+flag_management:
+  default_rules:
+    carryforward: true
+  individual_flags:
+    - name: cpp
+      paths:
+        - src/engines/cpp/
+    - name: rust
+      paths:
+        - src/engines/rust/
+    - name: dotnet
+      paths:
+        - src/engines/dotnet/
+    - name: settings
+      paths:
+        - src/settings/
+
+# Ignore specific files or directories
+ignore:
+  - "tests/**"
+  - "**/tests/**"
+  - "**/fixture-runner/**"
+  - "**/Generated/*"
+  - "**/generated/**"
+  - "**/obj/**"
+  - "**/bin/**"
+  - "**/build/**"
+  - "**/target/**"
+  - "**/*.g.cs"
+  - "**/*.g.i.cs"
+  - "**/*.designer.cs"
+  - "**/*.Designer.cs"
+
+comment: false
