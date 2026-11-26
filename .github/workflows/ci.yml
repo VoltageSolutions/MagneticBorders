@@ -1,0 +1,257 @@
+name: CI
+
+# Every build, lint, test, coverage and publish step calls tools/ci/run.ps1, the same entry point as local builds.
+# Every app is built on every change. The jobs have no `needs` between them, so they all run in parallel.
+# The docs build is docs-ci.yml. `CI result` is the one check to require.
+on:
+  pull_request:
+    branches: [main, 'release/**']
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  CARGO_TERM_COLOR: always
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check version sources
+        run: pwsh tools/ci/check-version.ps1
+
+  x64:
+    name: x64 (${{ matrix.target }})
+    runs-on: windows-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [cpp, rust, dotnet, settings]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        if: matrix.target == 'dotnet' || matrix.target == 'settings'
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      # rust-toolchain.toml pins the compiler, components and both Windows targets.
+      - name: Install Rust toolchain
+        if: matrix.target == 'rust'
+        working-directory: src/engines/rust
+        run: rustup toolchain install
+
+      - uses: actions/cache@v5
+        if: matrix.target == 'rust'
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            src/engines/rust/target
+          key: cargo-${{ runner.os }}-x64-${{ hashFiles('src/engines/rust/Cargo.lock', 'src/engines/rust/rust-toolchain.toml') }}
+          restore-keys: cargo-${{ runner.os }}-x64-
+
+      - uses: taiki-e/install-action@v2
+        if: matrix.target == 'rust'
+        with:
+          tool: cargo-llvm-cov
+
+      - uses: actions/cache@v5
+        if: matrix.target == 'cpp'
+        with:
+          path: src/engines/cpp/build/*/_deps
+          key: fetchcontent-${{ runner.os }}-x64-${{ hashFiles('src/engines/cpp/CMakeLists.txt') }}
+
+      - name: Install OpenCppCoverage
+        if: matrix.target == 'cpp'
+        run: choco install opencppcoverage --no-progress -y
+
+      - name: Restore
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps restore -Arch x64 -Ci
+
+      - name: Lint
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps lint -Arch x64 -Ci
+
+      - name: Build
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps build -Arch x64 -Ci
+
+      - name: Test
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps test -Arch x64 -Ci
+
+      - name: Coverage
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps coverage -Arch x64 -Ci
+
+      - name: Publish
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps publish -Arch x64 -Ci
+
+      # Forks have no CODECOV_TOKEN, so a failed upload must not fail the run.
+      - name: Upload coverage to Codecov
+        if: ${{ !cancelled() && hashFiles(format('artifacts/coverage/{0}.cobertura.xml', matrix.target)) != '' }}
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: artifacts/coverage/${{ matrix.target }}.cobertura.xml
+          flags: ${{ matrix.target }}
+          name: ${{ matrix.target }}
+          fail_ci_if_error: false
+
+      - name: Upload test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-${{ matrix.target }}
+          path: artifacts/test-results/${{ matrix.target }}
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload published build
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.target }}-x64
+          path: artifacts/${{ matrix.target }}/x64
+          retention-days: 14
+          if-no-files-found: error
+
+  # ARM64 is cross-compiled on the x64 runner (run.ps1 enters the MSVC arm64 environment). Tests, lint and coverage
+  # run on x64 only. If published builds should be tested on ARM64 later, switch `runs-on` to windows-11-arm.
+  arm64:
+    name: arm64 (${{ matrix.target }})
+    runs-on: windows-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [cpp, rust, dotnet, settings]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        if: matrix.target == 'dotnet' || matrix.target == 'settings'
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      - name: Install Rust toolchain
+        if: matrix.target == 'rust'
+        working-directory: src/engines/rust
+        run: rustup toolchain install
+
+      - uses: actions/cache@v5
+        if: matrix.target == 'rust'
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            src/engines/rust/target
+          key: cargo-${{ runner.os }}-arm64-${{ hashFiles('src/engines/rust/Cargo.lock', 'src/engines/rust/rust-toolchain.toml') }}
+          restore-keys: cargo-${{ runner.os }}-arm64-
+
+      - uses: actions/cache@v5
+        if: matrix.target == 'cpp'
+        with:
+          path: src/engines/cpp/build/*/_deps
+          key: fetchcontent-${{ runner.os }}-arm64-${{ hashFiles('src/engines/cpp/CMakeLists.txt') }}
+
+      - name: Restore
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps restore -Arch arm64 -Ci
+
+      - name: Build
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps build -Arch arm64 -Ci
+
+      - name: Publish
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps publish -Arch arm64 -Ci
+
+      - name: Upload published build
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.target }}-arm64
+          path: artifacts/${{ matrix.target }}/arm64
+          retention-days: 14
+          if-no-files-found: error
+
+  # The three engines must print identical final frames for every fixture. This job builds the fixture runners
+  # itself (restore and build through run.ps1), so it works when only one engine changed.
+  parity:
+    name: Parity
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      - name: Install Rust toolchain
+        working-directory: src/engines/rust
+        run: rustup toolchain install
+
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            src/engines/rust/target
+          key: cargo-${{ runner.os }}-x64-${{ hashFiles('src/engines/rust/Cargo.lock', 'src/engines/rust/rust-toolchain.toml') }}
+          restore-keys: cargo-${{ runner.os }}-x64-
+
+      - uses: actions/cache@v5
+        with:
+          path: src/engines/cpp/build/*/_deps
+          key: fetchcontent-${{ runner.os }}-x64-${{ hashFiles('src/engines/cpp/CMakeLists.txt') }}
+
+      - name: Build C++ fixture runner
+        run: pwsh tools/ci/run.ps1 -Target cpp -Steps restore,build -Arch x64 -Ci
+
+      - name: Build Rust fixture runner
+        run: pwsh tools/ci/run.ps1 -Target rust -Steps restore,build -Arch x64 -Ci
+
+      - name: Build C# fixture runner
+        run: pwsh tools/ci/run.ps1 -Target dotnet -Steps restore,build -Arch x64 -Ci
+
+      - name: Compare engine output
+        run: pwsh tools/ci/parity.ps1
+
+  result:
+    name: CI result
+    needs: [version, x64, arm64, parity]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail when a required job failed
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        shell: bash
+        run: |
+          echo "::error title=CI failed::At least one CI job failed or was cancelled."
+          exit 1
+
+      - name: All jobs passed or were skipped
+        shell: bash
+        run: echo "All CI jobs passed or were skipped because they did not apply."

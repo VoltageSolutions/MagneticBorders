@@ -1,0 +1,8 @@
+# Neighbour has a 1600px minimum: seam stops at 1840, dragged window snaps back to it
+workarea 0,0 3440x1440
+win A 0,0 1720x1440
+win B 1720,0 1720x1440 min 1600x200
+drag A right +300
+expect A 0,0 1840x1440
+expect B 1840,0 1600x1440
+expect clamp 1840

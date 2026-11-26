@@ -1,0 +1,7 @@
+# Two rows with an 8px gap; drag the top window's bottom edge
+workarea 0,0 3440x1440
+win A 0,0 3440x700
+win B 0,708 3440x732
+drag A bottom +100
+expect A 0,0 3440x800
+expect B 0,808 3440x632

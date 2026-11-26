@@ -1,0 +1,3 @@
+# Test projects only: xUnit names read best as Method_Scenario_Expected, so CA1707 is off here.
+[*.cs]
+dotnet_diagnostic.CA1707.severity = none

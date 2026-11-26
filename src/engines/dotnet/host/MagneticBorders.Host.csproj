@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <AssemblyName>MagneticBorders.Net</AssemblyName>
+    <RootNamespace>MagneticBorders.Host</RootNamespace>
+    <AssemblyTitle>Magnetic Borders</AssemblyTitle>
+    <ApplicationIcon>..\..\..\common\assets\icon.ico</ApplicationIcon>
+    <PublishAot>true</PublishAot>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <AllowedReferenceRelatedFileExtensions>.pdb</AllowedReferenceRelatedFileExtensions>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(ContinuousIntegrationBuild)' == 'true'">
+    <LinkerArg Include="/Brepro" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <ProjectReference Include="..\win32\MagneticBorders.Win32.csproj" />
+  </ItemGroup>
+</Project>

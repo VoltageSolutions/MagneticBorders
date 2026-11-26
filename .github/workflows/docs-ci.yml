@@ -1,0 +1,40 @@
+name: Docs CI
+
+# Strict docs build on pull requests: fails on broken links and nav errors. docs-cd.yml deploys from main.
+on:
+  pull_request:
+    branches: [main, 'release/**']
+    paths:
+      - 'docs/**'
+      - 'zensical.toml'
+      - 'tools/ci/**'
+      - '.github/workflows/docs-ci.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: docs-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  build:
+    name: Docs strict build
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: docs/requirements.txt
+
+      - name: Strict build
+        run: pwsh tools/ci/run.ps1 -Target docs -Steps restore,lint -Arch x64 -Ci

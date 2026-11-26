@@ -1,0 +1,173 @@
+name: CD
+
+# A merged release branch lands on main. When v<version> has no release yet, this builds every engine and the
+# settings app for x64 and arm64, packages the primary C++ zips plus Rust and C# comparison zips per architecture, and creates a DRAFT GitHub release.
+# Publish the draft by hand. Publishing it fires release-branch.yml, which opens the next release branch.
+# Builds are not tested again here: the pull request already ran CI.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'zensical.toml'
+      - '**/*.md'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build and package, but do not create the draft release
+        type: boolean
+        default: false
+
+concurrency:
+  group: cd
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  CARGO_TERM_COLOR: always
+
+jobs:
+  prepare:
+    name: Version
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # write: a draft release is only visible to a token that can push, and the lookup below must see drafts.
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      skip: ${{ steps.exists.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read version
+        id: version
+        run: pwsh tools/ci/check-version.ps1
+
+      - name: Look for an existing release
+        id: exists
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh release view "v${VERSION}" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice title=No release::Release v${VERSION} already exists; nothing to build."
+            echo "Release v${VERSION} already exists; nothing was built." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    name: Publish ${{ matrix.target }} ${{ matrix.arch }}
+    needs: prepare
+    if: needs.prepare.outputs.skip != 'true'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: true
+      matrix:
+        target: [cpp, rust, dotnet, settings]
+        arch: [x64, arm64]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        if: matrix.target == 'dotnet' || matrix.target == 'settings'
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      - name: Install Rust toolchain
+        if: matrix.target == 'rust'
+        working-directory: src/engines/rust
+        run: rustup toolchain install
+
+      - name: Restore, build and publish
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps restore,build,publish -Arch ${{ matrix.arch }} -Ci
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: publish-${{ matrix.target }}-${{ matrix.arch }}
+          path: artifacts/${{ matrix.target }}/${{ matrix.arch }}
+          retention-days: 14
+          if-no-files-found: error
+
+  package:
+    name: Package
+    needs: [prepare, publish]
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: publish-*
+          path: artifacts/in
+
+      # TODO: code signing. Sign the engine exes and the settings app exe and dlls here, before the zips are made.
+      - name: Package
+        run: pwsh tools/ci/package.ps1 -Version $env:VERSION -InputDir artifacts/in -OutDir artifacts/release
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release
+          path: |
+            artifacts/release/*.zip
+            artifacts/release/SHA256SUMS.txt
+          retention-days: 14
+          if-no-files-found: error
+
+  draft-release:
+    name: Draft GitHub release
+    needs: [prepare, package]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release
+          path: release
+
+      - name: Create draft release
+        shell: bash
+        run: |
+          notes="## Download
+
+          Pick the x64 or arm64 zip: MagneticBorders-${VERSION}-x64.zip or MagneticBorders-${VERSION}-arm64.zip.
+          Most PCs are x64. Windows on Arm devices use arm64.
+          Each zip holds the app in engine/, the settings app in settings/, LICENSE and README.md.
+          Verify downloads with SHA256SUMS.txt.
+
+          ## Comparison builds
+
+          The -rust and -dotnet zips are Rust and C# builds of the same app, for performance comparison.
+          Run only one build at a time."
+          gh release create "v${VERSION}" --repo "$GITHUB_REPOSITORY" --draft --target "$GITHUB_SHA" \
+            --title "v${VERSION}" --notes "$notes" \
+            release/*.zip release/SHA256SUMS.txt
+
+  # TODO: Microsoft Store job (needs: package), not implemented yet.
+  #   - Build an MSIX for the C++ build only (x64 and arm64), from the published C++ engine and settings app.
+  #   - Combine both MSIX packages into one x64+arm64 .msixbundle (MakeAppx.exe bundle).
+  #   - Sign the package and bundle (certificate in a secret, signtool), then submit to Partner Center.

@@ -1,0 +1,24 @@
+[package]
+name = "mb-host"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "magnetic-borders-rs"
+path = "src/main.rs"
+
+[dependencies]
+mb-core.workspace = true
+mb-app.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+mb-win32.workspace = true
+
+[build-dependencies]
+embed-resource = "=3.0.12"
+
+[lints]
+workspace = true

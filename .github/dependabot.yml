@@ -1,0 +1,27 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: nuget
+    directories:
+      - /src/engines/dotnet
+      - /src/settings
+    schedule:
+      interval: monthly
+    groups:
+      nuget-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: cargo
+    directory: /src/engines/rust
+    schedule:
+      interval: monthly
+    groups:
+      cargo-minor-patch:
+        update-types: [minor, patch]

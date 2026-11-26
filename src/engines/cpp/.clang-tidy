@@ -1,0 +1,55 @@
+---
+# Static analysis for the C++ engine. Every finding is an error. Suppress a single line with
+# NOLINT(check-name) and a reason, never a whole file.
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  -modernize-avoid-c-arrays,
+  -modernize-use-designated-initializers,
+  performance-*,
+  -performance-enum-size,
+  -performance-no-int-to-ptr,
+  readability-container-contains,
+  readability-container-size-empty,
+  readability-convert-member-functions-to-static,
+  readability-delete-null-pointer,
+  readability-else-after-return,
+  readability-make-member-function-const,
+  readability-misleading-indentation,
+  readability-non-const-parameter,
+  readability-redundant-control-flow,
+  readability-redundant-declaration,
+  readability-redundant-member-init,
+  readability-redundant-string-cstr,
+  readability-redundant-string-init,
+  readability-simplify-boolean-expr,
+  readability-string-compare,
+  readability-uniqueptr-delete-release,
+  readability-use-anyofallof,
+  readability-qualified-auto,
+  cppcoreguidelines-init-variables,
+  cppcoreguidelines-prefer-member-initializer,
+  cppcoreguidelines-pro-type-member-init,
+  cppcoreguidelines-special-member-functions,
+  cppcoreguidelines-virtual-class-destructor,
+  cppcoreguidelines-slicing,
+  cppcoreguidelines-no-malloc,
+  cppcoreguidelines-owning-memory,
+  cppcoreguidelines-misleading-capture-default-by-value,
+  cppcoreguidelines-avoid-goto
+WarningsAsErrors: '*'
+HeaderFilterRegex: '.*[/\\]cpp[/\\](core|app|win32|host|fixture-runner|tests)[/\\].*'
+FormatStyle: none
+CheckOptions:
+  - key: cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
+    value: true
+  - key: cppcoreguidelines-special-member-functions.AllowMissingMoveFunctionsWhenCopyIsDeleted
+    value: true
+  - key: modernize-use-nodiscard.ReplacementString
+    value: '[[nodiscard]]'
+  - key: performance-move-const-arg.CheckTriviallyCopyableMove
+    value: false
