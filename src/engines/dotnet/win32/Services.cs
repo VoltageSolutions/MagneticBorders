@@ -150,7 +150,8 @@ public static class PipeClient
             c.Write(b, 0, b.Length);
             c.Flush();
             using var cts = new CancellationTokenSource(1000);
-            return new StreamReader(c, enc).ReadLineAsync(cts.Token).AsTask().GetAwaiter().GetResult();
+            using var reader = new StreamReader(c, enc);
+            return reader.ReadLineAsync(cts.Token).AsTask().GetAwaiter().GetResult();
         }
         catch { return null; }
     }
