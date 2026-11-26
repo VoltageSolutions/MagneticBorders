@@ -1,5 +1,4 @@
 using MagneticBorders.Settings.Core;
-using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -18,9 +17,6 @@ public sealed partial class MainWindow : Window
     /// <summary>Native window handle, used for DPI and foreground calls.</summary>
     private readonly nint _hwnd;
 
-    /// <summary>The window's presenter, created here so its state can be read without a type test.</summary>
-    private readonly OverlappedPresenter _presenter;
-
     /// <summary>Shared view model, the source for x:Bind in MainWindow.xaml.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "x:Bind needs an instance property.")]
     public SettingsViewModel ViewModel => App.ViewModel;
@@ -33,9 +29,6 @@ public sealed partial class MainWindow : Window
         Title = Fmt.Get("WindowTitle");
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
-        // Keep our own presenter: `AppWindow.Presenter is OverlappedPresenter` is false in the Native AOT build.
-        _presenter = OverlappedPresenter.Create();
-        AppWindow.SetPresenter(_presenter);
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico"));
         var s = ScaleFor(_hwnd);
         AppWindow.Resize(new SizeInt32((int)(920 * s), (int)(780 * s)));
@@ -45,7 +38,7 @@ public sealed partial class MainWindow : Window
     /// <summary>Restores the window if minimized, shows it and takes the foreground.</summary>
     public void Bring()
     {
-        if (_presenter.State == OverlappedPresenterState.Minimized) _presenter.Restore();
+        if (IsIconic(_hwnd)) ShowWindow(_hwnd, SW_RESTORE);   // Win32, no presenter type test (unreliable under Native AOT)
         AppWindow.Show();
         Activate();
         SetForegroundWindow(_hwnd);
