@@ -9,7 +9,7 @@
   Each zip holds:
     engine/<engine exe>     the engine (it finds the settings app in ..\settings)
     settings/               the settings app folder (no .pdb files)
-    LICENSE.md
+    LICENSE
     README.md
   Inputs come from `pwsh tools/ci/run.ps1 -Target <t> -Steps publish -Arch <a>`: <InputDir>/<t>/<a>. A folder named
   publish-<t>-<a> in <InputDir> (as download-artifact creates) is accepted too.
@@ -68,7 +68,7 @@ foreach ($a in $Arch) {
         New-Item -ItemType Directory -Force -Path $dest | Out-Null
         Get-ChildItem -LiteralPath $settings -Force | Where-Object { $_.Extension -ne '.pdb' } | Copy-Item -Destination $dest -Recurse -Force
         Get-ChildItem -LiteralPath $dest -Recurse -Filter '*.pdb' -File | Remove-Item -Force
-        foreach ($doc in 'LICENSE.md', 'README.md') { Copy-Item -LiteralPath (Join-Path $RepoRoot $doc) -Destination $stage }
+        foreach ($doc in 'LICENSE', 'README.md') { Copy-Item -LiteralPath (Join-Path $RepoRoot $doc) -Destination $stage }
 
         $zip = Join-Path $OutDir "$name.zip"
         if (Test-Path $zip) { Remove-Item -Force $zip }

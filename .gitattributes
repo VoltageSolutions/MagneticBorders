@@ -4,5 +4,7 @@
 *.slnx text eol=crlf
 *.layout text eol=lf
 *.sh text eol=lf
+# rustfmt.toml sets newline_style = "Unix"; without this, Git on Windows runners checks .rs files out with CRLF.
+*.rs text eol=lf
 *.ico binary
 *.png binary

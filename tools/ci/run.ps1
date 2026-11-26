@@ -13,11 +13,15 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][ValidateSet('cpp', 'rust', 'dotnet', 'settings', 'docs')][string]$Target,
-    [ValidateSet('restore', 'lint', 'build', 'test', 'coverage', 'publish')][string[]]$Steps = @('restore', 'lint', 'build', 'test'),
+    # Not a ValidateSet: `pwsh run.ps1 -Steps restore,lint` (how the workflows call it) passes one string, "restore,lint".
+    [string[]]$Steps = @('restore', 'lint', 'build', 'test'),
     [ValidateSet('x64', 'arm64')][string]$Arch = 'x64',
     [switch]$Ci
 )
 $ErrorActionPreference = 'Stop'
+$Steps = @($Steps | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+$known = 'restore', 'lint', 'build', 'test', 'coverage', 'publish'
+foreach ($s in $Steps) { if ($s -notin $known) { throw "Unknown step '$s'. Use one or more of: $($known -join ', ')." } }
 . (Join-Path $PSScriptRoot 'common.ps1')
 
 $ctx = New-CiContext -Target $Target -Arch $Arch -Ci:$Ci

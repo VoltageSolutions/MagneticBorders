@@ -1,6 +1,6 @@
 ## This application
 
-Magnetic Borders is an open source application. Voltage Solutions provides it under the [MIT License](LICENSE.md).
+Magnetic Borders is an open source application. Voltage Solutions provides it under the [MIT License](LICENSE).
 
 ## Acknowledgements
 
