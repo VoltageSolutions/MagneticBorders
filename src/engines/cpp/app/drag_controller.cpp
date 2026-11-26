@@ -223,9 +223,18 @@ void DragController::begin_move() {
     cfg.max_speed = o.max_speed * scale;
     cfg.screen_edges = o.screen_edges;
     cfg.windows = o.windows;
-    std::vector<Rect> others;
-    for (const auto& w : snapshot_.windows)
-        if (w.id != dragged_) others.push_back(w.frame);
+    std::vector<TargetWindow> others;
+    for (const auto& w : snapshot_.windows) {
+        if (w.id == dragged_) continue;
+        // SNAP-038: only the parts of w that the windows above it leave visible attract. The dragged window moves,
+        // so it never counts as covering anything.
+        std::vector<Rect> above;
+        for (const auto& [id, frame] : snapshot_.stack) {
+            if (id == w.id) break;
+            if (id != dragged_) above.push_back(frame);
+        }
+        others.push_back(make_target(w.frame, above));
+    }
     const SideTargets sides = screen_side_targets(snapshot_.work_area, snapshot_.work_areas);
     attraction_.emplace(cfg, std::move(others), snapshot_.work_area, sides);
     last_free_ = start_frame_;

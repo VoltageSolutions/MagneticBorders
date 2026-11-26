@@ -91,7 +91,7 @@ TEST(Attraction, ANegativePullInDistanceIsTreatedAsZero) {
 }
 
 TEST(Attraction, AFastMoveDoesNotStartASnap) {  // SNAP-012, SNAP-040
-    Attraction a({}, {}, kWork, {});
+    Attraction a({}, std::vector<Rect>{}, kWork, {});
     (void)a.update(box(500, 400), 0);
     const Rect out = a.update(box(10, 400), 10);  // 49 000 px/s
     EXPECT_EQ(out, box(10, 400));
@@ -100,10 +100,10 @@ TEST(Attraction, AFastMoveDoesNotStartASnap) {  // SNAP-012, SNAP-040
 }
 
 TEST(Attraction, TheSnappingSpeedIsInclusive) {  // SNAP-012
-    Attraction at({}, {}, kWork, {});
+    Attraction at({}, std::vector<Rect>{}, kWork, {});
     (void)at.update(box(40, 400), 0);
     EXPECT_EQ(at.update(box(10, 400), 50), box(0, 400));  // exactly 600 px/s
-    Attraction over({}, {}, kWork, {});
+    Attraction over({}, std::vector<Rect>{}, kWork, {});
     (void)over.update(box(41, 400), 0);
     EXPECT_EQ(over.update(box(10, 400), 50), box(10, 400));  // 620 px/s
 }
@@ -111,7 +111,7 @@ TEST(Attraction, TheSnappingSpeedIsInclusive) {  // SNAP-012
 TEST(Attraction, TheSpeedLimitScalesWithTheConfig) {  // SNAP-012
     AttractionConfig c;
     c.max_speed = 1000.0;
-    Attraction a(c, {}, kWork, {});
+    Attraction a(c, std::vector<Rect>{}, kWork, {});
     (void)a.update(box(50, 400), 0);
     EXPECT_EQ(a.update(box(10, 400), 50), box(0, 400));  // 800 px/s is within 1000
 }
@@ -125,7 +125,7 @@ TEST(Attraction, ASpeedLimitDoesNotReleaseAHeldEdge) {  // SNAP-014
 }
 
 TEST(Attraction, TheSpeedIsZeroAtTheStartAndMeasuredOverTheLast80Ms) {  // SNAP-013
-    Attraction a({}, {}, kWork, {});
+    Attraction a({}, std::vector<Rect>{}, kWork, {});
     EXPECT_EQ(a.speed(), 0.0);
     (void)a.update(box(500, 400), 1000);
     EXPECT_EQ(a.speed(), 0.0);  // a single position
@@ -136,7 +136,7 @@ TEST(Attraction, TheSpeedIsZeroAtTheStartAndMeasuredOverTheLast80Ms) {  // SNAP-
 }
 
 TEST(Attraction, WithFewerThanTwoPositionsTheLastSpeedIsKept) {  // SNAP-013
-    Attraction a({}, {}, kWork, {});
+    Attraction a({}, std::vector<Rect>{}, kWork, {});
     (void)a.update(box(500, 400), 1000);
     (void)a.update(box(510, 400), 1010);
     EXPECT_DOUBLE_EQ(a.speed(), 1000.0);
@@ -382,4 +382,67 @@ TEST(Attraction, OnlyOneEdgePerAxisIsHeldAndItStaysUntilReleased) {  // SNAP-021
     EXPECT_EQ(r.step(box(6, 350)),
               box(0, 350));  // right edge is now 3 from w.l, but left stays held
     EXPECT_EQ(r.a.snaps(), 1u);
+}
+
+TEST(AttractionTarget, EdgesAreFullyVisibleWithNothingAbove) {  // SNAP-038
+    const TargetWindow t = make_target(kW, {});
+    EXPECT_EQ(t.visible[static_cast<int>(Edge::Left)], (std::vector<Span>{{300, 500}}));
+    EXPECT_EQ(t.visible[static_cast<int>(Edge::Top)], (std::vector<Span>{{300, 500}}));
+    EXPECT_EQ(t.visible[static_cast<int>(Edge::Right)], (std::vector<Span>{{300, 500}}));
+    EXPECT_EQ(t.visible[static_cast<int>(Edge::Bottom)], (std::vector<Span>{{300, 500}}));
+}
+
+TEST(AttractionTarget, AWindowAboveCutsTheEdgesItCovers) {  // SNAP-038
+    // Covers the middle of the right edge (column 499) and nothing else.
+    const std::vector<Rect> above{{450, 350, 700, 400}};
+    const TargetWindow t = make_target(kW, above);
+    EXPECT_EQ(t.visible[static_cast<int>(Edge::Right)],
+              (std::vector<Span>{{300, 350}, {400, 500}}));
+    EXPECT_EQ(t.visible[static_cast<int>(Edge::Left)], (std::vector<Span>{{300, 500}}));
+    EXPECT_EQ(t.visible[static_cast<int>(Edge::Top)], (std::vector<Span>{{300, 500}}));
+}
+
+TEST(AttractionTarget, AWindowThatOnlyTouchesTheEdgeDoesNotCoverIt) {  // SNAP-038
+    // Starts at x 500, the first column right of the window: the right edge (column 499) stays visible.
+    const std::vector<Rect> above{{500, 300, 700, 500}};
+    const TargetWindow t = make_target(kW, above);
+    EXPECT_EQ(t.visible[static_cast<int>(Edge::Right)], (std::vector<Span>{{300, 500}}));
+}
+
+TEST(AttractionTarget, AFullyCoveredWindowHasNoVisibleEdges) {  // SNAP-038
+    const std::vector<Rect> above{{0, 0, 1000, 800}};
+    const TargetWindow t = make_target(kW, above);
+    for (const auto& spans : t.visible) EXPECT_TRUE(spans.empty());
+}
+
+TEST(Attraction, AHiddenWindowDoesNotAttract) {  // SNAP-038
+    const std::vector<Rect> cover{{200, 200, 700, 700}};
+    Attraction a(only(false, true), {make_target(kW, cover)}, kWork, {});
+    // The left edge is 10 px right of the hidden window's right edge.
+    EXPECT_EQ(a.update(box(510, 350), 100), box(510, 350));
+    EXPECT_FALSE(a.held());
+}
+
+TEST(Attraction, OnlyTheVisiblePartOfAnEdgeAttracts) {  // SNAP-038
+    // The window's right edge is covered from y 300 to 450; only 450..500 shows.
+    const std::vector<Rect> cover{{400, 280, 600, 450}};
+    Attraction high(only(false, true), {make_target(kW, cover)}, kWork, {});
+    // Next to the covered part (y 300..400, 16 px pull-in reaches 416): no snap.
+    EXPECT_EQ(high.update(box(510, 300), 100), box(510, 300));
+    EXPECT_FALSE(high.held());
+    Attraction low(only(false, true), {make_target(kW, cover)}, kWork, {});
+    // Next to the visible part (y 420..520): snaps.
+    EXPECT_EQ(low.update(box(510, 420), 100), box(500, 420));
+    EXPECT_TRUE(low.held());
+}
+
+TEST(Attraction, AlignedNeedsTheFacingEdgeVisible) {  // SNAP-034, SNAP-038
+    // Dragged window stacked below kW, its left edge 5 px off kW's left edge.
+    const Rect free{305, 500, 405, 600};
+    Attraction visible(only(false, true), {make_target(kW, {})}, kWork, {});
+    EXPECT_EQ(visible.update(free, 100).l, 300);
+    // Cover kW's bottom edge: no longer stacked against anything visible.
+    const std::vector<Rect> cover{{250, 450, 550, 520}};
+    Attraction hidden(only(false, true), {make_target(kW, cover)}, kWork, {});
+    EXPECT_EQ(hidden.update(free, 100).l, 305);
 }

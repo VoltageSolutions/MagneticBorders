@@ -703,3 +703,21 @@ TEST_F(MoveFixture, AnAlignedHoldIsLogged) {  // SNAP-034, SNAP-060
     move_to({505, 410, 705, 610});  // below window 2, left edge 5 px from its left edge
     EXPECT_TRUE(log.contains("target=aligned"));
 }
+
+TEST_F(MoveFixture, AWindowHiddenBehindAnotherDoesNotAttract) {  // SNAP-038
+    // Window 3 sits above window 2 and covers it completely.
+    inv.snap.stack = {
+        {1, inv.snap.windows[0].frame}, {3, {450, 150, 750, 450}}, {2, inv.snap.windows[1].frame}};
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    EXPECT_TRUE(mover.batches.empty());
+}
+
+TEST_F(MoveFixture, TheDraggedWindowNeverCoversATarget) {  // SNAP-038
+    // The dragged window is on top and overlaps window 2's left edge at drag start.
+    inv.snap.stack = {{1, {450, 200, 650, 400}}, {2, inv.snap.windows[1].frame}};
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    ASSERT_EQ(mover.batches.size(), 1u);
+    EXPECT_EQ(mover.batches[0][0].frame, kHeld);
+}

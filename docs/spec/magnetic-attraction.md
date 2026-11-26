@@ -47,6 +47,7 @@ All distances are in effective pixels and are scaled by the DPI of the dragged w
 | SNAP-034 | **Aligned:** the dragged window's left side must target another window's left side, and right must target right (top and bottom likewise), only when the two windows are stacked: the other axis has an edge-to-edge gap within the pull-in distance. |
 | SNAP-035 | An edge-to-edge or aligned target must stop being a target as soon as its condition no longer holds. A held edge on such a target is released, for example when the window slides off the end of the other window. |
 | SNAP-036 | Windows that overlap the dragged window must not create inner targets: no left-to-left or top-to-top target unless SNAP-034 holds. |
+| SNAP-038 | Only the visible parts of another window may attract. An edge pixel is hidden when a window above the target in the z-order covers it: a visible, not minimized, uncloaked window that is not click-through (`WS_EX_TRANSPARENT`). The dragged window never counts as covering. An edge-to-edge target needs its edge visible within the pull-in distance of the dragged window's span. An aligned target needs the edge the dragged window is stacked against visible within the pull-in distance of the dragged window's span. |
 | SNAP-037 | When several targets on one axis are within the pull-in distance, the nearest one must win. A tie must go to a window over a screen edge. |
 
 ## Holding and releasing

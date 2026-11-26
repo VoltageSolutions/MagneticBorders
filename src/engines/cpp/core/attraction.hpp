@@ -69,6 +69,29 @@ struct SideTargets {
 /// (within 1 px) with an overlapping span (SNAP-031). `work` itself, found in `all`, is skipped.
 [[nodiscard]] SideTargets screen_side_targets(const Rect& work, std::span<const Rect> all);
 
+/// A half-open span [lo, hi) along an edge.
+struct Span {
+    /// First coordinate.
+    int lo{};
+    /// One past the last coordinate.
+    int hi{};
+    /// Member-wise equality.
+    bool operator==(const Span&) const = default;
+};
+
+/// Another window as a target: its frame and, for each edge (indexed by Edge), the parts of that edge that are not
+/// covered by windows above it in the z-order (SNAP-038).
+struct TargetWindow {
+    /// Visual frame.
+    Rect frame{};
+    /// Visible spans of the left, top, right and bottom edges, in Edge order.
+    std::array<std::vector<Span>, 4> visible;
+};
+
+/// Builds a target from a frame and the frames of the windows above it. An edge pixel is covered when it lies inside
+/// one of `above` (SNAP-038). With no windows above, every edge is fully visible.
+[[nodiscard]] TargetWindow make_target(const Rect& frame, std::span<const Rect> above);
+
 /// One engage or release, for the log (SNAP-060).
 struct AttractionEvent {
     /// True when an edge started being held, false when it was released.
@@ -92,7 +115,10 @@ class Attraction {
 public:
     /// Creates the attraction. `others` are the frames of the other eligible windows on the same monitor, `work`
     /// is the work area of that monitor and `sides` tells which of its sides are targets.
-    Attraction(const AttractionConfig& config, std::vector<Rect> others, const Rect& work,
+    Attraction(const AttractionConfig& config, std::vector<TargetWindow> others, const Rect& work,
+               const SideTargets& sides);
+    /// Convenience for windows with nothing above them: every edge of `others` is fully visible.
+    Attraction(const AttractionConfig& config, const std::vector<Rect>& others, const Rect& work,
                const SideTargets& sides);
 
     /// Takes the free position at time `now_ms` and returns the held position: the free position with each held
@@ -158,16 +184,17 @@ private:
     /// Finds the best target for a free edge of the axis, or nullopt.
     [[nodiscard]] std::optional<Candidate> best_candidate(bool vertical, const Rect& ref,
                                                           const Rect& free) const;
-    /// True when a window target still satisfies its condition (SNAP-033, SNAP-034).
-    [[nodiscard]] bool window_target_valid(bool vertical, TargetKind kind, const Rect& ref,
-                                           const Rect& other) const;
+    /// True when a window target for `edge` still satisfies its condition (SNAP-033, SNAP-034) and the part of
+    /// the other window it depends on is visible near the dragged window (SNAP-038).
+    [[nodiscard]] bool window_target_valid(Edge edge, TargetKind kind, const Rect& ref,
+                                           const TargetWindow& other) const;
     /// Releases the held edge of the axis and blocks its line (SNAP-042).
     void release(Axis& axis, ReleaseReason reason);
     /// True when `line` is blocked for `edge`.
     [[nodiscard]] bool blocked(Edge edge, int line) const;
 
     AttractionConfig cfg_;
-    std::vector<Rect> others_;
+    std::vector<TargetWindow> others_;
     Rect work_;
     SideTargets sides_;
     Axis x_;

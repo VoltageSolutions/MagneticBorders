@@ -3,6 +3,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "core/geometry.hpp"
@@ -17,6 +18,9 @@ struct Snapshot {
     Rect work_area{};
     /// Work areas of every monitor, the dragged window's one included; tells which screen sides touch another monitor.
     std::vector<Rect> work_areas;
+    /// Every visible, uncloaked, not minimized top-level window that hides what is below it, in z-order from the top,
+    /// on any monitor. Magnetic attraction uses it to find which parts of other windows can be seen (SNAP-038).
+    std::vector<std::pair<WindowId, Rect>> stack;
     /// DPI of the dragged window divided by 96; scales the glue tolerance and the snap distances.
     double dpi_scale{1.0};
 };

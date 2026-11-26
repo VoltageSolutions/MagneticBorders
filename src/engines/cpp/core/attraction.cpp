@@ -35,6 +35,35 @@ bool better(int a_dist, TargetKind a_kind, int b_dist, TargetKind b_kind) {
 }
 }  // namespace
 
+TargetWindow make_target(const Rect& frame, std::span<const Rect> above) {
+    TargetWindow t{frame, {}};
+    for (const Edge e : {Edge::Left, Edge::Top, Edge::Right, Edge::Bottom}) {
+        const bool vertical = is_vertical_line(e);
+        // The edge's own row or column of pixels, inside the frame (r and b are exclusive).
+        const int at = e == Edge::Right    ? frame.r - 1
+                       : e == Edge::Bottom ? frame.b - 1
+                                           : edge_coord(frame, e);
+        std::vector<Span> spans{vertical ? Span{frame.t, frame.b} : Span{frame.l, frame.r}};
+        for (const Rect& o : above) {
+            const bool crosses = vertical ? (o.l <= at && at < o.r) : (o.t <= at && at < o.b);
+            if (!crosses) continue;
+            const Span cut = vertical ? Span{o.t, o.b} : Span{o.l, o.r};
+            std::vector<Span> next;
+            for (const Span& s : spans) {
+                if (cut.hi <= s.lo || s.hi <= cut.lo) {
+                    next.push_back(s);
+                    continue;
+                }
+                if (s.lo < cut.lo) next.push_back({s.lo, cut.lo});
+                if (cut.hi < s.hi) next.push_back({cut.hi, s.hi});
+            }
+            spans = std::move(next);
+        }
+        t.visible.at(static_cast<std::size_t>(e)) = std::move(spans);
+    }
+    return t;
+}
+
 SideTargets screen_side_targets(const Rect& work, std::span<const Rect> all) {
     SideTargets s;
     for (const Rect& o : all) {
@@ -49,12 +78,25 @@ SideTargets screen_side_targets(const Rect& work, std::span<const Rect> all) {
     return s;
 }
 
-Attraction::Attraction(const AttractionConfig& config, std::vector<Rect> others, const Rect& work,
-                       const SideTargets& sides)
+Attraction::Attraction(const AttractionConfig& config, std::vector<TargetWindow> others,
+                       const Rect& work, const SideTargets& sides)
     : cfg_(config), others_(std::move(others)), work_(work), sides_(sides) {
     cfg_.pull_in = std::max(cfg_.pull_in, 0);
     cfg_.breakaway = std::max(cfg_.breakaway, cfg_.pull_in);  // SNAP-043
 }
+
+namespace {
+std::vector<TargetWindow> unoccluded(const std::vector<Rect>& frames) {
+    std::vector<TargetWindow> out;
+    out.reserve(frames.size());
+    for (const Rect& f : frames) out.push_back(make_target(f, {}));
+    return out;
+}
+}  // namespace
+
+Attraction::Attraction(const AttractionConfig& config, const std::vector<Rect>& others,
+                       const Rect& work, const SideTargets& sides)
+    : Attraction(config, unoccluded(others), work, sides) {}
 
 std::vector<AttractionEvent> Attraction::take_events() { return std::exchange(events_, {}); }
 
@@ -75,20 +117,37 @@ bool Attraction::blocked(Edge edge, int line) const {
     return std::ranges::find(lines, line) != lines.end();
 }
 
-bool Attraction::window_target_valid(bool vertical, TargetKind kind, const Rect& ref,
-                                     const Rect& other) const {
+bool Attraction::window_target_valid(Edge edge, TargetKind kind, const Rect& ref,
+                                     const TargetWindow& target) const {
+    const bool vertical = is_vertical_line(edge);
+    const Rect& other = target.frame;
     // The other axis of a vertical line is y, and the other axis of a horizontal line is x.
     const int d_lo = vertical ? ref.t : ref.l;
     const int d_hi = vertical ? ref.b : ref.r;
     const int w_lo = vertical ? other.t : other.l;
     const int w_hi = vertical ? other.b : other.r;
+    // The edge of the other window this target depends on, and the span of the dragged window along it.
+    Edge needed = opposite(edge);
+    int near_lo = d_lo - cfg_.pull_in;
+    int near_hi = d_hi + cfg_.pull_in;
     if (kind == TargetKind::EdgeToEdge) {
         const int gap = std::max(d_lo - w_hi, w_lo - d_hi);  // negative while they overlap
-        return gap <= cfg_.pull_in;
+        if (gap > cfg_.pull_in) return false;
+    } else if (kind == TargetKind::Aligned) {
+        const int below = std::abs(d_lo - w_hi);  // dragged window below (or right of) the other
+        const int above = std::abs(d_hi - w_lo);
+        if (std::min(below, above) > cfg_.pull_in) return false;
+        // Stacked: the facing edge of the other window must be visible where the dragged window is.
+        needed = below <= above ? (vertical ? Edge::Bottom : Edge::Right)
+                                : (vertical ? Edge::Top : Edge::Left);
+        near_lo = (vertical ? ref.l : ref.t) - cfg_.pull_in;
+        near_hi = (vertical ? ref.r : ref.b) + cfg_.pull_in;
+    } else {
+        return true;
     }
-    if (kind == TargetKind::Aligned)
-        return std::min(std::abs(d_lo - w_hi), std::abs(d_hi - w_lo)) <= cfg_.pull_in;
-    return true;
+    const auto& spans = target.visible.at(static_cast<std::size_t>(needed));
+    return std::ranges::any_of(spans,
+                               [&](const Span& s) { return s.lo < near_hi && near_lo < s.hi; });
 }
 
 std::optional<Attraction::Candidate> Attraction::best_candidate(bool vertical, const Rect& ref,
@@ -105,12 +164,12 @@ std::optional<Attraction::Candidate> Attraction::best_candidate(bool vertical, c
             consider(edge, edge_coord(work_, edge), TargetKind::Screen, -1);
         if (!cfg_.windows) continue;
         for (std::size_t i = 0; i < others_.size(); ++i) {
-            const Rect& w = others_[i];
+            const TargetWindow& w = others_[i];
             const auto index = static_cast<int>(i);
-            if (window_target_valid(vertical, TargetKind::EdgeToEdge, ref, w))
-                consider(edge, edge_coord(w, opposite(edge)), TargetKind::EdgeToEdge, index);
-            if (window_target_valid(vertical, TargetKind::Aligned, ref, w))
-                consider(edge, edge_coord(w, edge), TargetKind::Aligned, index);
+            if (window_target_valid(edge, TargetKind::EdgeToEdge, ref, w))
+                consider(edge, edge_coord(w.frame, opposite(edge)), TargetKind::EdgeToEdge, index);
+            if (window_target_valid(edge, TargetKind::Aligned, ref, w))
+                consider(edge, edge_coord(w.frame, edge), TargetKind::Aligned, index);
         }
     }
     return best;
@@ -146,7 +205,7 @@ int Attraction::resolve(Axis& axis, bool vertical, const Rect& ref, const Rect& 
         if (std::abs(coord - h.line) > cfg_.breakaway) {
             release(axis, ReleaseReason::Breakaway);
         } else if (h.window >= 0 &&
-                   !window_target_valid(vertical, h.kind, ref,
+                   !window_target_valid(h.edge, h.kind, ref,
                                         others_[static_cast<std::size_t>(h.window)])) {
             release(axis, ReleaseReason::TargetGone);
         } else {
