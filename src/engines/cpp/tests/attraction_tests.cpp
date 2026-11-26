@@ -19,9 +19,9 @@ Rect box(int l, int t) { return {l, t, l + 100, t + 100}; }
 struct Rig {
     Attraction a;
     std::uint64_t t{0};
-    explicit Rig(std::vector<Rect> others = {}, const AttractionConfig& cfg = {},
+    explicit Rig(const std::vector<Rect>& others = {}, const AttractionConfig& cfg = {},
                  const SideTargets& sides = {})
-        : a(cfg, std::move(others), kWork, sides) {}
+        : a(cfg, others, kWork, sides) {}
     Rect step(const Rect& free) {
         t += 100;
         return a.update(free, t);
