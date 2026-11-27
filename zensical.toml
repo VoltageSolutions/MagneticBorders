@@ -27,6 +27,7 @@ nav = [
     "how-it-works/timers.md",
     "how-it-works/unmovable-windows.md",
     "how-it-works/notification-area-icon.md",
+    "how-it-works/benchmarks.md",
     { "Code tour" = [
       "how-it-works/code-tour/cpp.md",
       "how-it-works/code-tour/rust.md",
