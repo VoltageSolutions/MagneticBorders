@@ -6,7 +6,6 @@ public sealed class EngineState(
     Action<IReadOnlyList<string>> setExcluded, Action<bool> setAutostart)
 {
     private readonly ulong _start = clock.NowMs();
-    private bool _snapLogged;
 
     /// <summary>Settings last applied (defaults until the first Apply).</summary>
     public SettingsModel Settings { get; private set; } = new();
@@ -21,17 +20,27 @@ public sealed class EngineState(
     /// <summary>True when the master switch and magnetic coupling are both enabled in settings.</summary>
     public bool GlueActive => Settings.Enabled && Settings.GlueEnabled;
 
-    /// <summary>Applies a settings model: tolerance, active flag, excluded apps and autostart, then raises Changed.</summary>
+    /// <summary>True when the master switch and magnetic attraction are both enabled in settings (SNAP-001).</summary>
+    public bool SnapActive => Settings.Enabled && Settings.SnapEnabled;
+
+    /// <summary>Applies a settings model: coupling tolerance and active flag, attraction tunables and active flag, excluded apps and autostart, then raises Changed.</summary>
     public void Apply(SettingsModel m)
     {
         Settings = m;
         controller.TolerancePx = m.GlueTolerancePx;
         controller.Active = GlueActive;
+        controller.SnapActive = SnapActive;
+        controller.Snap = new SnapOptions
+        {
+            DistancePx = m.SnapDistancePx,
+            BreakawayPx = m.SnapBreakawayPx,
+            MaxSpeed = m.SnapMaxSpeed,
+            ScreenEdges = m.SnapScreenEdges,
+            Windows = m.SnapWindows,
+        };
         setExcluded(m.ExcludedApps);
         setAutostart(m.StartAtLogin);
-        if (m.SnapEnabled && !_snapLogged) { log.Info("snap: not implemented"); _snapLogged = true; }
-        if (!m.SnapEnabled) _snapLogged = false;
-        log.Info($"settings applied: enabled={m.Enabled} magnetic_coupling={m.GlueEnabled} tolerance_px={m.GlueTolerancePx} excluded=[{string.Join(",", m.ExcludedApps)}] start_at_login={m.StartAtLogin}");
+        log.Info($"settings applied: enabled={m.Enabled} magnetic_coupling={m.GlueEnabled} tolerance_px={m.GlueTolerancePx} magnetic_attraction={m.SnapEnabled} snap_distance_px={m.SnapDistancePx} snap_breakaway_px={m.SnapBreakawayPx} snap_max_speed={m.SnapMaxSpeed} snap_screen_edges={m.SnapScreenEdges} snap_windows={m.SnapWindows} excluded=[{string.Join(",", m.ExcludedApps)}] start_at_login={m.StartAtLogin}");
         Changed?.Invoke();
     }
 

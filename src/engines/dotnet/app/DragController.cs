@@ -2,10 +2,25 @@ using MagneticBorders.Core;
 
 namespace MagneticBorders.Application;
 
-/// <summary>Phase of the current drag: Idle (no drag), Classifying (waiting for the first size change), Resizing (seams built, neighbors follow) or Ignoring (not a glued resize).</summary>
-public enum DragState { Idle, Classifying, Resizing, Ignoring }
+/// <summary>Phase of the current drag: Idle (no drag), Classifying (waiting for the first location change), Resizing (seams built, neighbors follow), Moving (magnetic attraction holds the dragged window's edges) or Ignoring (neither a glued resize nor an attracted move).</summary>
+public enum DragState { Idle, Classifying, Resizing, Moving, Ignoring }
 
-/// <summary>State machine for one resize drag. Receives move/size start, location change, timer and end events and drives IWindowMover. All members run on the UI thread: events arrive from WinEvent callbacks and Win32 timers, both dispatched by the UI thread's message loop. Owned by DI as a singleton; depends only on ports.</summary>
+/// <summary>Magnetic attraction tunables in effective pixels (96 DPI); the controller scales them by Snapshot.DpiScale.</summary>
+public sealed record SnapOptions
+{
+    /// <summary>Pull-in distance (snap.distance_px).</summary>
+    public int DistancePx { get; init; } = 16;
+    /// <summary>Breakaway distance (snap.breakaway_px).</summary>
+    public int BreakawayPx { get; init; } = 24;
+    /// <summary>Snapping speed limit in pixels per second (snap.max_speed).</summary>
+    public int MaxSpeed { get; init; } = 600;
+    /// <summary>Work-area sides are targets (snap.screen_edges).</summary>
+    public bool ScreenEdges { get; init; } = true;
+    /// <summary>Other windows are targets (snap.windows).</summary>
+    public bool Windows { get; init; } = true;
+}
+
+/// <summary>State machine for one drag. A resize builds seams and moves the glued neighbors (magnetic coupling); a move runs an Attraction (magnetic attraction) that either holds the cursor through the pointer hook or moves the dragged window back to the held position. Receives move/size start, location change, timer, pointer and end events and drives IWindowMover. All members run on the UI thread: events arrive from WinEvent callbacks and Win32 timers, both dispatched by the UI thread's message loop. Owned by DI as a singleton; depends only on ports.</summary>
 /// <param name="inventory">Window snapshots and frame reads.</param>
 /// <param name="mover">Applies batched window moves.</param>
 /// <param name="clock">Millisecond clock for throttling and logs.</param>
@@ -15,7 +30,7 @@ public enum DragState { Idle, Classifying, Resizing, Ignoring }
 /// <param name="buildName">Prefix for log lines.</param>
 public sealed class DragController(
     IWindowInventory inventory, IWindowMover mover, IClock clock, ILog log, ITimer timer,
-    int baseTolerancePx = 12, string buildName = "net")
+    int baseTolerancePx = 12, string buildName = "net") : IPointerEvents
 {
     /// <summary>Minimum gap between two applied batches, the settle delay after the last move, and the delay before the post-drag verification.</summary>
     private const ulong ThrottleMs = 8;
@@ -35,30 +50,52 @@ public sealed class DragController(
     private int _applies;
     private bool _verifyArmed;
     private List<(Seam S, int Clamp)> _endClamps = [];
+    private bool _dragGlue, _dragSnap; // Active and SnapActive as they were at drag start
+    private Attraction? _attraction; // set while Moving without the pointer hook
+    private PointerDrag? _pointer; // set while Moving with the pointer hook (SNAP-070)
+    private Rect _lastFree;
+    private Rect? _lastHeld; // frame the window reported after our last held move
+    private long _dragSnaps;
 
     /// <summary>Current phase. Set only by the controller.</summary>
     public DragState State { get; private set; } = DragState.Idle;
 
     /// <summary>Live glue tolerance in px (applies on the next drag).</summary>
     public int TolerancePx { get; set; } = baseTolerancePx;
-    /// <summary>False when Magnetic Borders or magnetic coupling is disabled: drags are ignored.</summary>
+    /// <summary>False when Magnetic Borders or magnetic coupling is disabled: resizes are ignored. Applies on the next drag.</summary>
     public bool Active { get; set; } = true;
+    /// <summary>False when Magnetic Borders or magnetic attraction is disabled: moves are ignored (SNAP-001). Applies on the next drag.</summary>
+    public bool SnapActive { get; set; } = true;
+    /// <summary>Magnetic attraction tunables; apply on the next drag.</summary>
+    public SnapOptions Snap { get; set; } = new();
+    /// <summary>Holds the cursor during moves; applies on the next drag. Null, or a hook that cannot start, makes a move put the window back on the held position after Windows moves it (SNAP-076).</summary>
+    public IPointerHook? Hook { get; set; }
     /// <summary>Resize drags seen.</summary>
     public long Drags { get; private set; }
     /// <summary>Resize drags that built at least one seam.</summary>
     public long GluedDrags { get; private set; }
+    /// <summary>Move drags handled by magnetic attraction.</summary>
+    public long MoveDrags { get; private set; }
+    /// <summary>Times an edge started being held.</summary>
+    public long Snaps { get; private set; }
 
     /// <summary>Writes an Info log line prefixed with the build name and ms since drag start.</summary>
     private void L(string m) => log.Info($"{buildName} +{clock.NowMs() - _t0}ms {m}");
     /// <summary>Milliseconds since the current drag started.</summary>
     private ulong Elapsed => clock.NowMs() - _t0;
 
-    /// <summary>Called when a window starts a move or size loop. Cancels timers, takes a snapshot and enters Classifying, or Ignoring when inactive or the window is unknown.</summary>
+    /// <summary>Called when a window starts a move or size loop. Cancels timers, stops a pointer hook left running, takes a snapshot and enters Classifying, or Ignoring when both features are inactive or the window is unknown.</summary>
     public void OnMoveSizeStart(ulong id)
     {
         timer.CancelAll();
         _verifyArmed = false;
-        if (!Active) { _seams.Clear(); _id = id; State = DragState.Ignoring; return; }
+        StopPointer();
+        _attraction = null;
+        _lastHeld = null;
+        _dragSnaps = 0;
+        _dragGlue = Active;
+        _dragSnap = SnapActive;
+        if (!_dragGlue && !_dragSnap) { _seams.Clear(); _id = id; State = DragState.Ignoring; return; }
         _seams.Clear();
         _requested.Clear();
         _pending = null;
@@ -74,18 +111,32 @@ public sealed class DragController(
         State = DragState.Classifying;
     }
 
-    /// <summary>Called for each location change of the dragged window. In Classifying it decides which edges changed, builds seams and enters Resizing (or Ignoring for moves); in Resizing it applies the new frame to the seam members and re-arms the Settle timer.</summary>
+    /// <summary>Called for each location change of the dragged window. In Classifying a change that keeps the size is a move (Moving, or Ignoring without magnetic attraction); otherwise it decides which edges changed, builds seams and enters Resizing. In Resizing it applies the new frame to the seam members and re-arms the Settle timer. In Moving it updates the attraction.</summary>
     public void OnLocationChange(ulong id)
     {
         if (id != _id || _snap is null) return;
-        if (State is not (DragState.Classifying or DragState.Resizing)) return;
+        if (State is not (DragState.Classifying or DragState.Resizing or DragState.Moving)) return;
         var f = inventory.FrameOf(id);
         if (f is null) return;
         var frame = f.Value;
 
+        if (State == DragState.Moving)
+        {
+            OnMove(frame);
+            return;
+        }
+
         if (State == DragState.Classifying)
         {
-            if (frame.Width == _start.Width && frame.Height == _start.Height) { State = DragState.Ignoring; return; }
+            if (frame.Width == _start.Width && frame.Height == _start.Height)
+            {
+                if (!_dragSnap) { State = DragState.Ignoring; return; }
+                BeginMove();
+                State = DragState.Moving;
+                OnMove(frame);
+                return;
+            }
+            if (!_dragGlue) { State = DragState.Ignoring; return; }
             Drags++;
             var cfg = new Config((int)Math.Round(TolerancePx * _snap.DpiScale));
             var edges = new List<Edge>();
@@ -149,10 +200,16 @@ public sealed class DragController(
         L($"settled +{Elapsed} {s0.Edge}={pos} clamp={clamp} gap={pos - clamp}{string.Concat(mism)}");
     }
 
-    /// <summary>Called when the move or size loop ends. Applies the final frame, snaps the dragged window back to the clamped position if needed, and arms the Verify timer.</summary>
+    /// <summary>Called when the move or size loop ends. After a move, applies the held position once when it still matters (SNAP-050 to SNAP-052) or just stops the pointer hook. After a resize, applies the final frame, snaps the dragged window back to the clamped position if needed, and arms the Verify timer.</summary>
     public void OnMoveSizeEnd(ulong id)
     {
-        if (id == _id && State == DragState.Resizing)
+        if (State == DragState.Moving && id != _id) return;
+        if (id == _id && State == DragState.Moving)
+        {
+            timer.CancelAll();
+            FinishMove(id);
+        }
+        else if (id == _id && State == DragState.Resizing)
         {
             timer.CancelAll();
             _pending = null;
@@ -179,6 +236,159 @@ public sealed class DragController(
         }
         State = DragState.Idle;
         _snap = null;
+    }
+
+    /// <summary>Starts a move: builds the attraction from the snapshot (scaled by the window's DPI) and starts the pointer hook when one is set.</summary>
+    private void BeginMove()
+    {
+        MoveDrags++;
+        var snap = _snap!;
+        double scale = snap.DpiScale;
+        var o = Snap;
+        var cfg = new AttractionConfig
+        {
+            PullIn = Scaled(o.DistancePx, scale),
+            Breakaway = Scaled(o.BreakawayPx, scale),
+            MaxSpeed = o.MaxSpeed * scale,
+            ScreenEdges = o.ScreenEdges,
+            Windows = o.Windows,
+        };
+        var others = new List<TargetWindow>();
+        foreach (var w in snap.Windows)
+        {
+            if (w.Id == _id) continue;
+            // SNAP-038: only the parts of w that the windows above it leave visible attract. The dragged window moves,
+            // so it never counts as covering anything.
+            var above = new List<Rect>();
+            foreach (var (sid, sframe) in snap.Stack ?? Array.Empty<(ulong Id, Rect Frame)>())
+            {
+                if (sid == w.Id) break;
+                if (sid != _id) above.Add(sframe);
+            }
+            others.Add(TargetWindow.Create(w.Frame, above));
+        }
+        var sides = SideTargets.For(snap.WorkArea, snap.WorkAreas ?? Array.Empty<Rect>());
+        _attraction = new Attraction(cfg, others, snap.WorkArea, sides);
+        StartPointer();
+        _lastFree = _start;
+        L($"move start id={_id}{(_pointer is null ? "" : " pointer")}");
+    }
+
+    /// <summary>Rounds a distance in effective pixels to physical pixels, halves away from zero.</summary>
+    private static int Scaled(int px, double scale) => (int)Math.Round(px * scale, MidpointRounding.AwayFromZero);
+
+    /// <summary>Hands the attraction to a PointerDrag when the hook starts and the cursor can be read; otherwise leaves it to the fallback (SNAP-076).</summary>
+    private void StartPointer()
+    {
+        if (Hook is not { } hook || _attraction is null) return;
+        if (inventory.FrameOf(_id) is not { } frame || !hook.Install(this)) return;
+        if (hook.ReadCursor() is not { } cursor)
+        {
+            hook.Remove();
+            return;
+        }
+        _pointer = new PointerDrag(_attraction, frame, cursor);
+        _attraction = null;
+    }
+
+    /// <summary>Removes the pointer hook and drops the PointerDrag.</summary>
+    private void StopPointer()
+    {
+        if (_pointer is null) return;
+        Hook?.Remove();
+        _pointer = null;
+    }
+
+    /// <summary>During a move with the pointer hook, returns where the cursor must go so the window lands on its held position (SNAP-070 to SNAP-074). Otherwise lets the movement through (null).</summary>
+    public Point? OnPointerMove(Point proposed)
+    {
+        if (_pointer is null || State != DragState.Moving) return null;
+        var o = _pointer.Move(proposed, clock.NowMs());
+        LogSnapEvents();
+        return o == proposed ? null : o;
+    }
+
+    /// <summary>Stops the pointer hook as soon as the mouse button is released, so the cursor can never stay held after a move (SNAP-075).</summary>
+    public void OnPointerRelease()
+    {
+        if (_pointer is not null) Hook?.Remove();
+    }
+
+    /// <summary>The attraction of the current move, with or without the pointer hook.</summary>
+    private Attraction? ActiveAttraction => _pointer?.Attraction ?? _attraction;
+
+    /// <summary>Counts and logs the edges that started or stopped being held (SNAP-060).</summary>
+    private void LogSnapEvents()
+    {
+        if (ActiveAttraction is not { } attraction) return;
+        foreach (var ev in attraction.TakeEvents())
+        {
+            if (ev.Engaged)
+            {
+                Snaps++;
+                _dragSnaps++;
+                L($"snap hold {EdgeName(ev.Edge)}={ev.Line} target={KindName(ev.Kind)} speed={(long)Math.Round(ev.Speed, MidpointRounding.AwayFromZero)}");
+            }
+            else
+            {
+                L($"snap release {EdgeName(ev.Edge)}={ev.Line} reason={(ev.Reason == ReleaseReason.Breakaway ? "breakaway" : "target-gone")}");
+            }
+        }
+    }
+
+    /// <summary>Lower-case edge name for log lines.</summary>
+    private static string EdgeName(Edge e) => e switch
+    {
+        Edge.Left => "left",
+        Edge.Right => "right",
+        Edge.Top => "top",
+        _ => "bottom",
+    };
+
+    /// <summary>Log name of a target kind.</summary>
+    private static string KindName(TargetKind k) => k switch
+    {
+        TargetKind.Screen => "screen",
+        TargetKind.EdgeToEdge => "edge-to-edge",
+        _ => "aligned",
+    };
+
+    /// <summary>Without the pointer hook: feeds a location change of the dragged window to the attraction and moves the window to the held position when it differs (SNAP-023 to SNAP-025).</summary>
+    private void OnMove(Rect frame)
+    {
+        if (_attraction is null) return;
+        if (_lastHeld is { } lh && frame == lh && frame != _lastFree) return; // SNAP-024: our own move
+        _lastFree = frame;
+        var held = _attraction.Update(frame, clock.NowMs());
+        LogSnapEvents();
+        if (held == frame)
+        {
+            _lastHeld = null;
+            return;
+        }
+        var applied = mover.Apply([(_id, held)]); // SNAP-025: never throttled
+        _lastHeld = applied.Count == 0 ? held : applied[0].Frame;
+    }
+
+    /// <summary>Ends a move. With the pointer hook Windows already put the window where the cursor is, so nothing is applied (SNAP-075). Without it, the held position is applied once when the window sits at the last free position and kept its size (SNAP-050, SNAP-051); nothing is applied after that (SNAP-052).</summary>
+    private void FinishMove(ulong id)
+    {
+        if (_pointer is not null)
+        {
+            StopPointer();
+            L($"move end id={id} snaps={_dragSnaps} pointer");
+            return;
+        }
+        var frame = inventory.FrameOf(id);
+        if (_attraction is null) return;
+        bool applied = false;
+        if (frame is { } fr && _attraction.IsHeld && fr == _lastFree && fr.Width == _start.Width && fr.Height == _start.Height && _attraction.Current != fr)
+        {
+            mover.Apply([(id, _attraction.Current)]);
+            applied = true;
+        }
+        L($"move end id={id} snaps={_dragSnaps}{(applied ? " applied" : "")}");
+        _attraction = null;
     }
 
     /// <summary>Runs shortly after the drag ended. Corrects the dragged window and any member whose real size differs from what was requested, then clears the seams.</summary>

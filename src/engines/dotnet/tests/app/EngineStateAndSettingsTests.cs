@@ -69,15 +69,28 @@ public class EngineStateTests2
     }
 
     [Fact]
-    public void Snap_not_implemented_is_logged_once_until_snap_is_turned_off_again()
+    public void Apply_pushes_the_attraction_settings_into_the_controller()
     {
-        var (st, _, log, _) = Make();
-        st.Apply(new SettingsModel());
-        st.Apply(new SettingsModel());
-        Assert.Equal(1, log.Infos.Count(l => l.Contains("snap: not implemented", StringComparison.Ordinal)));
+        var (st, _, log, c) = Make();
+        st.Apply(new SettingsModel { SnapDistancePx = 20, SnapBreakawayPx = 40, SnapMaxSpeed = 900, SnapScreenEdges = false, SnapWindows = false });
+        Assert.True(c.SnapActive);
+        Assert.True(st.SnapActive);
+        Assert.Equal(new SnapOptions { DistancePx = 20, BreakawayPx = 40, MaxSpeed = 900, ScreenEdges = false, Windows = false }, c.Snap);
+        Assert.DoesNotContain(log.Infos, l => l.Contains("not implemented", StringComparison.Ordinal));
+        Assert.Contains(log.Infos, l => l.Contains("snap_distance_px=20 snap_breakaway_px=40 snap_max_speed=900", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void The_master_switch_and_the_attraction_switch_both_gate_attraction()
+    {
+        var (st, _, _, c) = Make();
         st.Apply(new SettingsModel { SnapEnabled = false });
+        Assert.False(c.SnapActive);
+        Assert.True(c.Active);
+        st.Apply(new SettingsModel { Enabled = false });
+        Assert.False(c.SnapActive);
         st.Apply(new SettingsModel());
-        Assert.Equal(2, log.Infos.Count(l => l.Contains("snap: not implemented", StringComparison.Ordinal)));
+        Assert.True(c.SnapActive);
     }
 
     [Fact]
