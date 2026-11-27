@@ -65,6 +65,8 @@ public static unsafe class SystemDiagnostics
     private static Rect ToRect(RECT r) => new(r.left, r.top, r.right, r.bottom);
 
     /// <summary>EnumDisplayMonitors callback (function pointer, no delegate). Appends one monitor line.</summary>
+    [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility",
+        Justification = "GetDpiForMonitor needs Windows 8.1; the product supports Windows 10 and 11 only.")]
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static BOOL MonitorCallback(HMONITOR monitor, HDC _, RECT* __, LPARAM ___)
     {
