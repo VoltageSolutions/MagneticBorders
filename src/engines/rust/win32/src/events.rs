@@ -3,7 +3,7 @@
 
 use crate::util::*;
 use crate::Win32Error;
-use mb_app::{DragEvents, TimerKind};
+use mb_app::{DragEvents, EngineEvents, TimerKind};
 use std::cell::{Cell, RefCell};
 use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
@@ -16,23 +16,27 @@ const OUTOFCONTEXT_SKIPOWN: u32 = 0x0002;
 
 thread_local! {
     // The single slot routing the C callbacks to the controller.
-    static HANDLER: RefCell<Option<Box<dyn DragEvents>>> = const { RefCell::new(None) };
+    static HANDLER: RefCell<Option<Box<dyn EngineEvents>>> = const { RefCell::new(None) };
     static LOC_HOOK: Cell<usize> = const { Cell::new(0) };
     static DRAGGED: Cell<u64> = const { Cell::new(0) };
 }
 
-fn with_handler(f: impl FnOnce(&mut dyn DragEvents)) {
+/// Runs `f` on the controller and returns its result; `None` when no controller is installed or it is already
+/// running (re-entrancy guard).
+pub(crate) fn with_engine<R>(f: impl FnOnce(&mut dyn EngineEvents) -> R) -> Option<R> {
     HANDLER.with(|h| {
-        if let Ok(mut g) = h.try_borrow_mut() {
-            if let Some(b) = g.as_mut() {
-                f(b.as_mut());
-            }
-        }
-    });
+        let mut g = h.try_borrow_mut().ok()?;
+        let b = g.as_mut()?;
+        Some(f(b.as_mut()))
+    })
+}
+
+fn with_handler(f: impl FnOnce(&mut dyn EngineEvents)) {
+    with_engine(f);
 }
 
 pub(crate) fn dispatch_timer(kind: TimerKind) {
-    with_handler(|h| h.on_timer(kind));
+    with_handler(|h| DragEvents::on_timer(h, kind));
 }
 
 fn remove_loc_hook() {
@@ -46,7 +50,7 @@ fn remove_loc_hook() {
 
 unsafe extern "system" fn loc_proc(_: HWINEVENTHOOK, _ev: u32, hwnd: HWND, obj: i32, child: i32, _: u32, _: u32) {
     if obj == 0 && child == 0 && id_of(hwnd) == DRAGGED.with(std::cell::Cell::get) {
-        with_handler(|h| h.on_location_change(id_of(hwnd)));
+        with_handler(|h| DragEvents::on_location_change(h, id_of(hwnd)));
     }
 }
 
@@ -69,11 +73,11 @@ unsafe extern "system" fn move_size_proc(_: HWINEVENTHOOK, ev: u32, hwnd: HWND, 
                     OUTOFCONTEXT_SKIPOWN,
                 );
                 LOC_HOOK.with(|c| c.set(hook.0 as usize));
-                with_handler(|h| h.on_move_size_start(id));
+                with_handler(|h| DragEvents::on_move_size_start(h, id));
             }
             EVENT_MOVESIZEEND => {
                 if id == DRAGGED.with(std::cell::Cell::get) {
-                    with_handler(|h| h.on_move_size_end(id));
+                    with_handler(|h| DragEvents::on_move_size_end(h, id));
                 }
                 remove_loc_hook();
                 DRAGGED.with(|d| d.set(0));
@@ -91,7 +95,7 @@ pub struct EventSource {
 
 impl EventSource {
     /// Stores `handler` in the thread-local slot and installs the hook. Fails when the hook cannot be set.
-    pub fn install(handler: Box<dyn DragEvents>) -> Result<Self, Win32Error> {
+    pub fn install(handler: Box<dyn EngineEvents>) -> Result<Self, Win32Error> {
         HANDLER.with(|h| *h.borrow_mut() = Some(handler));
         let hook = unsafe {
             SetWinEventHook(

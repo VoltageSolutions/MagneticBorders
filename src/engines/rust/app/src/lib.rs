@@ -8,9 +8,12 @@ mod ports;
 mod settings;
 
 pub use controller::DragController;
-pub use live::Live;
+pub use live::{Live, SnapOptions};
 pub use pipe::{handle_request, Action, EngineState, Reply};
-pub use ports::{Clock, DragEvents, Log, Snapshot, Timer, TimerKind, WindowInventory, WindowMover};
+pub use ports::{
+    Clock, DragEvents, EngineEvents, Log, PointerEvents, PointerHook, Snapshot, Timer, TimerKind, WindowInventory,
+    WindowMover,
+};
 pub use settings::{apply_reload, with_enabled, Settings};
 
 /// Engine version, taken from the workspace package version.

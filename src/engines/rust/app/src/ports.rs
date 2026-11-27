@@ -1,14 +1,21 @@
 //! Port traits the controller depends on, plus `Snapshot` and `TimerKind`. Implemented by `mb-win32`, faked in tests.
 
-use mb_core::{Rect, WinInfo};
+use mb_core::{Point, Rect, WinInfo};
 
 /// Inventory of the dragged window's monitor, taken once at drag start.
+#[derive(Clone, Debug)]
 pub struct Snapshot {
     /// Eligible windows on that monitor (the dragged one included when eligible).
     pub windows: Vec<WinInfo>,
     /// Monitor work area; edges on its border never form seams.
     pub work_area: Rect,
-    /// Monitor dpi divided by 96; scales the glue tolerance.
+    /// Work areas of every monitor, the dragged window's one included; tells which screen sides touch another
+    /// monitor (SNAP-031).
+    pub work_areas: Vec<Rect>,
+    /// Every visible, uncloaked, not minimized window that hides what is below it, in z-order from the top, on any
+    /// monitor. Magnetic attraction uses it to find which parts of other windows can be seen (SNAP-038).
+    pub stack: Vec<(u64, Rect)>,
+    /// Monitor dpi divided by 96; scales the glue tolerance and the snap distances.
     pub dpi_scale: f64,
 }
 
@@ -70,4 +77,30 @@ pub trait DragEvents {
     fn on_move_size_end(&mut self, id: u64);
     /// A timer of `kind` fired.
     fn on_timer(&mut self, kind: TimerKind);
+}
+
+/// Inbound side of the mouse hook during a move (SNAP-070): driven by the hook adapter on the UI thread for every
+/// mouse movement while the hook runs.
+pub trait PointerEvents {
+    /// Windows is about to put the cursor at `proposed`. Returns the position to put it at instead, or `None` to
+    /// let the movement through unchanged.
+    fn on_pointer_move(&mut self, proposed: Point) -> Option<Point>;
+    /// A mouse button was released. The move is over even if its end event has not arrived yet.
+    fn on_pointer_release(&mut self);
+}
+
+/// Everything the Win32 event adapters deliver to the controller: drag events and mouse movement.
+pub trait EngineEvents: DragEvents + PointerEvents {}
+
+impl<T: DragEvents + PointerEvents> EngineEvents for T {}
+
+/// Watches the mouse while a window is moved (SNAP-070). The adapter installs a low-level mouse hook between
+/// `start` and `stop` and delivers every movement to the controller as `PointerEvents`. Called on the UI thread.
+pub trait PointerHook {
+    /// Starts sending mouse movement to the controller. Returns false when the hook cannot be installed.
+    fn start(&mut self) -> bool;
+    /// Stops sending mouse movement. Safe to call when not started.
+    fn stop(&mut self);
+    /// The cursor position now, or `None` if it cannot be read.
+    fn cursor(&mut self) -> Option<Point>;
 }
