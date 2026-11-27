@@ -1,5 +1,5 @@
 //! Win32 adapters (`mb-win32`): implement the `mb-app` ports with `WinEvent` hooks, EnumWindows/DWM,
-//! `DeferWindowPos` and `SetTimer`, and own the tray icon, settings watcher and named-pipe server.
+//! `DeferWindowPos`, `SetTimer` and a low-level mouse hook, and own the tray icon, settings watcher and named-pipe server.
 //! Windows-only (`cfg(windows)`); all of it runs on one UI thread, other threads only post messages to it.
 //! Depends on `mb-core` and `mb-app`.
 #![cfg(windows)]
@@ -9,6 +9,7 @@ mod events;
 mod inventory;
 mod misc;
 mod mover;
+mod pointer;
 mod timer;
 mod util;
 
@@ -20,6 +21,7 @@ pub use misc::{
     AppLog, ConsoleLog, MonotonicClock, SingleInstance,
 };
 pub use mover::Win32Mover;
+pub use pointer::Win32PointerHook;
 pub use timer::Win32Timer;
 pub use util::Shared;
 

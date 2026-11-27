@@ -39,7 +39,9 @@ mod app {
         fn apply(&mut self) {
             let s = &self.settings;
             self.live.tolerance_px.set(s.glue_tolerance_px);
-            self.live.active.set(s.enabled && s.glue_enabled);
+            self.live.active.set(s.glue_active());
+            self.live.snap_active.set(s.snap_active());
+            self.live.snap.set(s.snap_options());
             self.shared.set_excluded(&s.excluded_apps);
             let exe = std::env::current_exe().ok();
             if let Err(e) = set_run_at_login(if s.start_at_login { exe.as_deref() } else { None }) {
@@ -69,9 +71,6 @@ mod app {
             if new != self.settings {
                 use mb_app::Log;
                 self.log.info(&format!("settings reloaded: {new:?}"));
-                if new.snap_enabled && !self.settings.snap_enabled {
-                    self.log.info("snap: not implemented");
-                }
                 self.settings = new;
                 self.apply();
             }
@@ -163,15 +162,12 @@ mod app {
             log.warn(&w);
         }
         log.info(&format!("settings: {s:?}"));
-        if s.snap_enabled {
-            log.info("snap: not implemented");
-        }
         if !drag_full_windows_enabled() {
             log.warn("'Show window contents while dragging' is off; live magnetic coupling will not work.");
         }
 
         let shared = Shared::default();
-        let live = Rc::new(Live::new(s.enabled && s.glue_enabled, s.glue_tolerance_px));
+        let live = Rc::new(Live::new(s.glue_active(), s.glue_tolerance_px));
         let controller = DragController::new(
             Win32Inventory::new(shared.clone(), &s.excluded_apps),
             Win32Mover::new(shared.clone()),
@@ -181,7 +177,8 @@ mod app {
             "rust",
             s.glue_tolerance_px,
         )
-        .with_live(live.clone());
+        .with_live(live.clone())
+        .with_pointer_hook(Box::new(Win32PointerHook::new()));
         let mut app = App { live, settings: s, shared, path, log: log.clone(), started: Instant::now() };
         app.apply();
         let _events = EventSource::install(Box::new(controller))?;
