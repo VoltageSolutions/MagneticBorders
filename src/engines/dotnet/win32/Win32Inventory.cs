@@ -90,8 +90,7 @@ public sealed unsafe class Win32Inventory(WindowState state, IReadOnlyCollection
         long ex = (uint)PInvoke.GetWindowLong(h, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE);
         if ((ex & (long)WINDOW_EX_STYLE.WS_EX_TRANSPARENT) != 0) return false;
         uint pid;
-        PInvoke.GetWindowThreadProcessId(h, &pid);
-        return pid != selfPid;
+        return PInvoke.GetWindowThreadProcessId(h, &pid) == 0 || pid != selfPid;
     }
 
     /// <summary>Filter: visible, not minimized or maximized, not cloaked, resizable, not a tool window, not owned, titled, not this process and not on the excluded list.</summary>
