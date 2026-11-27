@@ -4,7 +4,7 @@ You change configure Magnetic Borders in the flyout and in the settings window. 
 
 ## The flyout
 
-Magnetic Borders persists an icon in the notifications of your taskbar (the system tray) while it's running. Left-click that icon to open the flyout menu. It has switches to turn off Magnetic Borders entirely, or to disable the specific **Magnetic coupling** and **Magnetic attraction** features. You can also open the settings window.
+Magnetic Borders persists an icon in the notifications of your taskbar (the system tray) while it's running. Left-click that icon to open the flyout menu. It has switches to turn off Magnetic Borders entirely, or to disable the specific **Magnetic coupling** and **Magnetic attraction** features. A short line under each name says what it does. You can also open the settings window.
 
 !!! example "GIF: the flyout opening and closing from the tray icon"
     File: `assets/gifs/flyout-open.gif`

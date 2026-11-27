@@ -31,15 +31,6 @@ public static class Fmt
     public static string StatusLine(EngineStatus? s) => s is null ? Get("StatusNotRunning") : F("StatusRunning", s.GluedDrags);
     /// <summary>Description of the status card: "Version x.y.z" or "Not running".</summary>
     public static string Summary(EngineStatus? s) => s is null ? Get("StatusNotRunning") : Version(s.Version);
-    /// <summary>Uptime as hours and minutes, minutes and seconds, or seconds; the placeholder when Magnetic Borders is not running.</summary>
-    public static string Uptime(EngineStatus? s)
-    {
-        if (s is null) return Get("NoValue");
-        var t = TimeSpan.FromSeconds(s.UptimeSeconds);
-        return t.TotalHours >= 1 ? F("UptimeHoursMinutes", (int)t.TotalHours, t.Minutes)
-             : t.TotalMinutes >= 1 ? F("UptimeMinutesSeconds", t.Minutes, t.Seconds)
-             : F("UptimeSeconds", t.Seconds);
-    }
     /// <summary>"Version x.y.z" line of the About card.</summary>
     public static string Version(string version) => F("VersionFormat", version);
 }

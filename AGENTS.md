@@ -81,7 +81,8 @@ The single required check is **CI result**. Do not require the other jobs by nam
 - Everything Win32 runs on one UI thread with a message loop. Other threads only post messages to it.
 - Leave zero warnings. Every build treats warnings as errors; see the quality rules above.
 - Comments and docs describe what the code does now. Do not write history ("previously", "used to") or future plans.
-- Docs voice: Home pages may address the reader ("you"). How it works and Spec use the app name ("Magnetic Borders" or "MB") or impersonal instructions, never "I". US spelling, active voice, serial comma, short sentences, no em dashes.
+- Use the serial (Oxford) comma in all English text: UI strings and their translator comments, docs, specs, the README, code comments, and commit messages. Write "A, B, and C", never "A, B and C".
+- Docs voice: Home pages may address the reader ("you"). How it works and Spec use the app name ("Magnetic Borders" or "MB") or impersonal instructions, never "I". US spelling, active voice, short sentences, no em dashes.
 - User-facing text belongs in resource files so it can be localized: `.resw` with `x:Uid` in the settings app, `STRINGTABLE` resources in the C++ engine, the equivalent in Rust and C#. Do not add new hard-coded UI strings.
 - Keep private data out of the repo: no machine names, local user paths, or log files.
 - When an AI helped with a commit, end the message with a `Co-Authored-By` trailer. Do not add links to AI sessions.

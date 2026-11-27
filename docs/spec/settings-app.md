@@ -15,7 +15,7 @@
 
 ## Flyout (`--flyout`)
 
-A small borderless window of about 360 by 420 effective pixels.
+A small borderless window of about 360 by 340 effective pixels.
 
 | ID | Rule |
 |---|---|
@@ -24,8 +24,8 @@ A small borderless window of about 360 by 420 effective pixels.
 | UI-012 | The header must show the icon, "Magnetic Borders", and a status line such as "Running · 9 coupled drags", or "Not running". |
 | UI-013 | The **Enabled** toggle must save `enabled`. |
 | UI-014 | Retired. There is no pause button. |
-| UI-015 | The **Magnetic coupling** toggle must save `glue.enabled`. |
-| UI-016 | The **Magnetic attraction** toggle must save `snap.enabled`. |
+| UI-015 | The **Magnetic coupling** toggle must save `glue.enabled`. A second line of smaller, secondary text under the label must read "Resizes neighboring windows that share a border." |
+| UI-016 | The **Magnetic attraction** toggle must save `snap.enabled`. A second line of smaller, secondary text under the label must read "Snaps a moving window to a nearby window." Both description lines dim with their label when Enabled is off. |
 | UI-017 | The **Open settings** button must open the full window and close the flyout. |
 
 ## Full window (no arguments)
@@ -35,7 +35,7 @@ One scrolling page in the style of Windows 11 Settings, with these groups in ord
 | ID | Rule |
 |---|---|
 | UI-020 | **General** must have an Enabled toggle, a Start at login toggle, and a **Flyout background** choice of Translucent or Solid that saves `ui.flyout_backdrop`. |
-| UI-021 | **General** must have a **Magnetic Borders** status expander showing the version, uptime and drag counts, with **Refresh** and **Quit Magnetic Borders** buttons. The Start at login description must read "Start Magnetic Borders when you sign in." |
+| UI-021 | **General** must have a **Magnetic Borders** status expander showing the version and drag counts, with **Refresh** and **Quit Magnetic Borders** buttons. The Start at login description must read "Start Magnetic Borders when you sign in." |
 | UI-022 | **Magnetic coupling** must have a toggle and a **Detection zone** slider from 0 to 64 px with a value label. |
 | UI-023 | The Magnetic coupling slider's helper text must read "How far apart two edges can be and still stick together. 0 = they must touch." |
 | UI-024 | **Magnetic attraction** must have a toggle; **Snap to screen edges** and **Snap to other windows** toggles (`snap.screen_edges`, `snap.windows`); a **Pull-in distance** slider from 0 to 64 px (`snap.distance_px`); a **Breakaway distance** slider from 0 to 128 px (`snap.breakaway_px`); and a **Snapping speed** slider from 100 to 5000 px per second (`snap.max_speed`), labelled Slow at the low end and Fast at the high end. Each setting must carry a one-line description. The other controls must be disabled while the toggle is off. |
