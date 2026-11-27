@@ -21,3 +21,5 @@ paths-ignore:
   - '**/target/**'
   - '**/*.g.cs'
   - '**/*.g.i.cs'
+  # The benchmark harness is a developer tool that calls Win32 on purpose; it never ships.
+  - tools/bench/**

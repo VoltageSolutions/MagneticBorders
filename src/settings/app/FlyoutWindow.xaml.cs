@@ -27,7 +27,7 @@ public sealed partial class FlyoutWindow : Window
     /// <summary>Border colors as COLORREF (0x00BBGGRR): a subtle grey edge on the dark and the light flyout.</summary>
     private const int BorderDark = 0x00404040, BorderLight = 0x00D9D9D9;
     /// <summary>Flyout size and distance from the work-area edges, in effective pixels (scaled by monitor DPI).</summary>
-    private const double WidthEpx = 360, HeightEpx = 300, MarginEpx = 12;
+    private const double WidthEpx = 360, HeightEpx = 340, MarginEpx = 12;
     /// <summary>Native window handle, used for DPI, foreground and DWM calls.</summary>
     private readonly nint _hwnd;
     /// <summary>Closes the flyout when it is no longer the foreground window (fallback for a missed Deactivated event).</summary>

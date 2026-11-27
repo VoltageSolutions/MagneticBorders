@@ -1,7 +1,16 @@
 //! Value types of the domain: `Rect`, `Edge`, `WinInfo` and `Config`. All coordinates are physical pixels.
 
+/// Physical-pixel point, for example a cursor position.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Point {
+    /// Horizontal coordinate.
+    pub x: i32,
+    /// Vertical coordinate.
+    pub y: i32,
+}
+
 /// Physical-pixel rectangle; r/b exclusive.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Rect {
     /// Left edge (inclusive).
     pub l: i32,

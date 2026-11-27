@@ -23,7 +23,7 @@ Dependencies point one way: `app` references `core`, and `tests` references `cor
 | `MainWindow.xaml` | XAML | `src/settings/app/MainWindow.xaml` | One scrolling page of settings cards in groups: General, Magnetic coupling, Magnetic attraction, Flyout, Excluded apps and About. | `SettingsViewModel`, `Fmt` |
 | `FlyoutWindow` | class | `src/settings/app/FlyoutWindow.xaml.cs` | Flyout: borderless, topmost, placed near the notification area, closes on focus loss. `ApplyBackdrop` sets the background. | `App`, `NativeMethods`, `SettingsViewModel` |
 | `FlyoutWindow.xaml` | XAML | `src/settings/app/FlyoutWindow.xaml` | Flyout layout: header, an Enabled toggle, Magnetic coupling and Magnetic attraction toggles, and an Open settings button. `SolidFill` is the opaque background used by the solid setting. | `SettingsViewModel` |
-| `Fmt` | static class | `src/settings/app/Fmt.cs` | Looks up strings in `Resources.resw` (`Get`) and formats them for `x:Bind` function bindings (`Px`, `Drags`, `StatusLine`, `Summary`, `Uptime`, `Version`). | `MainWindow.xaml`, `EngineStatus` |
+| `Fmt` | static class | `src/settings/app/Fmt.cs` | Looks up strings in `Resources.resw` (`Get`) and formats them for `x:Bind` function bindings (`Px`, `Drags`, `StatusLine`, `Summary`, `Version`). | `MainWindow.xaml`, `EngineStatus` |
 | `Strings/en-US/Resources.resw` | resources | `src/settings/app/Strings/en-US/Resources.resw` | Every user-facing string. XAML picks them up through `x:Uid`, code through `Fmt.Get`. | `MainWindow.xaml`, `FlyoutWindow.xaml`, `Fmt` |
 | `NativeMethods` | internal static class | `src/settings/app/NativeMethods.cs` | `user32` and `dwmapi` P/Invokes: cursor, DPI, foreground, rounded corners. Also holds the `POINT` struct. | `FlyoutWindow`, `MainWindow` |
 
@@ -38,7 +38,7 @@ Dependencies point one way: `app` references `core`, and `tests` references `cor
 | `SettingsStore` | sealed class | `src/settings/core/SettingsStore.cs` | Reads `settings.json` and saves it atomically, keeping unknown keys. | `AppSettings` |
 | `IEngineClient` | interface | `src/settings/core/EngineClient.cs` | Sends one command to Magnetic Borders. A seam for tests. | `SettingsViewModel` |
 | `PipeEngineClient` | sealed class | `src/settings/core/EngineClient.cs` | Named-pipe implementation with a 1 second timeout. | `PipeResponse` |
-| `EngineStatus` | sealed record | `src/settings/core/EngineStatus.cs` | Snapshot of a running build (build id for diagnostics, version, pid, counters, uptime). The build id is never shown. | `PipeResponse`, `Fmt` |
+| `EngineStatus` | sealed record | `src/settings/core/EngineStatus.cs` | Snapshot of a running build (build id for diagnostics, version, pid, counters, uptime that no screen shows). The build id is never shown. | `PipeResponse`, `Fmt` |
 | `PipeResponse` | sealed record | `src/settings/core/EngineStatus.cs` | Parsed reply line. Never throws; bad input becomes a failure. | `PipeEngineClient`, `EngineStatus` |
 | `AppInfo` | sealed record | `src/settings/core/AppInfo.cs` | Build-stamped version without `+` metadata. | `SettingsViewModel` |
 
@@ -116,7 +116,7 @@ Closing (`CloseSafe` guarantees a single `Close`):
 
 **Pipe client.** `PipeEngineClient.SendAsync` opens `\\.\pipe\MagneticBorders`, writes `{"cmd":"status"}` plus a newline, reads one line, and parses it with `PipeResponse.Parse`. One connection per call. A 1 second timeout covers the whole exchange. If Magnetic Borders is missing, slow, or the pipe errors, it returns `PipeResponse.Failure("engine not reachable")` instead of throwing. The app sends `status` (the poll) and `quit` (the Quit Magnetic Borders button). There is no pause. The master **Enabled** switch is a saved setting, so the flyout, the settings window and the notification area menu all write the same `enabled` key.
 
-**Status polling.** `App` calls `RefreshAsync` every 2 seconds. It sets `Status` to the parsed `EngineStatus`, or to null when no running copy answers. `EngineRunning` follows `Status`, and the display text comes from `Fmt.StatusLine`, `Fmt.Summary` and `Fmt.Uptime`. `FeaturesEnabled`, `CouplingZoneEnabled` and `AttractionZoneEnabled` dim the cards that do not apply when the master switch or a feature is off.
+**Status polling.** `App` calls `RefreshAsync` every 2 seconds. It sets `Status` to the parsed `EngineStatus`, or to null when no running copy answers. `EngineRunning` follows `Status`, and the display text comes from `Fmt.StatusLine` and `Fmt.Summary`. `FeaturesEnabled`, `CouplingZoneEnabled`, and `AttractionZoneEnabled` dim the cards that do not apply when the master switch or a feature is off.
 
 ## The flyout background
 

@@ -36,6 +36,7 @@ public class DragControllerBehaviorTests
     {
         var (c, inv, mv, _, tm, _) = Make(Pair());
         c.Active = false;
+        c.SnapActive = false;
         c.OnMoveSizeStart(1);
         Assert.Equal(DragState.Ignoring, c.State);
         inv.Current = new Rect(0, 0, 1820, 1440);

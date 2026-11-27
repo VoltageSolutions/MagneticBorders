@@ -1,0 +1,102 @@
+name: CodeQL and Coverage
+
+# Refreshes what pull requests are compared against: CodeQL alerts and Codecov coverage for main.
+# CI (ci.yml) only runs on pull requests, so this is the only build of main besides CD.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'zensical.toml'
+      - '**/*.md'
+  workflow_dispatch:
+
+concurrency:
+  group: codeql-and-coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  CARGO_TERM_COLOR: always
+
+jobs:
+  codeql:
+    name: CodeQL
+    uses: ./.github/workflows/codeql.yml
+    permissions:
+      contents: read
+      security-events: write
+      packages: read
+      actions: read
+
+  # The same coverage steps as the x64 job in ci.yml, one Codecov flag per part (codecov.yml).
+  coverage:
+    name: Coverage (${{ matrix.target }})
+    runs-on: windows-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [cpp, rust, dotnet, settings]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        if: matrix.target == 'dotnet' || matrix.target == 'settings'
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      # rust-toolchain.toml pins the compiler, components and both Windows targets.
+      - name: Install Rust toolchain
+        if: matrix.target == 'rust'
+        working-directory: src/engines/rust
+        run: rustup toolchain install
+
+      - uses: actions/cache@v6
+        if: matrix.target == 'rust'
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            src/engines/rust/target
+          key: cargo-${{ runner.os }}-x64-${{ hashFiles('src/engines/rust/Cargo.lock', 'src/engines/rust/rust-toolchain.toml') }}
+          restore-keys: cargo-${{ runner.os }}-x64-
+
+      - uses: taiki-e/install-action@v2
+        if: matrix.target == 'rust'
+        with:
+          tool: cargo-llvm-cov,cargo-nextest
+
+      - uses: actions/cache@v6
+        if: matrix.target == 'cpp'
+        with:
+          path: src/engines/cpp/build/*/_deps
+          key: fetchcontent-${{ runner.os }}-x64-${{ hashFiles('src/engines/cpp/CMakeLists.txt') }}
+
+      - name: Install OpenCppCoverage
+        if: matrix.target == 'cpp'
+        run: choco install opencppcoverage --no-progress -y
+
+      - name: Restore, build and coverage
+        run: pwsh tools/ci/run.ps1 -Target ${{ matrix.target }} -Steps restore,build,coverage -Arch x64 -Ci
+
+      - uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: artifacts/coverage/${{ matrix.target }}.cobertura.xml
+          disable_search: true
+          flags: ${{ matrix.target }}
+          name: ${{ matrix.target }}
+          fail_ci_if_error: true

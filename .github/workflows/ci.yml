@@ -4,11 +4,11 @@ name: CI
 # Every app is built on every change. Lint, the x64 and ARM64 builds, parity and vulnerabilities run in parallel; the
 # test report, coverage upload, ARM smoke test and tester build follow the builds they need.
 # The docs build is docs-ci.yml. `CI result` is the one check to require.
+# CI runs on pull requests only: a merge to main was already tested on its pull request. The CodeQL and Coverage
+# workflow (codeql-and-coverage.yml) refreshes the CodeQL and Codecov baselines on main.
 on:
   pull_request:
     branches: [main, 'release/**']
-  push:
-    branches: [main]
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}

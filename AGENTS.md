@@ -17,7 +17,7 @@ The same engine is built three times, in C++, Rust and C#, so the languages can 
 | Common | `src/common/` | `assets/`: icon sources (`icon.svg`, `icon-small.svg`), `icon.ico`, brand wordmarks. Shared contract files and engine strings also live here. |
 | Fixtures | `tests/fixtures/` | Shared `.layout` test cases. Every engine must pass all of them. |
 | Docs | `docs/` | The specs in `docs/spec/` and the docs site. |
-| Tools | `tools/` | `ci/run.ps1` (the one build entry point), `build-watcher.ps1` (local build loop), `setup-dev.ps1` (installs the toolchains). |
+| Tools | `tools/` | `ci/run.ps1` (the one build entry point), `build-watcher.ps1` (local build loop), `setup-dev.ps1` (installs the toolchains), `bench/bench.ps1` (engine benchmark), `compare.ps1` (quick benchmark for the watcher's `compare` target). |
 
 Every engine uses the same folders, so the languages can be read side by side: `core/` (pure geometry), `app/` (drag controller, ports, settings, pipe protocol), `win32/` (adapters), `host/` (composition root), `fixture-runner/`, and unit tests beside the code (`tests/` in C++ and C#, inside each crate in Rust). Dependencies point inward only: core <- app <- win32 <- host. Keep Win32 types out of core and app. The settings app uses `app/` (WinUI 3 exe), `core/` (view models, settings model, pipe client) and `tests/`.
 
@@ -59,11 +59,13 @@ The version lives in four files: `src/engines/cpp/CMakeLists.txt`, `src/engines/
 
 In `.github/workflows/`, named after GameControllerForZwift's workflows without the platform prefix:
 
-- `ci.yml` (**CI**): every app on every pull request and push to `main`. Jobs: Version, Lint (per part), x64 (build, test, coverage, publish, and the settings smoke test), ARM64 (cross-built), ARM smoke test (on an ARM64 runner), Unit Test Results (one check with the totals), Coverage (Codecov, one flag per part), Vulnerabilities (NuGet and RustSec), Parity, and Tester build (a downloadable build linked from a comment on the pull request).
+- `ci.yml` (**CI**): every app on every pull request (into `main` or a `release/**` branch). Not on push to `main`: the pull request already ran it. Jobs: Version, Lint (per part), x64 (build, test, coverage, publish, and the settings smoke test), ARM64 (cross-built), ARM smoke test (on an ARM64 runner), Unit Test Results (one check with the totals), Coverage (Codecov, one flag per part), Vulnerabilities (NuGet and RustSec), Parity, and Tester build (a downloadable build linked from a comment on the pull request).
 - `cd.yml` (**CD**): when a new version lands on `main`, builds, packages and publishes the GitHub release `vX.Y.Z`, then opens `release/vX.(Y+1).0` with its version set.
+- `bench.yml` (**Benchmark**): by hand, and on pull requests that touch `tools/bench/`. Builds the three engines and runs `tools/bench/bench.ps1` on x64 and ARM64 runners. Hosted runners are noisy, so read it for trends and leaks. It is not a required check.
 - `docs-ci.yml` (**Docs CI**): strict docs build on pull requests that touch the docs.
 - `docs-cd.yml` (**Docs CD**): builds the docs and deploys them to GitHub Pages from `main`.
-- `codeql.yml` (**CodeQL**): on pull requests, on push to `main`, and monthly. Coverage runs in CI, so it is not combined here.
+- `codeql.yml` (**CodeQL**): on pull requests and monthly, and called by `codeql-and-coverage.yml`.
+- `codeql-and-coverage.yml` (**CodeQL and Coverage**): on push to `main`, refreshes the CodeQL and Codecov baselines that pull requests are compared against.
 - `release-branch.yml` (**Release Branch**): when a `release/vX.Y.Z` branch is created by hand, sets its version to X.Y.Z. The version must be higher than the latest release.
 
 The single required check is **CI result**. Do not require the other jobs by name.
@@ -80,7 +82,8 @@ The single required check is **CI result**. Do not require the other jobs by nam
 - Everything Win32 runs on one UI thread with a message loop. Other threads only post messages to it.
 - Leave zero warnings. Every build treats warnings as errors; see the quality rules above.
 - Comments and docs describe what the code does now. Do not write history ("previously", "used to") or future plans.
-- Docs voice: Home pages may address the reader ("you"). How it works and Spec use the app name ("Magnetic Borders" or "MB") or impersonal instructions, never "I". US spelling, active voice, serial comma, short sentences, no em dashes.
+- Use the serial (Oxford) comma in all English text: UI strings and their translator comments, docs, specs, the README, code comments, and commit messages. Write "A, B, and C", never "A, B and C".
+- Docs voice: Home pages may address the reader ("you"). How it works and Spec use the app name ("Magnetic Borders" or "MB") or impersonal instructions, never "I". US spelling, active voice, short sentences, no em dashes.
 - User-facing text belongs in resource files so it can be localized: `.resw` with `x:Uid` in the settings app, `STRINGTABLE` resources in the C++ engine, the equivalent in Rust and C#. Do not add new hard-coded UI strings.
 - Keep private data out of the repo: no machine names, local user paths, or log files.
 - When an AI helped with a commit, end the message with a `Co-Authored-By` trailer. Do not add links to AI sessions.

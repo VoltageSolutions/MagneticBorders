@@ -1,5 +1,6 @@
 //! Settings model (schema 1), lenient parsing and the reload rule.
 
+use crate::SnapOptions;
 use serde_json::Value;
 
 /// Settings model (schema 1). Unknown keys are ignored here (the settings app preserves them).
@@ -11,10 +12,18 @@ pub struct Settings {
     pub glue_enabled: bool,
     /// Glue tolerance in pixels, 0 to 64 (`glue.tolerance_px`).
     pub glue_tolerance_px: i32,
-    /// Snap feature switch (`snap.enabled`); parsed but not acted on.
+    /// Magnetic attraction switch (`snap.enabled`).
     pub snap_enabled: bool,
-    /// Snap distance in pixels, 0 to 64 (`snap.distance_px`).
+    /// Pull-in distance in pixels, 0 to 64 (`snap.distance_px`).
     pub snap_distance_px: i32,
+    /// Breakaway distance in pixels, 0 to 128 (`snap.breakaway_px`).
+    pub snap_breakaway_px: i32,
+    /// Snapping speed limit in pixels per second, 100 to 5000 (`snap.max_speed`).
+    pub snap_max_speed: i32,
+    /// Work-area sides are targets (`snap.screen_edges`).
+    pub snap_screen_edges: bool,
+    /// Other windows are targets (`snap.windows`).
+    pub snap_windows: bool,
     /// Executable names whose windows are never glued.
     pub excluded_apps: Vec<String>,
     /// Whether the engine registers itself to start at login.
@@ -29,6 +38,10 @@ impl Default for Settings {
             glue_tolerance_px: 12,
             snap_enabled: true,
             snap_distance_px: 16,
+            snap_breakaway_px: 24,
+            snap_max_speed: 600,
+            snap_screen_edges: true,
+            snap_windows: true,
             excluded_apps: vec![],
             start_at_login: false,
         }
@@ -39,14 +52,39 @@ fn bool_of(v: Option<&Value>, d: bool) -> bool {
     v.and_then(Value::as_bool).unwrap_or(d)
 }
 
-fn px_of(v: Option<&Value>, d: i32) -> i32 {
+fn int_of(v: Option<&Value>, d: i32, lo: i32, hi: i32) -> i32 {
     match v.and_then(|v| v.as_i64().or_else(|| v.as_f64().map(|f| f.round() as i64))) {
-        Some(n) => n.clamp(0, 64) as i32,
+        Some(n) => n.clamp(i64::from(lo), i64::from(hi)) as i32,
         None => d,
     }
 }
 
+fn px_of(v: Option<&Value>, d: i32) -> i32 {
+    int_of(v, d, 0, 64)
+}
+
 impl Settings {
+    /// True when magnetic coupling should act: `enabled` and `glue.enabled` (RESIZE-001).
+    pub fn glue_active(&self) -> bool {
+        self.enabled && self.glue_enabled
+    }
+
+    /// True when magnetic attraction should act: `enabled` and `snap.enabled` (SNAP-001).
+    pub fn snap_active(&self) -> bool {
+        self.enabled && self.snap_enabled
+    }
+
+    /// The magnetic attraction tunables.
+    pub fn snap_options(&self) -> SnapOptions {
+        SnapOptions {
+            distance_px: self.snap_distance_px,
+            breakaway_px: self.snap_breakaway_px,
+            max_speed: self.snap_max_speed,
+            screen_edges: self.snap_screen_edges,
+            windows: self.snap_windows,
+        }
+    }
+
     /// Parses settings text; missing keys take defaults. Err on invalid JSON / non-object.
     pub fn parse(text: &str) -> Result<Settings, String> {
         let v: Value = serde_json::from_str(text).map_err(|e| e.to_string())?;
@@ -67,6 +105,10 @@ impl Settings {
             glue_tolerance_px: px_of(glue.and_then(|g| g.get("tolerance_px")), legacy_tol),
             snap_enabled: bool_of(snap.and_then(|g| g.get("enabled")), d.snap_enabled),
             snap_distance_px: px_of(snap.and_then(|g| g.get("distance_px")), d.snap_distance_px),
+            snap_breakaway_px: int_of(snap.and_then(|g| g.get("breakaway_px")), d.snap_breakaway_px, 0, 128),
+            snap_max_speed: int_of(snap.and_then(|g| g.get("max_speed")), d.snap_max_speed, 100, 5000),
+            snap_screen_edges: bool_of(snap.and_then(|g| g.get("screen_edges")), d.snap_screen_edges),
+            snap_windows: bool_of(snap.and_then(|g| g.get("windows")), d.snap_windows),
             excluded_apps: excluded,
             start_at_login: bool_of(root.get("start_at_login"), d.start_at_login),
         })
@@ -130,6 +172,47 @@ mod tests {
         assert_eq!(s.glue_tolerance_px, 64);
         assert_eq!(s.snap_distance_px, 0);
         assert!(s.enabled && s.glue_enabled);
+    }
+
+    #[test]
+    fn snap_keys_parse_and_clamp() {
+        let s = Settings::parse(r#"{"snap":{"breakaway_px":500,"max_speed":10,"screen_edges":false,"windows":false}}"#)
+            .unwrap();
+        assert_eq!((s.snap_breakaway_px, s.snap_max_speed), (128, 100));
+        assert!(!s.snap_screen_edges && !s.snap_windows);
+        let s = Settings::parse(r#"{"snap":{"breakaway_px":-1,"max_speed":9000.4}}"#).unwrap();
+        assert_eq!((s.snap_breakaway_px, s.snap_max_speed), (0, 5000));
+        let d = Settings::default();
+        assert_eq!((d.snap_breakaway_px, d.snap_max_speed, d.snap_screen_edges, d.snap_windows), (24, 600, true, true));
+    }
+
+    #[test]
+    fn activity_needs_the_master_switch_and_the_feature_switch() {
+        let s = Settings::default();
+        assert!(s.glue_active() && s.snap_active());
+        let off = Settings { enabled: false, ..Settings::default() };
+        assert!(!off.glue_active() && !off.snap_active());
+        let snap_off = Settings { snap_enabled: false, ..Settings::default() };
+        assert!(snap_off.glue_active() && !snap_off.snap_active());
+        let glue_off = Settings { glue_enabled: false, ..Settings::default() };
+        assert!(!glue_off.glue_active() && glue_off.snap_active());
+    }
+
+    #[test]
+    fn snap_options_mirror_the_snap_keys() {
+        let s = Settings {
+            snap_distance_px: 5,
+            snap_breakaway_px: 6,
+            snap_max_speed: 700,
+            snap_screen_edges: false,
+            snap_windows: false,
+            ..Settings::default()
+        };
+        assert_eq!(
+            s.snap_options(),
+            SnapOptions { distance_px: 5, breakaway_px: 6, max_speed: 700, screen_edges: false, windows: false }
+        );
+        assert_eq!(Settings::default().snap_options(), SnapOptions::default());
     }
 
     #[test]

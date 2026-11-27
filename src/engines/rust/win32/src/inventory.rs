@@ -8,7 +8,7 @@ use windows::core::{BOOL, PWSTR};
 use windows::Win32::Foundation::{CloseHandle, HWND, LPARAM, RECT};
 use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED};
 use windows::Win32::Graphics::Gdi::{
-    GetMonitorInfoW, MonitorFromWindow, HMONITOR, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+    EnumDisplayMonitors, GetMonitorInfoW, MonitorFromWindow, HDC, HMONITOR, MONITORINFO, MONITOR_DEFAULTTONEAREST,
 };
 use windows::Win32::System::Threading::{
     GetCurrentProcessId, OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
@@ -47,6 +47,28 @@ impl Win32Inventory {
         }
     }
 
+    /// True when a window hides what is below it: visible, not minimized, not cloaked, not click-through (overlays
+    /// such as the `FancyZones` editor), and not this process's own window (SNAP-038).
+    fn covers(h: HWND, own_pid: u32) -> bool {
+        unsafe {
+            if !IsWindowVisible(h).as_bool() || IsIconic(h).as_bool() {
+                return false;
+            }
+            let mut cloaked = 0u32;
+            let _ = DwmGetWindowAttribute(h, DWMWA_CLOAKED, (&raw mut cloaked).cast::<c_void>(), 4);
+            if cloaked != 0 {
+                return false;
+            }
+            let ex = GetWindowLongPtrW(h, GWL_EXSTYLE) as u32;
+            if ex & WS_EX_TRANSPARENT.0 != 0 {
+                return false;
+            }
+            let mut pid = 0u32;
+            GetWindowThreadProcessId(h, Some(&raw mut pid));
+            pid != own_pid
+        }
+    }
+
     fn eligible(&self, h: HWND, monitor: HMONITOR, own_pid: u32) -> bool {
         unsafe {
             if !IsWindowVisible(h).as_bool() || IsIconic(h).as_bool() || IsZoomed(h).as_bool() {
@@ -80,12 +102,32 @@ struct Ctx<'a> {
     monitor: HMONITOR,
     pid: u32,
     out: Vec<WinInfo>,
+    /// Covering windows from the top of the z-order down, on any monitor.
+    stack: Vec<(u64, Rect)>,
     min: (i32, i32),
+}
+
+/// Collects the work area of every monitor into the `Vec<Rect>` behind `lp`.
+unsafe extern "system" fn monitor_cb(monitor: HMONITOR, _: HDC, _: *mut RECT, lp: LPARAM) -> BOOL {
+    unsafe {
+        let areas = &mut *(lp.0 as *mut Vec<Rect>);
+        let mut mi = MONITORINFO { cbSize: std::mem::size_of::<MONITORINFO>() as u32, ..Default::default() };
+        if GetMonitorInfoW(monitor, &raw mut mi).as_bool() {
+            areas.push(from_rect(mi.rcWork));
+        }
+        BOOL(1)
+    }
 }
 
 unsafe extern "system" fn enum_cb(h: HWND, lp: LPARAM) -> BOOL {
     unsafe {
         let ctx = &mut *(lp.0 as *mut Ctx);
+        // EnumWindows walks the z-order from the top, so the stack comes out top first.
+        if Win32Inventory::covers(h, ctx.pid) {
+            if let Some(f) = frame_bounds(h).filter(|f| f.width() > 0 && f.height() > 0) {
+                ctx.stack.push((id_of(h), f));
+            }
+        }
         if ctx.inv.eligible(h, ctx.monitor, ctx.pid) {
             let mut wr = RECT::default();
             if let (Some(frame), Ok(())) = (frame_bounds(h), GetWindowRect(h, &raw mut wr)) {
@@ -116,12 +158,17 @@ impl WindowInventory for Win32Inventory {
                 monitor,
                 pid: GetCurrentProcessId(),
                 out: Vec::new(),
+                stack: Vec::new(),
                 min: (GetSystemMetrics(SM_CXMINTRACK), GetSystemMetrics(SM_CYMINTRACK)),
             };
             let _ = EnumWindows(Some(enum_cb), LPARAM(&raw mut ctx as isize));
+            let mut work_areas: Vec<Rect> = Vec::new();
+            let _ = EnumDisplayMonitors(None, None, Some(monitor_cb), LPARAM(&raw mut work_areas as isize));
             Snapshot {
                 windows: ctx.out,
                 work_area: from_rect(mi.rcWork),
+                work_areas,
+                stack: ctx.stack,
                 dpi_scale: if dpi == 0 { 1.0 } else { f64::from(dpi) / 96.0 },
             }
         }

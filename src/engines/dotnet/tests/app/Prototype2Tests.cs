@@ -41,6 +41,29 @@ public class SettingsParserTests
         Assert.Equal(0, m.SnapDistancePx);
     }
 
+    [Fact]
+    public void Attraction_keys_parse_and_clamp()
+    {
+        Assert.True(SettingsParser.TryParse("""{"snap":{"breakaway_px":500,"max_speed":10,"screen_edges":false,"windows":false}}""", out var m, out _));
+        Assert.Equal(128, m.SnapBreakawayPx);
+        Assert.Equal(100, m.SnapMaxSpeed);
+        Assert.False(m.SnapScreenEdges);
+        Assert.False(m.SnapWindows);
+        Assert.True(SettingsParser.TryParse("""{"snap":{"breakaway_px":-1,"max_speed":99999}}""", out var n, out _));
+        Assert.Equal(0, n.SnapBreakawayPx);
+        Assert.Equal(5000, n.SnapMaxSpeed);
+    }
+
+    [Fact]
+    public void Attraction_keys_default_when_missing()
+    {
+        Assert.True(SettingsParser.TryParse("{}", out var m, out _));
+        Assert.Equal(24, m.SnapBreakawayPx);
+        Assert.Equal(600, m.SnapMaxSpeed);
+        Assert.True(m.SnapScreenEdges);
+        Assert.True(m.SnapWindows);
+    }
+
     [Theory]
     [InlineData("{bad")]
     [InlineData("")]

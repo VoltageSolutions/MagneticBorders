@@ -60,9 +60,10 @@ public class DragControllerTests
     }
 
     [Fact]
-    public void Pure_move_is_ignored()
+    public void Pure_move_is_ignored_without_attraction()
     {
         var (c, inv, mv, _, _) = Make(Snap());
+        c.SnapActive = false;
         c.OnMoveSizeStart(1);
         inv.Current = new Rect(50, 50, 1770, 1490);
         c.OnLocationChange(1);

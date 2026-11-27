@@ -62,6 +62,12 @@ TrackPopupMenuEx
 DestroyMenu
 SetForegroundWindow
 GetCursorPos
+SetCursorPos
+SetWindowsHookEx
+UnhookWindowsHookEx
+CallNextHookEx
+MSLLHOOKSTRUCT
+EnumDisplayMonitors
 ExtractIconEx
 LoadIcon
 DestroyIcon
@@ -73,6 +79,9 @@ WM_TIMER
 WM_DESTROY
 WM_COMMAND
 WM_LBUTTONUP
+WM_MBUTTONUP
+WM_XBUTTONUP
+WM_MOUSEMOVE
 WM_RBUTTONUP
 WM_CONTEXTMENU
 WM_NULL

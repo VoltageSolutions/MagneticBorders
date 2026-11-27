@@ -33,12 +33,14 @@ s.AddSingleton<IClock, StopwatchClock>();
 s.AddSingleton<WindowState>();
 s.AddSingleton(p => new Win32Inventory(p.GetRequiredService<WindowState>(), []));
 s.AddSingleton<IWindowInventory>(p => p.GetRequiredService<Win32Inventory>());
+s.AddSingleton(p => new Win32PointerHook(p.GetRequiredService<ILog>()));
 s.AddSingleton<IWindowMover>(p => new Win32Mover(p.GetRequiredService<WindowState>(), p.GetRequiredService<ILog>(), verbose));
 s.AddSingleton(p =>
 {
     var c = new DragController(
         p.GetRequiredService<IWindowInventory>(), p.GetRequiredService<IWindowMover>(),
         p.GetRequiredService<IClock>(), p.GetRequiredService<ILog>(), p.GetRequiredService<ITimer>(), 12, "net");
+    c.Hook = p.GetRequiredService<Win32PointerHook>();
     p.GetRequiredService<Win32Timer>().Fired = c.OnTimer;
     return c;
 });

@@ -45,10 +45,18 @@ public sealed record SettingsModel
     public bool GlueEnabled { get; init; } = true;
     /// <summary>Glue tolerance in pixels, clamped to 0..64 by the parser (glue.tolerance_px).</summary>
     public int GlueTolerancePx { get; init; } = 12;
-    /// <summary>Snap switch (snap.enabled). Parsed but snapping is not implemented in this engine.</summary>
+    /// <summary>Magnetic attraction switch (snap.enabled).</summary>
     public bool SnapEnabled { get; init; } = true;
-    /// <summary>Snap distance in pixels, clamped to 0..64 (snap.distance_px). Parsed only.</summary>
+    /// <summary>Pull-in distance in pixels, clamped to 0..64 (snap.distance_px).</summary>
     public int SnapDistancePx { get; init; } = 16;
+    /// <summary>Breakaway distance in pixels, clamped to 0..128 (snap.breakaway_px).</summary>
+    public int SnapBreakawayPx { get; init; } = 24;
+    /// <summary>Snapping speed limit in pixels per second, clamped to 100..5000 (snap.max_speed).</summary>
+    public int SnapMaxSpeed { get; init; } = 600;
+    /// <summary>Work-area sides are targets (snap.screen_edges).</summary>
+    public bool SnapScreenEdges { get; init; } = true;
+    /// <summary>Other windows are targets (snap.windows).</summary>
+    public bool SnapWindows { get; init; } = true;
     /// <summary>Executable names whose windows never take part in gluing (excluded_apps).</summary>
     public IReadOnlyList<string> ExcludedApps { get; init; } = [];
     /// <summary>Whether the engine writes its Run key entry (start_at_login).</summary>
@@ -96,7 +104,8 @@ public static class SettingsParser
             bool enabled = Bool(root, "enabled", d.Enabled);
             bool startAtLogin = Bool(root, "start_at_login", d.StartAtLogin);
             bool glueEnabled = d.GlueEnabled, snapEnabled = d.SnapEnabled;
-            int tol = d.GlueTolerancePx, dist = d.SnapDistancePx;
+            int tol = d.GlueTolerancePx, dist = d.SnapDistancePx, breakaway = d.SnapBreakawayPx, maxSpeed = d.SnapMaxSpeed;
+            bool screenEdges = d.SnapScreenEdges, windows = d.SnapWindows;
             if (root.TryGetProperty("glue", out var g) && g.ValueKind == JsonValueKind.Object)
             {
                 glueEnabled = Bool(g, "enabled", glueEnabled);
@@ -106,6 +115,10 @@ public static class SettingsParser
             {
                 snapEnabled = Bool(sn, "enabled", snapEnabled);
                 dist = Int(sn, "distance_px", dist);
+                breakaway = Int(sn, "breakaway_px", breakaway);
+                maxSpeed = Int(sn, "max_speed", maxSpeed);
+                screenEdges = Bool(sn, "screen_edges", screenEdges);
+                windows = Bool(sn, "windows", windows);
             }
             var excluded = new List<string>();
             if (root.TryGetProperty("excluded_apps", out var ex) && ex.ValueKind == JsonValueKind.Array)
@@ -118,6 +131,10 @@ public static class SettingsParser
                 GlueTolerancePx = Math.Clamp(tol, 0, 64),
                 SnapEnabled = snapEnabled,
                 SnapDistancePx = Math.Clamp(dist, 0, 64),
+                SnapBreakawayPx = Math.Clamp(breakaway, 0, 128),
+                SnapMaxSpeed = Math.Clamp(maxSpeed, 100, 5000),
+                SnapScreenEdges = screenEdges,
+                SnapWindows = windows,
                 ExcludedApps = excluded,
                 StartAtLogin = startAtLogin,
             };
