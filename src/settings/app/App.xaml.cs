@@ -30,11 +30,11 @@ public partial class App : Application
 
     /// <summary>The single view model shared by the flyout and the main window (real settings file, real pipe client).</summary>
     public static SettingsViewModel ViewModel { get; } = new(
-        new SettingsStore(Program.SmokeDir is null ? null : Path.Combine(Program.SmokeDir, "settings.json")),
+        new SettingsStore(Program.SmokeDir is null ? null : Path.Join(Program.SmokeDir, "settings.json")),
         new PipeEngineClient(), appVersion: AppInfo.FromEntryAssembly().Version);
 
     /// <summary>Crash log file: the default one, or settings.log in the smoke-test folder.</summary>
-    private static string? CrashLogPath => Program.SmokeDir is null ? null : Path.Combine(Program.SmokeDir, "settings.log");
+    private static string? CrashLogPath => Program.SmokeDir is null ? null : Path.Join(Program.SmokeDir, "settings.log");
 
     /// <summary>How long the smoke test lets each window load and lay out before it moves on.</summary>
     private static readonly TimeSpan SmokeStep = TimeSpan.FromSeconds(2);

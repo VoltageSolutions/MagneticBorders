@@ -11,11 +11,11 @@ namespace MagneticBorders.Win32;
 public static class Paths
 {
     /// <summary>Folder holding settings.json and logs.</summary>
-    public static string DataDir { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MagneticBorders");
+    public static string DataDir { get; } = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MagneticBorders");
     /// <summary>Path of the shared settings.json.</summary>
-    public static string SettingsFile => Path.Combine(DataDir, "settings.json");
+    public static string SettingsFile => Path.Join(DataDir, "settings.json");
     /// <summary>Path of this engine's log file.</summary>
-    public static string LogFile => Path.Combine(DataDir, "logs", EngineInfo.Name + ".log");
+    public static string LogFile => Path.Join(DataDir, "logs", EngineInfo.Name + ".log");
 }
 
 /// <summary>Manages the HKCU Run entry for start at login.</summary>
@@ -37,7 +37,7 @@ public static class Autostart
             }
             else if (k.GetValue(Name) is not null) { k.DeleteValue(Name, false); log.Info("start_at_login: Run key removed"); }
         }
-        catch (Exception ex) { log.Info("start_at_login failed: " + ex.Message); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { log.Info("start_at_login failed: " + ex.Message); }
     }
 }
 
@@ -125,7 +125,9 @@ public sealed class PipeServer : IDisposable
                 var bytes = new UTF8Encoding(false).GetBytes(resp + "\n");
                 await s.WriteAsync(bytes, to.Token);
                 await s.FlushAsync(to.Token);
-                try { s.WaitForPipeDrain(); } catch { }
+                // The client may close before reading everything; the reply was already written.
+                try { s.WaitForPipeDrain(); }
+                catch (IOException ex) { _log.Debug("pipe drain: " + ex.Message); }
             }
         }
         catch (Exception ex) { _log.Info("pipe client error: " + ex.Message); }
@@ -153,6 +155,6 @@ public static class PipeClient
             using var reader = new StreamReader(c, enc);
             return reader.ReadLineAsync(cts.Token).AsTask().GetAwaiter().GetResult();
         }
-        catch { return null; }
+        catch (Exception ex) when (ex is IOException or TimeoutException or OperationCanceledException or UnauthorizedAccessException) { return null; }
     }
 }

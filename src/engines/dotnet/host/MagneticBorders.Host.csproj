@@ -7,7 +7,9 @@
     <AssemblyTitle>Magnetic Borders</AssemblyTitle>
     <ApplicationIcon>..\..\..\common\assets\icon.ico</ApplicationIcon>
     <PublishAot>true</PublishAot>
-    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <!-- linux-x64 is not a target. With PublishAot, restore adds the RID of the machine it runs on, and Dependabot
+         restores on Linux. Listing it keeps packages.lock.json the same on Windows and Linux, so locked restore passes. -->
+    <RuntimeIdentifiers>win-x64;win-arm64;linux-x64</RuntimeIdentifiers>
     <InvariantGlobalization>true</InvariantGlobalization>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

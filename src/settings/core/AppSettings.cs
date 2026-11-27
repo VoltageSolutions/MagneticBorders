@@ -100,7 +100,8 @@ public sealed class AppSettings
         if (root["ui"] is JsonObject ui)
         {
             string? b = null;
-            try { b = ui["flyout_backdrop"] is JsonValue bv && bv.TryGetValue<string>(out var bs) ? bs : null; } catch { }
+            try { b = ui["flyout_backdrop"] is JsonValue bv && bv.TryGetValue<string>(out var bs) ? bs : null; }
+            catch (InvalidOperationException) { b = null; }
             s.FlyoutBackdrop = BackdropFromJson(b);
         }
         if (root["excluded_apps"] is JsonArray arr)
@@ -113,7 +114,7 @@ public sealed class AppSettings
                     var v = item?.GetValue<string>();
                     if (!string.IsNullOrWhiteSpace(v)) s.ExcludedApps.Add(v.Trim());
                 }
-                catch (InvalidOperationException) { }
+                catch (InvalidOperationException) { continue; }
             }
         }
         return s;
@@ -154,7 +155,8 @@ public sealed class AppSettings
     /// <summary>Reads a JSON boolean, or the default when absent or of another type.</summary>
     private static bool Bool(JsonNode? n, bool d)
     {
-        try { return n is JsonValue v && v.TryGetValue<bool>(out var b) ? b : d; } catch { return d; }
+        try { return n is JsonValue v && v.TryGetValue<bool>(out var b) ? b : d; }
+        catch (InvalidOperationException) { return d; }
     }
 
     /// <summary>Reads a JSON number as int (doubles are rounded), or the default when absent or of another type.</summary>
@@ -168,7 +170,7 @@ public sealed class AppSettings
                 if (v.TryGetValue<double>(out var dd)) return (int)Math.Round(dd);
             }
         }
-        catch { }
+        catch (Exception ex) when (ex is InvalidOperationException or OverflowException) { return d; }
         return d;
     }
 }

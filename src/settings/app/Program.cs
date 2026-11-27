@@ -27,7 +27,7 @@ public static class Program
         int smoke = Array.IndexOf(args, "--smoke");
         if (smoke >= 0)
         {
-            SmokeDir = smoke + 1 < args.Length ? args[smoke + 1] : Path.Combine(Path.GetTempPath(), "MagneticBorders-smoke");
+            SmokeDir = smoke + 1 < args.Length ? args[smoke + 1] : Path.Join(Path.GetTempPath(), "MagneticBorders-smoke");
             Directory.CreateDirectory(SmokeDir);
             StartApp();
             return ExitCode;

@@ -9,7 +9,7 @@ namespace MagneticBorders.Settings.Core;
 public static class CrashLog
 {
     /// <summary>Default log file.</summary>
-    public static string DefaultPath => Path.Combine(SettingsStore.DataDir, "logs", "settings.log");
+    public static string DefaultPath => Path.Join(SettingsStore.DataDir, "logs", "settings.log");
 
     /// <summary>Appends one entry with the time, where it was caught, and the full exception text.</summary>
     public static void Write(string source, Exception? exception, string? path = null)
