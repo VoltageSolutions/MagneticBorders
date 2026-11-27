@@ -894,7 +894,8 @@ TEST_F(PointerFixture,
        VerboseLinesDescribeTheHoldTheReleaseAndTheCorrection) {  // ENG-088 to ENG-090
     VerboseController v(*this);
     v.ctl.on_move_size_start(1);
-    move_to(inv.snap.windows[0].frame);
+    clock.t += 100;
+    v.ctl.on_location_change(1);
     clock.t += 100;
     EXPECT_EQ(v.ctl.on_pointer_move({310, 270}), std::nullopt);
     EXPECT_FALSE(log.contains("diag: pointer hold"));

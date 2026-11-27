@@ -287,9 +287,10 @@ Attraction* DragController::active_attraction() {
 std::optional<Point> DragController::on_pointer_move(const Point& proposed) {
     if (!pointer_ || state_ != State::Moving) return std::nullopt;
     const Point out = pointer_->move(proposed, clock_.now_ms());
+    const Rect window = pointer_->window();
     log_snap_events();
     if (out == proposed) return std::nullopt;
-    if (opts_.verbose) log_.debug(drag_diag::pointer_hold_line(proposed, out, pointer_->window()));
+    if (opts_.verbose) log_.debug(drag_diag::pointer_hold_line(proposed, out, window));
     return out;
 }
 
