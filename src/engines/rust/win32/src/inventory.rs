@@ -62,7 +62,7 @@ impl Win32Inventory {
         }
         let Some(name) = Self::exe_file_name(pid) else { return false };
         let name = name.to_lowercase();
-        self.shared.excluded.borrow().iter().any(|e| *e == name)
+        self.shared.excluded.borrow().contains(&name)
     }
 
     /// Window class name, or an empty string when it cannot be read.
