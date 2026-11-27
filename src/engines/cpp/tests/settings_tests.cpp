@@ -201,6 +201,13 @@ TEST(Settings, IllTypedSnapValuesFallBackToDefaults) {
     EXPECT_TRUE(s->snap_windows);
 }
 
+TEST(Settings, FractionalNumbersRoundHalvesAwayFromZero) {  // CFG-017
+    const auto s = parse_settings(R"({"glue":{"tolerance_px":12.5},"snap":{"distance_px":3.2}})");
+    ASSERT_TRUE(s);
+    EXPECT_EQ(s->glue_tolerance_px, 13);
+    EXPECT_EQ(s->snap_distance_px, 3);
+}
+
 TEST(Settings, SnapActiveRule) {  // SNAP-001
     Settings s;
     EXPECT_TRUE(s.snap_active());
