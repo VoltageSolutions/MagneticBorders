@@ -1,9 +1,16 @@
 name: CD
 
 # A merged release branch lands on main. When v<version> has no release yet, this builds every engine and the
-# settings app for x64 and arm64, packages the primary C++ zips plus Rust and C# comparison zips per architecture, and creates a DRAFT GitHub release.
-# Publish the draft by hand. Publishing it fires release-branch.yml, which opens the next release branch.
+# settings app for x64 and arm64, packages the primary C++ zips plus Rust and C# comparison zips per architecture,
+# publishes the GitHub release v<version>, and opens the next release branch release/vX.(Y+1).0 with its version set.
 # Builds are not tested again here: the pull request already ran CI.
+#
+# The next branch is opened here, not by a workflow that listens for the release: a release or branch created with
+# GITHUB_TOKEN does not start other workflows. For the same reason the Release Branch workflow (release-branch.yml)
+# never runs for the branch this workflow opens, so this workflow sets the version itself.
+#
+# Run it by hand (workflow_dispatch) with dry_run to build and package without publishing; the next-branch job then
+# only reports what it would do.
 on:
   push:
     branches: [main]
@@ -14,7 +21,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: Build and package, but do not create the draft release
+        description: Build and package, but do not publish the release or open the next release branch
         type: boolean
         default: false
 
@@ -40,7 +47,7 @@ jobs:
     name: Version
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # write: a draft release is only visible to a token that can push, and the lookup below must see drafts.
+    # write: a draft release (made by hand) is only visible to a token that can push, and the lookup must see it.
     permissions:
       contents: write
     outputs:
@@ -132,8 +139,8 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
-  draft-release:
-    name: Draft GitHub release
+  release:
+    name: Publish GitHub release
     needs: [prepare, package]
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
@@ -149,7 +156,7 @@ jobs:
           name: release
           path: release
 
-      - name: Create draft release
+      - name: Create release
         shell: bash
         run: |
           notes="## Download
@@ -163,9 +170,57 @@ jobs:
 
           The -rust and -dotnet zips are Rust and C# builds of the same app, for performance comparison.
           Run only one build at a time."
-          gh release create "v${VERSION}" --repo "$GITHUB_REPOSITORY" --draft --target "$GITHUB_SHA" \
+          gh release create "v${VERSION}" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest \
             --title "v${VERSION}" --notes "$notes" \
             release/*.zip release/SHA256SUMS.txt
+          echo "Published release v${VERSION}." >> "$GITHUB_STEP_SUMMARY"
+
+  # After a release, open the branch for the next minor version (release/vX.(Y+1).0) with the version already set.
+  next-branch:
+    name: Open next release branch
+    needs: [prepare, release]
+    # Runs after the release was published, or in a dry run (release is skipped then) to report what it would do.
+    if: >-
+      !cancelled() && needs.prepare.outputs.skip != 'true' &&
+      (needs.release.result == 'success' || inputs.dry_run)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      RELEASED: ${{ needs.prepare.outputs.version }}
+      DRY_RUN: ${{ inputs.dry_run == true }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Create next release branch
+        shell: bash
+        run: |
+          IFS=. read -r major minor _ <<< "$RELEASED"
+          next="${major}.$((10#$minor + 1)).0"
+          branch="release/v${next}"
+          echo "Released ${RELEASED}; next release branch is ${branch}."
+          if git ls-remote --exit-code --heads origin "refs/heads/${branch}" > /dev/null; then
+            echo "::notice title=Next release branch exists::${branch} already exists; nothing to do."
+            echo "Next release branch ${branch} already exists; not changed." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ "$DRY_RUN" = true ]; then
+            echo "Dry run: would open ${branch} from ${GITHUB_SHA}, set the version to ${next} and push it."
+            echo "Dry run: would open ${branch} (version ${next}) from ${GITHUB_SHA}. Nothing was pushed." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git switch -c "$branch" "$GITHUB_SHA"
+          pwsh tools/ci/set-version.ps1 -Version "$next"
+          pwsh tools/ci/check-version.ps1 -Branch "$branch"
+          git add -A src
+          git -c user.name='github-actions[bot]' -c user.email='41898173+github-actions[bot]@users.noreply.github.com' \
+            commit -m "Start ${next} development" -m "Opened automatically after v${RELEASED} was released."
+          git push origin "HEAD:refs/heads/${branch}"
+          echo "::notice title=Next release branch::Opened ${branch} with version ${next}."
+          echo "Opened next release branch ${branch} (version ${next})." >> "$GITHUB_STEP_SUMMARY"
 
   # TODO: Microsoft Store job (needs: package), not implemented yet.
   #   - Build an MSIX for the C++ build only (x64 and arm64), from the published C++ engine and settings app.

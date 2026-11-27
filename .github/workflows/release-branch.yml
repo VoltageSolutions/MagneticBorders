@@ -1,97 +1,50 @@
 name: Release Branch
 
-# Two jobs keep the version in step with the release branches:
+# Keeps the version in step with a release branch made by hand: when release/vX.Y.Z is created, the version in all
+# four sources on that branch is set to X.Y.Z with tools/ci/set-version.ps1. The version must be higher than the
+# latest release (versions never go backwards).
 #
-# next-branch: when a release is published (the draft from cd.yml), opens release/v<next minor> from the
-#   released commit and sets the version in all four sources with tools/ci/set-version.ps1.
-# set-version: when release/vX.Y.Z is created by hand, sets the version in all four sources to X.Y.Z.
+# Branches pushed by a workflow with GITHUB_TOKEN do not trigger `create` events. That is why the branch the CD
+# workflow (cd.yml) opens after each release never runs this workflow: that job sets the version itself.
 #
-# Branches pushed with GITHUB_TOKEN do not trigger `create` events. That is why the branch next-branch opens never
-# runs set-version: next-branch sets the version itself.
-#
-# Run it by hand (workflow_dispatch) to try next-branch: with dry_run (the default) it only reports what it would do.
+# Run it by hand (workflow_dispatch) to try it: with dry_run (the default) it only reports what it would do.
 on:
-  release:
-    types: [published]
   create:
   workflow_dispatch:
     inputs:
-      released_version:
-        description: Version that was released, for example 0.3.0 (the next branch is release/v0.4.0)
+      branch:
+        description: Release branch to check, for example release/v0.4.0 (it may not exist yet in a dry run)
         type: string
         required: true
       dry_run:
-        description: Dry run (report only, never push)
+        description: Dry run (report only, never commit or push)
         type: boolean
         default: true
 
 concurrency:
-  group: release-branch-${{ github.event.release.tag_name || inputs.released_version || github.ref_name }}
+  group: release-branch-${{ inputs.branch || github.ref_name }}
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  next-branch:
-    name: Open next release branch
-    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+  set-version:
+    name: Set version from branch name
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.ref_type == 'branch' && startsWith(github.ref_name, 'release/'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
     env:
-      TAG: ${{ github.event.release.tag_name }}
-      INPUT_VERSION: ${{ inputs.released_version }}
+      BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.ref_name }}
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-
-      - name: Create next release branch
-        shell: bash
-        run: |
-          released="${TAG#v}"
-          if [ -z "$TAG" ]; then released="$INPUT_VERSION"; fi
-          if ! [[ "$released" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-            echo "::error title=Bad version::'${released}' is not a version of the form X.Y.Z."
-            exit 1
-          fi
-          IFS=. read -r major minor _ <<< "$released"
-          next="${major}.$((10#$minor + 1)).0"
-          branch="release/v${next}"
-          echo "Released ${released}; next release branch is ${branch}."
-          if git ls-remote --exit-code --heads origin "refs/heads/${branch}" > /dev/null; then
-            echo "::notice title=Next release branch exists::${branch} already exists; nothing to do."
-            echo "Next release branch ${branch} already exists; not changed." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          if [ "$DRY_RUN" = true ]; then
-            echo "Dry run: would open ${branch} from ${GITHUB_SHA}, set the version to ${next} and push it."
-            echo "Dry run: would open ${branch} (version ${next}) from ${GITHUB_SHA}. Nothing was pushed." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          git switch -c "$branch" "$GITHUB_SHA"
-          pwsh tools/ci/set-version.ps1 -Version "$next"
-          git add -A src
-          git -c user.name='github-actions[bot]' -c user.email='41898173+github-actions[bot]@users.noreply.github.com' \
-            commit -m "Start ${next} development" -m "Opened automatically after v${released} was released."
-          git push origin "HEAD:refs/heads/${branch}"
-          echo "::notice title=Next release branch::Opened ${branch} with version ${next}."
-          echo "Opened next release branch ${branch} (version ${next})." >> "$GITHUB_STEP_SUMMARY"
-
-  set-version:
-    name: Set version from branch name
-    if: github.event_name == 'create' && github.ref_type == 'branch' && startsWith(github.ref_name, 'release/')
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-    env:
-      BRANCH: ${{ github.ref_name }}
-    steps:
-      - uses: actions/checkout@v7
 
       - name: Set version
         shell: bash
@@ -101,13 +54,43 @@ jobs:
             exit 1
           fi
           version="${BASH_REMATCH[1]}"
-          pwsh tools/ci/set-version.ps1 -Version "$version"
-          if git diff --quiet; then
+          latest="$(git ls-remote --tags --refs origin 'refs/tags/v*' | sed 's:.*refs/tags/v::' \
+            | grep -E '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' | sort -V | tail -n 1 || true)"
+          echo "Branch: ${BRANCH}"
+          echo "Version from the branch name: ${version}"
+          echo "Latest release tag: v${latest:-none}"
+          if [ -n "$latest" ] && { [ "$version" = "$latest" ] || [ "$(printf '%s\n%s\n' "$version" "$latest" | sort -V | tail -n 1)" != "$version" ]; }; then
+            echo "::error title=Version goes backwards::${BRANCH} is for ${version}, which is not higher than the latest release v${latest}. Delete the branch and create one with a higher version."
+            exit 1
+          fi
+          if git ls-remote --exit-code --heads origin "refs/heads/${BRANCH}" > /dev/null; then
+            git fetch --no-tags origin "+refs/heads/${BRANCH}:refs/remotes/origin/${BRANCH}"
+            git switch -C "$BRANCH" "origin/${BRANCH}"
+          elif [ "$DRY_RUN" = true ]; then
+            echo "${BRANCH} does not exist on origin; reading the version from ${GITHUB_REF_NAME} instead."
+          else
+            echo "::error title=Branch not found::${BRANCH} does not exist on origin."
+            exit 1
+          fi
+          # The four sources must agree for CI to pass; set-version.ps1 below writes all four.
+          current="$(sed -n 's:.*<Version>\([^<]*\)</Version>.*:\1:p' src/engines/dotnet/Directory.Build.props | head -n 1 | tr -d '[:space:]')"
+          if [ "$current" = "$version" ] && ! pwsh tools/ci/check-version.ps1 -Branch "$BRANCH" > /dev/null; then current="mixed"; fi
+          echo "Version in the sources: ${current:-unknown}"
+          if [ "$current" = "$version" ]; then
             echo "::notice title=Version already set::${BRANCH} already has ${version}; nothing to commit."
+            echo "${BRANCH} already has ${version}; nothing to do." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
+          if [ "$DRY_RUN" = true ]; then
+            echo "Dry run: would set the version ${current:-unknown} -> ${version}, commit \"Set version to ${version}\" and push to ${BRANCH}."
+            echo "Dry run: would set ${BRANCH} to version ${version} (now ${current:-unknown}). Nothing was pushed." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          pwsh tools/ci/set-version.ps1 -Version "$version"
+          pwsh tools/ci/check-version.ps1 -Branch "$BRANCH"
           git add -A src
           git -c user.name='github-actions[bot]' -c user.email='41898173+github-actions[bot]@users.noreply.github.com' \
             commit -m "Set version to ${version}" -m "Matches the branch name ${BRANCH}."
           git push origin "HEAD:refs/heads/${BRANCH}"
           echo "::notice title=Version set::Set ${BRANCH} to version ${version}."
+          echo "Set ${BRANCH} to version ${version} (was ${current:-unknown})." >> "$GITHUB_STEP_SUMMARY"
