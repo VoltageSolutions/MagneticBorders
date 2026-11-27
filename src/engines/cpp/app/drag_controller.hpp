@@ -142,6 +142,12 @@ private:
     WindowId dragged_{};
     std::uint64_t drag_start_ms_{0};
     Rect start_frame_{};
+    /// The dragged window's frame and the cursor, read when the drag starts (SNAP-071).
+    struct PointerRef {
+        Rect frame;
+        Point cursor;
+    };
+    std::optional<PointerRef> pointer_ref_;
     Rect last_frame_{};
     Rect pending_frame_{};
     Rect final_frame_{};

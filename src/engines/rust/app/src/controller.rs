@@ -23,6 +23,8 @@ struct Drag {
     t0: u64,
     glue_on: bool,
     snap_on: bool,
+    /// The dragged window's frame and the cursor, read when the drag starts (SNAP-071).
+    reference: Option<(Rect, Point)>,
 }
 
 /// How a move drag holds the window: by moving it back after Windows moves it, or by holding the cursor (SNAP-070).
@@ -311,7 +313,7 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragControl
             .collect();
         let sides = screen_side_targets(&d.snap.work_area, &d.snap.work_areas);
         let attraction = Attraction::new(cfg, others, d.snap.work_area, sides);
-        let mode = self.start_pointer(attraction, d.id);
+        let mode = self.start_pointer(attraction, d.id, d.reference);
         let pointer = if matches!(mode, Mode::Pointer(_)) { " pointer" } else { "" };
         self.info_at(d.t0, &format!("move start id={}{pointer}", d.id));
         State::Moving(Box::new(Moving {
@@ -325,15 +327,17 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragControl
         }))
     }
 
-    /// Starts the pointer hook and hands the attraction to a `PointerDrag`. Falls back to frame mode when there is
+    /// Starts the pointer hook and hands the attraction to a `PointerDrag` that holds the cursor from `reference`, the
+    /// frame and cursor read when the drag started (SNAP-071). Without a reference it reads both now. Falls back to frame mode when there is
     /// no hook, it cannot start, or the cursor cannot be read (SNAP-076).
-    fn start_pointer(&mut self, attraction: Attraction, id: u64) -> Mode {
-        let frame = self.inventory.frame_of(id);
-        let (Some(hook), Some(frame)) = (self.hook.as_mut(), frame) else { return Mode::Frame(attraction) };
-        if !hook.start() {
+    fn start_pointer(&mut self, attraction: Attraction, id: u64, reference: Option<(Rect, Point)>) -> Mode {
+        let read = reference.is_none();
+        let frame = if read { self.inventory.frame_of(id) } else { None };
+        let Some(hook) = self.hook.as_mut() else { return Mode::Frame(attraction) };
+        if (read && frame.is_none()) || !hook.start() {
             return Mode::Frame(attraction);
         }
-        let Some(cursor) = hook.cursor() else {
+        let Some((frame, cursor)) = reference.or_else(|| frame.zip(hook.cursor())) else {
             hook.stop();
             return Mode::Frame(attraction);
         };
@@ -495,6 +499,12 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragEvents 
     fn on_move_size_start(&mut self, id: u64) {
         self.timer.cancel_all();
         self.verify = None;
+        // SNAP-071: read the reference first. The snapshot takes milliseconds, and Windows keeps the cursor's offset
+        // in the window from this moment for the whole drag.
+        let reference = match self.hook.as_mut() {
+            Some(hook) => self.inventory.frame_of(id).zip(hook.cursor()),
+            None => None,
+        };
         self.stop_pointer(); // SNAP-075: a hook left running by the previous drag
         let glue_on = self.live.active.get();
         let snap_on = self.live.snap_active.get();
@@ -507,7 +517,7 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragEvents 
         self.state = match snap.windows.iter().find(|w| w.id == id) {
             Some(w) => {
                 let start = w.frame;
-                State::Classifying(Drag { id, start, snap, t0, glue_on, snap_on })
+                State::Classifying(Drag { id, start, snap, t0, glue_on, snap_on, reference })
             }
             None => State::Ignoring,
         };
@@ -1074,6 +1084,19 @@ mod tests {
         assert_eq!(*r.batches.borrow(), vec![vec![(1, HELD)]]);
         assert_eq!((r.c.live.move_drags.get(), r.c.live.snaps.get(), r.c.live.drags.get()), (1, 1, 0));
         assert!(r.logged("snap hold right=500 target=edge-to-edge"));
+    }
+
+    #[test]
+    fn the_pointer_reference_is_the_frame_and_cursor_from_the_drag_start() {
+        // SNAP-071, SNAP-072
+        let mut r = move_rig(true);
+        r.c.on_move_size_start(1);
+        // By the time the move is classified, Windows has moved the window and the cursor on.
+        r.hook.borrow_mut().at = Some(Point { x: 320, y: 260 });
+        r.move_to(Rect::new(220, 250, 420, 450));
+        // The cursor grabbed the window 100 px right of its left edge at the drag start. Held at 300..500, the cursor
+        // goes to (400, 260), so the window lands exactly on the held position.
+        assert_eq!(r.pointer(395, 260), Some(Point { x: 400, y: 260 }));
     }
 
     #[test]

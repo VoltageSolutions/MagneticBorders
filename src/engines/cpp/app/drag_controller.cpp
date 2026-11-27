@@ -42,6 +42,14 @@ void DragController::say(const std::string& msg) {
 }
 
 void DragController::on_move_size_start(WindowId id) {
+    // SNAP-071: read the reference first. The snapshot below takes milliseconds, and Windows keeps the cursor's
+    // offset in the window from this moment for the whole drag.
+    pointer_ref_.reset();
+    if (hook_ != nullptr) {
+        const auto frame = inventory_.frame_of(id);
+        const auto cursor = hook_->cursor();
+        if (frame && cursor) pointer_ref_ = PointerRef{*frame, *cursor};
+    }
     timer_.cancel_all();
     seams_.clear();
     requested_.clear();
@@ -245,14 +253,21 @@ void DragController::begin_move() {
 
 void DragController::start_pointer() {
     if (hook_ == nullptr || !attraction_) return;
-    const auto frame = inventory_.frame_of(dragged_);
-    if (!frame || !hook_->start(*this)) return;  // SNAP-076: fall back to moving the window back
-    const auto cursor = hook_->cursor();
-    if (!cursor) {
-        hook_->stop();
-        return;
+    PointerRef ref{};
+    if (pointer_ref_) {
+        if (!hook_->start(*this)) return;  // SNAP-076: fall back to moving the window back
+        ref = *pointer_ref_;
+    } else {
+        const auto frame = inventory_.frame_of(dragged_);
+        if (!frame || !hook_->start(*this)) return;
+        const auto cursor = hook_->cursor();
+        if (!cursor) {
+            hook_->stop();
+            return;
+        }
+        ref = PointerRef{*frame, *cursor};
     }
-    pointer_.emplace(std::move(*attraction_), *frame, *cursor);
+    pointer_.emplace(std::move(*attraction_), ref.frame, ref.cursor);
     attraction_.reset();
 }
 

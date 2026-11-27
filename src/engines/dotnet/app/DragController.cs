@@ -44,6 +44,8 @@ public sealed class DragController(
     private Snapshot? _snap;
     private ulong _id;
     private Rect _start, _last;
+    /// <summary>The dragged window's frame and the cursor, read when the drag starts (SNAP-071); null when either could not be read.</summary>
+    private (Rect Frame, Point Cursor)? _pointerRef;
     private Rect? _pending;
     private ulong? _lastApply;
     private ulong _t0;
@@ -87,6 +89,10 @@ public sealed class DragController(
     /// <summary>Called when a window starts a move or size loop. Cancels timers, stops a pointer hook left running, takes a snapshot, and enters Classifying, or Ignoring when both features are inactive or the window is unknown.</summary>
     public void OnMoveSizeStart(ulong id)
     {
+        // SNAP-071: read the reference first. The snapshot takes milliseconds, and Windows keeps the cursor's offset in the window from this moment for the whole drag.
+        _pointerRef = null;
+        if (Hook is { } startHook && inventory.FrameOf(id) is { } startFrame && startHook.ReadCursor() is { } startCursor)
+            _pointerRef = (startFrame, startCursor);
         timer.CancelAll();
         _verifyArmed = false;
         StopPointer();
@@ -277,10 +283,17 @@ public sealed class DragController(
     /// <summary>Rounds a distance in effective pixels to physical pixels, halves away from zero.</summary>
     private static int Scaled(int px, double scale) => (int)Math.Round(px * scale, MidpointRounding.AwayFromZero);
 
-    /// <summary>Hands the attraction to a PointerDrag when the hook starts and the cursor can be read; otherwise leaves it to the fallback (SNAP-076).</summary>
+    /// <summary>Hands the attraction to a PointerDrag when the hook starts, holding the cursor from the frame and cursor read at drag start (SNAP-071) or, when those could not be read, from the ones read now; otherwise leaves it to the fallback (SNAP-076).</summary>
     private void StartPointer()
     {
         if (Hook is not { } hook || _attraction is null) return;
+        if (_pointerRef is { } reference)
+        {
+            if (!hook.Install(this)) return;
+            _pointer = new PointerDrag(_attraction, reference.Frame, reference.Cursor);
+            _attraction = null;
+            return;
+        }
         if (inventory.FrameOf(_id) is not { } frame || !hook.Install(this)) return;
         if (hook.ReadCursor() is not { } cursor)
         {

@@ -807,6 +807,17 @@ TEST_F(PointerFixture,
     EXPECT_TRUE(log.contains("snap hold right=500 target=edge-to-edge"));
 }
 
+TEST_F(PointerFixture, TheReferenceIsTheFrameAndCursorFromTheDragStart) {  // SNAP-071, SNAP-072
+    ctl.on_move_size_start(1);
+    // By the time the move is classified, Windows has moved the window and the cursor on.
+    hook.at = Point{320, 260};
+    move_to({220, 250, 420, 450});
+    EXPECT_EQ(hook.starts, 1);
+    // The cursor grabbed the window 100 px right of its left edge at the drag start. Held at 300..500, the cursor
+    // goes to (400, 260), so the window lands exactly on the held position.
+    EXPECT_EQ(pointer(395, 260), (Point{400, 260}));
+}
+
 TEST_F(PointerFixture, AFreeMovementGoesThroughUnchanged) {  // SNAP-072
     begin();
     EXPECT_EQ(pointer(310, 270), std::nullopt);

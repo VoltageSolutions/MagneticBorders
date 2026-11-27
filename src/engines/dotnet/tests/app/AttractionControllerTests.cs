@@ -491,6 +491,19 @@ public class AttractionControllerTests
     }
 
     [Fact]
+    public void The_reference_is_the_frame_and_cursor_from_the_drag_start() // SNAP-071, SNAP-072
+    {
+        var r = new Rig(withHook: true);
+        r.Ctl.OnMoveSizeStart(1);
+        // By the time the move is classified, Windows has moved the window and the cursor on.
+        r.Hook.At = new Point(320, 260);
+        r.MoveTo(new Rect(220, 250, 420, 450));
+        Assert.Equal(1, r.Hook.Starts);
+        // The cursor grabbed the window 100 px right of its left edge at the drag start. Held at 300..500, the cursor goes to (400, 260), so the window lands exactly on the held position.
+        Assert.Equal(new Point(400, 260), Pointer(r, 395, 260));
+    }
+
+    [Fact]
     public void A_free_movement_goes_through_unchanged() // SNAP-072
     {
         var r = new Rig(withHook: true);
