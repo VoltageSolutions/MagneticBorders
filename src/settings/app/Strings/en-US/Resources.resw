@@ -20,9 +20,17 @@
     <value>Magnetic coupling</value>
     <comment>Feature name. When two window borders touch, they act as one seam and resize together. (Settings key: glue.)</comment>
   </data>
+  <data name="CouplingDescription.Text" xml:space="preserve">
+    <value>Resizes neighboring windows that share a border.</value>
+    <comment>Flyout. Second line under the Magnetic coupling toggle; explains the feature in one sentence.</comment>
+  </data>
   <data name="AttractionLabel.Text" xml:space="preserve">
     <value>Magnetic attraction</value>
     <comment>Feature name. A window being moved snaps against the screen edge or another window. (Settings key: snap.)</comment>
+  </data>
+  <data name="AttractionDescription.Text" xml:space="preserve">
+    <value>Snaps a moving window to a nearby window.</value>
+    <comment>Flyout. Second line under the Magnetic attraction toggle; explains the feature in one sentence.</comment>
   </data>
   <data name="OpenSettingsButton.Content" xml:space="preserve">
     <value>Open settings</value>
@@ -75,10 +83,6 @@
   <data name="QuitButton.ToolTipService.ToolTip" xml:space="preserve">
     <value>Close Magnetic Borders and remove its tray icon</value>
     <comment>Tooltip of the Quit button.</comment>
-  </data>
-  <data name="UptimeCard.Header" xml:space="preserve">
-    <value>Uptime</value>
-    <comment>Label for how long Magnetic Borders has been running.</comment>
   </data>
   <data name="DragsCard.Header" xml:space="preserve">
     <value>Drags</value>
@@ -295,18 +299,6 @@
   <data name="StatusNotRunning" xml:space="preserve">
     <value>Not running</value>
     <comment>Status line shown when Magnetic Borders is not running.</comment>
-  </data>
-  <data name="UptimeHoursMinutes" xml:space="preserve">
-    <value>{0}h {1}m</value>
-    <comment>Duration: hours and minutes, for example 2h 5m. h and m are unit abbreviations.</comment>
-  </data>
-  <data name="UptimeMinutesSeconds" xml:space="preserve">
-    <value>{0}m {1}s</value>
-    <comment>Duration: minutes and seconds, for example 3m 20s.</comment>
-  </data>
-  <data name="UptimeSeconds" xml:space="preserve">
-    <value>{0}s</value>
-    <comment>Duration: seconds, for example 45s.</comment>
   </data>
   <data name="PixelsFormat" xml:space="preserve">
     <value>{0} px</value>

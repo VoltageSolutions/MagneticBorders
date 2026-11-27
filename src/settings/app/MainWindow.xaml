@@ -83,9 +83,6 @@
                             IsEnabled="{x:Bind ViewModel.EngineRunning, Mode=OneWay}" />
                     </StackPanel>
                     <controls:SettingsExpander.Items>
-                        <controls:SettingsCard x:Uid="UptimeCard">
-                            <TextBlock Text="{x:Bind local:Fmt.Uptime(ViewModel.Status), Mode=OneWay}" />
-                        </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="DragsCard">
                             <TextBlock Text="{x:Bind local:Fmt.Drags(ViewModel.Status), Mode=OneWay}" />
                         </controls:SettingsCard>

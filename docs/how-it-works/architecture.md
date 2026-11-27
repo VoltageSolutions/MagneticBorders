@@ -16,7 +16,7 @@ For live things that are not settings, Magnetic Borders runs a **named pipe** se
 
 The settings app uses it for three jobs.
 
-- `status` asks which build runs, its version, uptime, and drag counts. The app asks every 2 seconds while a window is open.
+- `status` asks which build runs, its version and drag counts. The app asks every 2 seconds while a window is open.
 - `reload` tells Magnetic Borders to read the file now.
 - `quit` stops MB.
 
