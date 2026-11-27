@@ -147,7 +147,13 @@ public static class SettingsParser
     private static bool Bool(JsonElement o, string name, bool def) =>
         o.TryGetProperty(name, out var v) && v.ValueKind is JsonValueKind.True or JsonValueKind.False ? v.GetBoolean() : def;
 
-    /// <summary>Reads an int property or returns the default.</summary>
-    private static int Int(JsonElement o, string name, int def) =>
-        o.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out int i) ? i : def;
+    /// <summary>Reads an int property or returns the default. A fractional number is rounded, halves away from zero (CFG-017).</summary>
+    private static int Int(JsonElement o, string name, int def)
+    {
+        if (!o.TryGetProperty(name, out var v) || v.ValueKind != JsonValueKind.Number) return def;
+        if (v.TryGetInt32(out int i)) return i;
+        return v.TryGetDouble(out double d)
+            ? (int)Math.Clamp(Math.Round(d, MidpointRounding.AwayFromZero), int.MinValue, int.MaxValue)
+            : def;
+    }
 }

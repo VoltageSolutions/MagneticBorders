@@ -293,6 +293,9 @@ mod tests {
     fn fractional_pixels_round_to_the_nearest_integer() {
         let s = Settings::parse(r#"{"glue":{"tolerance_px":12.6},"snap":{"distance_px":3.2}}"#).unwrap();
         assert_eq!((s.glue_tolerance_px, s.snap_distance_px), (13, 3));
+        // CFG-017: halves round away from zero.
+        let s = Settings::parse(r#"{"glue":{"tolerance_px":12.5}}"#).unwrap();
+        assert_eq!(s.glue_tolerance_px, 13);
     }
 
     #[test]

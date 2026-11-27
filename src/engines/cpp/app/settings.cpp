@@ -2,6 +2,7 @@
 #include "settings.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 #include <nlohmann/json.hpp>
 
@@ -17,7 +18,7 @@ bool get_bool(const json& o, const char* key, bool def) {
 int get_int(const json& o, const char* key, int def, int lo, int hi) {
     const auto it = o.find(key);
     if (it == o.end() || !it->is_number()) return def;
-    const double v = it->get<double>();
+    const double v = std::round(it->get<double>());  // CFG-017: halves away from zero
     return static_cast<int>(std::clamp(v, static_cast<double>(lo), static_cast<double>(hi)));
 }
 

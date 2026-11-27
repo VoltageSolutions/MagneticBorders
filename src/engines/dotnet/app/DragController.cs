@@ -138,7 +138,7 @@ public sealed class DragController(
             }
             if (!_dragGlue) { State = DragState.Ignoring; return; }
             Drags++;
-            var cfg = new Config((int)Math.Round(TolerancePx * _snap.DpiScale));
+            var cfg = new Config(Scaled(TolerancePx, _snap.DpiScale));  // RESIZE-014
             var edges = new List<Edge>();
             if (frame.L != _start.L && frame.R == _start.R) edges.Add(Edge.Left);
             else if (frame.R != _start.R && frame.L == _start.L) edges.Add(Edge.Right);

@@ -51,6 +51,7 @@ The three engines and the settings app share two interfaces: the file `settings.
 | CFG-014 | `ui.flyout_backdrop` must be the string `translucent` or `solid`, default `translucent`. It sets the flyout background. Engines must ignore it. |
 | CFG-015 | `snap.breakaway_px` must be an integer from 0 to 128, default 24. |
 | CFG-016 | `snap.max_speed` must be an integer from 100 to 5000, default 600, in effective pixels per second. |
+| CFG-017 | A fractional number for an integer key must be rounded to the nearest integer, halves away from zero (12.5 becomes 13), before CFG-011 clamps it. |
 | CFG-017 | `snap.screen_edges` must be a boolean, default `true`. |
 | CFG-018 | `snap.windows` must be a boolean, default `true`. |
 
