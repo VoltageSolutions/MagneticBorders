@@ -6,7 +6,7 @@
 namespace mb::win32 {
 
 /// Enumerates eligible top-level windows on the dragged window's monitor (visible, resizable, not minimized,
-/// maximized, cloaked, owned, tool, excluded or banned) and records their frame offsets in the WindowRegistry.
+/// maximized, cloaked, owned, tool, excluded, or banned) and records their frame offsets in the WindowRegistry.
 /// With a diagnostics log it also writes the `diag: window` and `diag: move result` lines described in
 /// docs/spec/engine.md.
 /// UI thread. Borrows the registry.

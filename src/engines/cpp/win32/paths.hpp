@@ -1,4 +1,4 @@
-// Path and string helpers: UTF-8/UTF-16 conversion, data folder, settings and log paths, settings app launcher.
+// Path and string helpers: UTF-8/UTF-16 conversion, data folder, settings, and log paths, settings app launcher.
 #pragma once
 #include <filesystem>
 #include <optional>

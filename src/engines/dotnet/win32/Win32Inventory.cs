@@ -8,7 +8,7 @@ using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace MagneticBorders.Win32;
 
-/// <summary>IWindowInventory over Win32: enumerates top-level windows, filters them and caches frame offsets in WindowState. UI thread only. DI singleton.</summary>
+/// <summary>IWindowInventory over Win32: enumerates top-level windows, filters them, and caches frame offsets in WindowState. UI thread only. DI singleton.</summary>
 /// <param name="state">Shared offsets and exclusions.</param>
 /// <param name="excludedApps">Initial excluded executable names.</param>
 /// <param name="diagnostics">Log that receives the verbose "diag:" lines described in docs/spec/engine.md, or null for none.</param>
@@ -40,7 +40,7 @@ public sealed unsafe class Win32Inventory(WindowState state, IReadOnlyCollection
     /// <summary>Visual frame of a window, or null.</summary>
     public Rect? FrameOf(ulong id) => Frames.TryGetFrame(Frames.ToHwnd(id), out var f) ? f : null;
 
-    /// <summary>Builds a snapshot of eligible windows on the dragged window's monitor, the work areas of all monitors and the z-order of the windows that hide what is below them, and refreshes the per-window frame offsets that Win32Mover needs.</summary>
+    /// <summary>Builds a snapshot of eligible windows on the dragged window's monitor, the work areas of all monitors, and the z-order of the windows that hide what is below them, and refreshes the per-window frame offsets that Win32Mover needs.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability", "CA1416:Validate platform compatibility",
         Justification = "GetDpiForWindow needs Windows 10 1607; the product supports Windows 10 and 11 only, and a later TargetPlatformVersion is not a valid value for this target framework.")]
     public Snapshot Snapshot(ulong draggedId)
@@ -111,7 +111,7 @@ public sealed unsafe class Win32Inventory(WindowState state, IReadOnlyCollection
         return len > 0 ? new string(buf, 0, len) : "";
     }
 
-    /// <summary>True when a window hides what is below it: visible, not minimized, not cloaked, not click-through (overlays such as the FancyZones editor) and not a window of this process (SNAP-038).</summary>
+    /// <summary>True when a window hides what is below it: visible, not minimized, not cloaked, not click-through (overlays such as the FancyZones editor), and not a window of this process (SNAP-038).</summary>
     private static bool Covers(HWND h, uint selfPid)
     {
         if (!PInvoke.IsWindowVisible(h) || PInvoke.IsIconic(h)) return false;
@@ -123,7 +123,7 @@ public sealed unsafe class Win32Inventory(WindowState state, IReadOnlyCollection
         return PInvoke.GetWindowThreadProcessId(h, &pid) == 0 || pid != selfPid;
     }
 
-    /// <summary>Filter: visible, not minimized or maximized, not cloaked, resizable, not a tool window, not owned, titled, not this process and not on the excluded list.</summary>
+    /// <summary>Filter: visible, not minimized or maximized, not cloaked, resizable, not a tool window, not owned, titled, not this process, and not on the excluded list.</summary>
     private bool Eligible(HWND h, uint selfPid)
     {
         if (!PInvoke.IsWindowVisible(h) || PInvoke.IsIconic(h) || PInvoke.IsZoomed(h)) return false;

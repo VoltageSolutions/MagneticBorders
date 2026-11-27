@@ -18,15 +18,15 @@ The engines watch WinEvent hooks (`EVENT_SYSTEM_MOVESIZESTART`, `EVENT_OBJECT_LO
 
 ## D-004: One UI thread owns everything Win32
 
-Out-of-context WinEvent callbacks arrive on the thread that installed the hook, and that thread must run a message loop. The hooks, the drag controller, timers, the notification area icon and the mover all live on that thread. Other threads (the settings file watcher, the pipe server) only post messages to it. No locks are needed in the controller.
+Out-of-context WinEvent callbacks arrive on the thread that installed the hook, and that thread must run a message loop. The hooks, the drag controller, timers, the notification area icon, and the mover all live on that thread. Other threads (the settings file watcher, the pipe server) only post messages to it. No locks are needed in the controller.
 
 ## D-005: Ports and adapters in every engine
 
-Each engine has `core/` (pure geometry), `app/` (drag controller and the ports it needs), `win32/` (adapters) and `host/` (composition root). Dependencies point inward. The geometry and the controller are unit-tested without Windows, and the same structure in three languages makes them easy to compare.
+Each engine has `core/` (pure geometry), `app/` (drag controller and the ports it needs), `win32/` (adapters), and `host/` (composition root). Dependencies point inward. The geometry and the controller are unit-tested without Windows, and the same structure in three languages makes them easy to compare.
 
 ## D-006: Three engines, one behaviour
 
-The engine exists in C++, Rust and C# so the languages can be compared for clarity, memory and responsiveness. Shared `.layout` fixtures in `tests/fixtures/` keep them in agreement: every engine must pass every fixture. C++ is the reference build because PowerToys' FancyZones and module interface are C++.
+The engine exists in C++, Rust, and C# so the languages can be compared for clarity, memory, and responsiveness. Shared `.layout` fixtures in `tests/fixtures/` keep them in agreement: every engine must pass every fixture. C++ is the reference build because PowerToys' FancyZones and module interface are C++.
 
 ## D-007: The trailing flush
 
@@ -66,7 +66,7 @@ An earlier build had a runtime pause next to the saved Enabled switch. Two switc
 
 ## D-016: One build entry point
 
-`tools/ci/run.ps1` is the only way to restore, lint, build, test, measure coverage and publish a part (`cpp`, `rust`, `dotnet`, `settings`, `docs`). Each part has a script in `tools/ci/targets/` that defines only the steps that apply to it. The local build watcher and the GitHub workflows both call `run.ps1`, so a step that passes on the developer's PC passes in CI, and a failure in CI reproduces with the same command. A request to the watcher can name `targets`, `steps`, `arch` and `ci`. Separate workflow scripts were rejected because two build paths drift apart.
+`tools/ci/run.ps1` is the only way to restore, lint, build, test, measure coverage, and publish a part (`cpp`, `rust`, `dotnet`, `settings`, `docs`). Each part has a script in `tools/ci/targets/` that defines only the steps that apply to it. The local build watcher and the GitHub workflows both call `run.ps1`, so a step that passes on the developer's PC passes in CI, and a failure in CI reproduces with the same command. A request to the watcher can name `targets`, `steps`, `arch`, and `ci`. Separate workflow scripts were rejected because two build paths drift apart.
 
 ## D-017: Quality bar
 
@@ -75,16 +75,16 @@ Every part is held to the same bar, and CI enforces it.
 - **Lint.** C++: clang-format and clang-tidy, with every finding an error. Rust: rustfmt and clippy with the pedantic group, warnings denied. C# (engine and settings app): `dotnet format` and the .NET analyzers at `latest-recommended`, with warnings as errors. XAML: XamlStyler in passive mode. Docs: a strict Zensical build.
 - **Coverage.** The targets match GameControllerForZwift: 40 percent for the project and 60 percent for the lines a pull request changes, configured in `codecov.yml`. The `coverage` step fails below 40 percent line coverage. The goal for `core` and `app` is 80 percent.
 - **Deterministic builds.** Pinned toolchains (`rust-toolchain.toml`, `global.json`), exact package versions with committed lock files (`Cargo.lock`, `packages.lock.json`), locked restores in CI, and `/Brepro` with path remapping, so the same commit gives the same binary.
-- **Architectures.** x64 and ARM64. ARM64 is cross-built and published. Tests, lint and coverage run on x64.
+- **Architectures.** x64 and ARM64. ARM64 is cross-built and published. Tests, lint, and coverage run on x64.
 
 One strict bar was chosen over per-language leniency so the three engines stay comparable, and a failing check means something is wrong, not that it is noisy.
 
 ## D-018: Magnetic attraction holds the cursor during Windows' own drag
 
-Windows runs a window move in the dragged app's own thread and keeps the window at a fixed offset from the cursor. While a window is moved, Magnetic Borders runs a low-level mouse hook (`WH_MOUSE_LL`). For each mouse movement it works out the held position and, when the window must not follow the mouse on an axis, blocks the movement and sets the cursor where the held position puts it. Windows then moves the window there itself. Nothing is injected into other processes ([D-003](#d-003-an-out-of-process-helper-not-a-window-manager)), and FancyZones, Windows Snap and Grab And Move keep working because the drag is still Windows' drag.
+Windows runs a window move in the dragged app's own thread and keeps the window at a fixed offset from the cursor. While a window is moved, Magnetic Borders runs a low-level mouse hook (`WH_MOUSE_LL`). For each mouse movement it works out the held position and, when the window must not follow the mouse on an axis, blocks the movement and sets the cursor where the held position puts it. Windows then moves the window there itself. Nothing is injected into other processes ([D-003](#d-003-an-out-of-process-helper-not-a-window-manager)), and FancyZones, Windows Snap, and Grab And Move keep working because the drag is still Windows' drag.
 
 Moving the window back to the held position after each of Windows' moves is only the fallback. Windows always moves the window first, so a held window jitters with every small movement across the line. Holding the cursor removes the jitter. The trade-off is that the cursor stops on a held axis, like a detent, where macOS lets the cursor run on while the window stays. In-process hooks (a DLL that changes `WM_MOVING`, as AquaSnap does) would keep the cursor free, but they need one DLL per architecture and conflict with D-003. Replacing the drag with Magnetic Borders' own drag loop was rejected because it would break FancyZones and Windows Snap, which watch the system drag.
 
 The hook only runs during a move and only sees mouse movement and button releases, never keys. When it cannot be installed, Magnetic attraction falls back to moving the window back.
 
-The speed limit, breakaway and sliding follow macOS. macOS also lets the Option key bypass snapping. Magnetic Borders never reads keys ([D-002](#d-002-no-modifier-keys-ever), SNAP-004), so a fast move is the bypass.
+The speed limit, breakaway, and sliding follow macOS. macOS also lets the Option key bypass snapping. Magnetic Borders never reads keys ([D-002](#d-002-no-modifier-keys-ever), SNAP-004), so a fast move is the bypass.

@@ -1,4 +1,4 @@
-// DragController implementation: classification, throttled apply, minimum-size learning, settle and verify passes.
+// DragController implementation: classification, throttled apply, minimum-size learning, settle, and verify passes.
 #include "drag_controller.hpp"
 
 #include <algorithm>

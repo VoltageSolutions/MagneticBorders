@@ -45,7 +45,7 @@ pub struct Live {
 }
 
 impl Live {
-    /// Creates the shared state with zeroed counters, magnetic attraction on and default tunables. Held in an
+    /// Creates the shared state with zeroed counters, magnetic attraction on, and default tunables. Held in an
     /// `Rc` by the host and the controller.
     pub fn new(active: bool, tolerance_px: i32) -> Self {
         Self {

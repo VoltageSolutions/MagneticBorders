@@ -17,7 +17,7 @@ namespace MagneticBorders.Settings;
 /// <summary>
 /// Always-on-top tray quick-access flyout (about 360 x 300 epx), anchored bottom-right of the work area of the
 /// monitor under the cursor. It has no XAML border: Windows draws the border (a fixed neutral grey for the light or dark
-/// theme, never the accent color), the rounded corners and the shadow. The background, acrylic or solid, comes from the
+/// theme, never the accent color), the rounded corners, and the shadow. The background, acrylic or solid, comes from the
 /// "flyout background" setting and is applied each time the flyout opens. Binds to the shared App.ViewModel
 /// (see FlyoutWindow.xaml). Closes on Escape, on losing activation, or through a 250 ms focus-watch timer when
 /// Windows refuses foreground. Created and closed on the UI thread by App.
@@ -28,7 +28,7 @@ public sealed partial class FlyoutWindow : Window
     private const int BorderDark = 0x00404040, BorderLight = 0x00D9D9D9;
     /// <summary>Flyout size and distance from the work-area edges, in effective pixels (scaled by monitor DPI).</summary>
     private const double WidthEpx = 360, HeightEpx = 340, MarginEpx = 12;
-    /// <summary>Native window handle, used for DPI, foreground and DWM calls.</summary>
+    /// <summary>Native window handle, used for DPI, foreground, and DWM calls.</summary>
     private readonly nint _hwnd;
     /// <summary>Closes the flyout when it is no longer the foreground window (fallback for a missed Deactivated event).</summary>
     private readonly DispatcherQueueTimer _focusWatch;
@@ -43,7 +43,7 @@ public sealed partial class FlyoutWindow : Window
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "x:Bind needs an instance property.")]
     public SettingsViewModel ViewModel => App.ViewModel;
 
-    /// <summary>Strips the title bar, makes the window non-resizable and topmost, asks DWM for rounded corners, the default border colour and a system shadow, and wires the close-on-focus-loss logic.</summary>
+    /// <summary>Strips the title bar, makes the window non-resizable and topmost, asks DWM for rounded corners, the default border colour, and a system shadow, and wires the close-on-focus-loss logic.</summary>
     public FlyoutWindow()
     {
         InitializeComponent();

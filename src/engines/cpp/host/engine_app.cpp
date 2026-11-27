@@ -80,7 +80,7 @@ std::vector<std::wstring> widen_all(const std::vector<std::string>& in) {
 }
 
 /// Owns every adapter and the DragController, in dependency order, and handles messages on the UI thread:
-/// settings reload, pipe requests, tray events and TaskbarCreated. Only serve() runs on a pipe thread.
+/// settings reload, pipe requests, tray events, and TaskbarCreated. Only serve() runs on a pipe thread.
 class EngineApp final : public win32::MessageHandler {
 public:
     /// Constructs the adapters and the controller and connects the timer to it.
@@ -94,7 +94,7 @@ public:
         timer_.set_sink(controller_);
     }
 
-    /// Creates the window, tray icon, hooks, watcher and pipe server, then runs the message loop until WM_QUIT.
+    /// Creates the window, tray icon, hooks, watcher, and pipe server, then runs the message loop until WM_QUIT.
     int run() {
         log_.info(std::string("Magnetic Borders (C++) ") + std::string(kVersion) +
                   " starting, pid " + std::to_string(GetCurrentProcessId()));
@@ -205,7 +205,7 @@ private:
                   " from the tray menu");
     }
 
-    /// Applies new settings: exclusions, controller, start-at-login and logging.
+    /// Applies new settings: exclusions, controller, start-at-login, and logging.
     void apply_settings(const Settings& s, bool initial) {
         const Settings prev = settings_;
         settings_ = s;

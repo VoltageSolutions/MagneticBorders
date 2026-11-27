@@ -1,4 +1,4 @@
-// PipeServer accept loop, per-client line reader and the pipe_request client.
+// PipeServer accept loop, per-client line reader, and the pipe_request client.
 #include "pipe_server.hpp"
 
 namespace mb::win32 {

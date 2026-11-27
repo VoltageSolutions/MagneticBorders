@@ -21,7 +21,7 @@ Dependencies point inward: `host` to `win32` to `app` to `core`. Win32 types nev
 
 | Type | Kind | File | Purpose | Collaborators |
 |---|---|---|---|---|
-| `Edge` | enum | `core/Geometry.cs` | Left, Top, Right or Bottom side of a rectangle | `EdgeExt`, `Seam` |
+| `Edge` | enum | `core/Geometry.cs` | Left, Top, Right, or Bottom side of a rectangle | `EdgeExt`, `Seam` |
 | `Rect` | readonly record struct | `core/Geometry.cs` | Pixel rectangle, R and B exclusive | everything |
 | `WinInfo` | readonly record struct | `core/Geometry.cs` | One window in a snapshot: id, visual frame, minimum size | `SeamBuilder`, `Snapshot` |
 | `Config` | readonly record struct | `core/Geometry.cs` | Glue tolerance in pixels for one build | `SeamBuilder`, `DragController` |
@@ -33,12 +33,12 @@ Dependencies point inward: `host` to `win32` to `app` to `core`. Win32 types nev
 | `SeamBuilder` | static class | `core/SeamBuilder.cs` | `Build` finds glued windows, `Propagate` moves them with minimum-size clamping | `DragController`, `Fixture` |
 | `Point` | readonly record struct | `core/Geometry.cs` | Screen point, for example the cursor | `PointerDrag`, `IPointerHook` |
 | `TargetKind`, `ReleaseReason` | enums | `core/Attraction.cs` | What a held edge is held on, and why it was let go | `Attraction`, `DragController` |
-| `AttractionConfig` | sealed record | `core/Attraction.cs` | Pull-in, breakaway and speed limit in physical pixels, and the two target switches | `Attraction`, `DragController` |
+| `AttractionConfig` | sealed record | `core/Attraction.cs` | Pull-in, breakaway, and speed limit in physical pixels, and the two target switches | `Attraction`, `DragController` |
 | `SideTargets` | sealed record | `core/Attraction.cs` | Which work-area sides are targets. `For` drops a side that touches another monitor. | `Attraction`, `DragController` |
 | `EdgeSpan` | readonly record struct | `core/Attraction.cs` | Half-open span along an edge | `TargetWindow` |
 | `TargetWindow` | sealed record | `core/Attraction.cs` | Another window's frame and the visible spans of each edge. `Create` cuts out the parts that windows above it cover. | `Attraction`, `DragController` |
 | `AttractionEvent` | readonly record struct | `core/Attraction.cs` | One engage or release, for the log | `DragController` |
-| `Attraction` | sealed class | `core/Attraction.cs` | Per-drag state: turns each free position into the held position, with speed, sliding, breakaway and blocked lines | `PointerDrag`, `DragController` |
+| `Attraction` | sealed class | `core/Attraction.cs` | Per-drag state: turns each free position into the held position, with speed, sliding, breakaway, and blocked lines | `PointerDrag`, `DragController` |
 | `PointerDrag` | sealed class | `core/PointerDrag.cs` | Runs an `Attraction` from mouse movement and returns where the cursor must go | `DragController` |
 
 ### app
@@ -49,11 +49,11 @@ Dependencies point inward: `host` to `win32` to `app` to `core`. Win32 types nev
 | `SnapOptions` | sealed record | `app/DragController.cs` | Attraction tunables in effective pixels | `DragController`, `EngineState` |
 | `DragController` | sealed class | `app/DragController.cs` | State machine for one drag: a resize drives `SeamBuilder`, a move drives `Attraction` | all ports, `SeamBuilder`, `Attraction`, `EngineState` |
 | `EngineState` | sealed class | `app/EngineState.cs` | Applies settings, builds the status reply, executes pipe commands | `DragController`, `PipeProtocol`, `TrayHost` |
-| `PipeAction` | enum | `app/PipeProtocol.cs` | Side effect a command requests: `None`, `Reload` or `Quit` | `PipeProtocol`, `EngineState` |
+| `PipeAction` | enum | `app/PipeProtocol.cs` | Side effect a command requests: `None`, `Reload`, or `Quit` | `PipeProtocol`, `EngineState` |
 | `StatusSnapshot` | record | `app/PipeProtocol.cs` | Values for the status reply | `EngineState` |
 | `PipeResult` | readonly record struct | `app/PipeProtocol.cs` | Reply line plus action | `EngineState` |
 | `PipeProtocol` | static class | `app/PipeProtocol.cs` | Pure request line to reply line logic | `EngineState`, `PipeServer` |
-| `Snapshot` | record | `app/Ports.cs` | Windows, work area, DPI scale, every monitor's work area and the z-order stack at drag start | `IWindowInventory`, `DragController` |
+| `Snapshot` | record | `app/Ports.cs` | Windows, work area, DPI scale, every monitor's work area, and the z-order stack at drag start | `IWindowInventory`, `DragController` |
 | `IWindowInventory` | interface | `app/Ports.cs` | Port: snapshot and frame reads | `Win32Inventory` |
 | `IWindowMover` | interface | `app/Ports.cs` | Port: batched window moves | `Win32Mover` |
 | `IPointerHook` | interface | `app/Ports.cs` | Port: installs and removes the mouse hook that holds the cursor during a move | `Win32PointerHook` |
@@ -74,7 +74,7 @@ Dependencies point inward: `host` to `win32` to `app` to `core`. Win32 types nev
 |---|---|---|---|---|
 | `Frames` | internal static class | `win32/Frames.cs` | DWM frame and `GetWindowRect` reads, id to `HWND` | `Win32Inventory`, `Win32Mover` |
 | `MessageLoop` | static class | `win32/MessageLoop.cs` | `GetMessage` loop, `PostQuit`, drag-contents check | `UiThreadService`, `Program` |
-| `Paths` | static class | `win32/Services.cs` | Data, settings and log paths | `SettingsStore`, `EngineLog` |
+| `Paths` | static class | `win32/Services.cs` | Data, settings, and log paths | `SettingsStore`, `EngineLog` |
 | `Autostart` | static class | `win32/Services.cs` | HKCU Run key | `EngineState` |
 | `Native` | static class | `win32/Services.cs` | Console and message box | `Program` |
 | `SettingsWatcher` | sealed class | `win32/Services.cs` | `FileSystemWatcher` on `settings.json` (background thread) | `TrayHost` |
@@ -83,7 +83,7 @@ Dependencies point inward: `host` to `win32` to `app` to `core`. Win32 types nev
 | `TrayHost` | sealed class | `win32/Tray.cs` | Hidden message window, notification area icon, menu with a checkable **Enabled** item, posted-action queue | `EngineState`, `SettingsApp` |
 | `SettingsApp` | static class | `win32/Tray.cs` | Finds and launches the settings app | `TrayHost` |
 | `WindowState` | sealed class | `win32/WindowState.cs` | Frame offsets and excluded windows shared by inventory and mover | `Win32Inventory`, `Win32Mover` |
-| `Win32Inventory` | sealed class | `win32/Win32Inventory.cs` | `IWindowInventory` via `EnumWindows`, `EnumDisplayMonitors` and filters | `WindowState`, `Frames` |
+| `Win32Inventory` | sealed class | `win32/Win32Inventory.cs` | `IWindowInventory` via `EnumWindows`, `EnumDisplayMonitors`, and filters | `WindowState`, `Frames` |
 | `Win32PointerHook` | sealed class | `win32/Win32PointerHook.cs` | `IPointerHook` via a `WH_MOUSE_LL` hook that exists only during a move | `DragController` |
 | `Win32Mover` | sealed class | `win32/Win32Mover.cs` | `IWindowMover` via `DeferWindowPos` | `WindowState`, `Frames` |
 | `Win32Timer` | sealed class | `win32/Win32Timer.cs` | `ITimer` via `SetTimer` with a null `HWND` | `DragController` |
@@ -108,7 +108,7 @@ Dependencies point inward: `host` to `win32` to `app` to `core`. Win32 types nev
 
 ## How DI and the Generic Host wire it together
 
-`host/Program.cs` builds the host with `Host.CreateEmptyApplicationBuilder` and `DisableDefaults = true`. That skips configuration files, environment variables, default logging and anything else that would pull in reflection. Everything is registered by hand:
+`host/Program.cs` builds the host with `Host.CreateEmptyApplicationBuilder` and `DisableDefaults = true`. That skips configuration files, environment variables, default logging, and anything else that would pull in reflection. Everything is registered by hand:
 
 - `ILog`, `IAppInfo`: pre-built instances, because they are needed before the host exists (to log the version and check the drag setting).
 - `Win32Timer` plus `ITimer` forwarding to it, `IClock`, `WindowState`.
@@ -125,7 +125,7 @@ All registrations are singletons, because there is exactly one of each thing in 
 
 ### Compared with a WPF app using MVVM and IoC
 
-- There is no XAML, view or view model. The "UI" is a message loop and a notification area icon, so there is nothing to bind and no `INotifyPropertyChanged`.
+- There is no XAML, view, or view model. The "UI" is a message loop and a notification area icon, so there is nothing to bind and no `INotifyPropertyChanged`.
 - The ports (`IWindowInventory`, `IWindowMover`, `ITimer`, `IClock`, `ILog`) play the role that services play behind view models. `DragController` is the view model equivalent: a plain class with no framework types, tested with fakes.
 - `UiThreadService` plays the role of the WPF `Dispatcher` thread. `TrayHost.Post` is like `Dispatcher.BeginInvoke` and `TrayHost.Invoke` is like `Dispatcher.Invoke` with a timeout.
 - The container is the same `Microsoft.Extensions.DependencyInjection`, but registration is explicit instead of scanning assemblies, and factory lambdas replace instead of reflection-based activation.
@@ -136,14 +136,14 @@ All registrations are singletons, because there is exactly one of each thing in 
 1. `host/Program.cs` runs `WinEventSource.Install()` on the UI thread (through `UiThreadService.Run`). It registers a range hook for `EVENT_SYSTEM_MOVESIZESTART` to `EVENT_SYSTEM_MOVESIZEEND` with `WINEVENT_OUTOFCONTEXT`.
 2. The user grabs a window border. Windows posts the event, and the message loop in `MessageLoop.Run` calls the `[UnmanagedCallersOnly]` static `WinEventSource.RangeCb`. It reads the static `s_slot` and calls `OnRange`.
 3. `OnRange` on start calls `DragController.OnMoveSizeStart(id)`. The controller cancels timers, calls `IWindowInventory.Snapshot`, and enters `Classifying`. If it entered `Ignoring`, `OnRange` ends the drag at once. Otherwise `OnRange` installs a second hook for `EVENT_OBJECT_LOCATIONCHANGE`, filtered to the dragged window's process.
-4. `Win32Inventory.Snapshot` finds the monitor, work area and DPI scale, runs `EnumWindows` with the `EnumCb` function pointer, filters with `Eligible`, and stores each window's `GetWindowRect` minus visual frame offset in `WindowState.Offsets`. It also collects every monitor's work area (`EnumDisplayMonitors`) and the z-order of the windows that hide what is below them.
+4. `Win32Inventory.Snapshot` finds the monitor, work area, and DPI scale, runs `EnumWindows` with the `EnumCb` function pointer, filters with `Eligible`, and stores each window's `GetWindowRect` minus visual frame offset in `WindowState.Offsets`. It also collects every monitor's work area (`EnumDisplayMonitors`) and the z-order of the windows that hide what is below them.
 5. Each location change calls the static `LocCb`, then `OnLoc`, then `DragController.OnLocationChange`. In `Classifying` the controller compares the frame with the start frame. A move (same size) becomes `Moving` when magnetic attraction is on, and `Ignoring` otherwise. A resize picks the changed edges and calls `SeamBuilder.Build` for each. No seam means `Ignoring`; otherwise the state becomes `Resizing`.
 6. `ApplyFrame` calls `SeamBuilder.Propagate` for every seam and merges the moves. If the last batch was less than 8 ms ago, it stores the frame as pending and arms the `Flush` timer. Otherwise it calls `IWindowMover.Apply`.
 7. `Win32Mover.Apply` adds the cached offsets back, then calls `BeginDeferWindowPos`, `DeferWindowPos` for each window, and `EndDeferWindowPos`. If that fails it falls back to `SetWindowPos` and excludes windows that still fail. It returns the frames read back, and `ApplyFrame` records any minimum size a window refused to go below in `_learned`.
 8. After every location change, `Win32Timer.Arm(Settle, 150)` replaces the previous timer. If the drag pauses, `Win32Timer.Cb` fires, `OnFire` raises `Fired`, and `DragController.OnTimer(Settle)` runs `Settle`, which learns minimums and re-applies if needed.
 9. On release, `RangeCb` runs again with the end event. `OnRange` removes the location hook and calls `OnMoveSizeEnd`. The controller applies the final frame, snaps the dragged window back to the clamped position if it overshot, sets `_verifyArmed`, and arms the `Verify` timer for 60 ms.
 10. A move takes another path. `BeginMove` builds an `Attraction` from the snapshot and, when `Hook` is set, `StartPointer` installs the `WH_MOUSE_LL` hook and hands the attraction to a `PointerDrag`. `Win32PointerHook.MouseCb` then calls `OnPointerMove` for every mouse movement. A non-null result blocks the movement and `SetCursorPos` puts the cursor there, so Windows moves the window onto its held position. A button release calls `OnPointerRelease`, which removes the hook. Without the hook, `OnMove` feeds each location change to the `Attraction` and moves the window back to the held position. `OnMoveSizeEnd` stops the hook, or applies the held position once in the fallback case.
-11. `Verify` re-reads every requested frame and the dragged window. If anything differs it sends one corrective batch through `IWindowMover.Apply`, logs the result and clears the seams. The state is already `Idle`.
+11. `Verify` re-reads every requested frame and the dragged window. If anything differs it sends one corrective batch through `IWindowMover.Apply`, logs the result, and clears the seams. The state is already `Idle`.
 
 ## Settings and pipe
 
@@ -151,7 +151,7 @@ All registrations are singletons, because there is exactly one of each thing in 
 
 **Pipe.** `PipeServer` listens on `\\.\pipe\MagneticBorders` from its own thread and serves each client in a task with a 2 second limit. Each request is one JSON line. The handler the host passes is `line => tray.Invoke(() => state.Handle(line), 500)`. `Invoke` posts the work to the UI thread and waits at most 500 ms, so application state is never touched from the pipe thread. On timeout the client gets `{"ok":false,"error":"timeout"}`. `EngineState.Handle` calls the pure `PipeProtocol.Handle`, runs the requested `PipeAction` (`Reload` or `Quit`) and returns the reply. `Quit` goes through `TrayHost.QuitSoon`, a 150 ms timer, so the reply can flush before the loop exits. A second instance uses `PipeClient.Request` to send `status` before it shows its "already running" message.
 
-**Notification area menu and the Enabled switch.** `UiThreadService` creates `TrayHost` with `() => state.Settings.Enabled` and `() => SettingsStore.ToggleEnabled(log)`. `TrayHost.ShowMenu` builds a header, a checkable **Enabled** item (`IdEnabled`, checked when the saved switch is on), **Settings** (`IdSettings`) and **Exit** (`IdExit`). Choosing Enabled calls `SettingsStore.ToggleEnabled`. It reads the file, calls `SettingsParser.TryWithEnabled` and writes the result through a temp file. `SettingsWatcher` then reloads it like any other edit, so the tray, the flyout and the settings window all flip the same saved `enabled` key. The tooltip adds "disabled" when it is off. There is no pause.
+**Notification area menu and the Enabled switch.** `UiThreadService` creates `TrayHost` with `() => state.Settings.Enabled` and `() => SettingsStore.ToggleEnabled(log)`. `TrayHost.ShowMenu` builds a header, a checkable **Enabled** item (`IdEnabled`, checked when the saved switch is on), **Settings** (`IdSettings`), and **Exit** (`IdExit`). Choosing Enabled calls `SettingsStore.ToggleEnabled`. It reads the file, calls `SettingsParser.TryWithEnabled`, and writes the result through a temp file. `SettingsWatcher` then reloads it like any other edit, so the tray, the flyout, and the settings window all flip the same saved `enabled` key. The tooltip adds "disabled" when it is off. There is no pause.
 
 ## Diagram
 
@@ -191,20 +191,20 @@ Everything in the first two boxes lives for the whole process. `Snapshot` and `S
 
 ## Native AOT notes
 
-- **No reflection.** DI uses explicit `AddSingleton` calls and factory lambdas. There is no assembly scanning, no `IOptions` binding and no default host configuration.
+- **No reflection.** DI uses explicit `AddSingleton` calls and factory lambdas. There is no assembly scanning, no `IOptions` binding, and no default host configuration.
 - **No serializer.** `SettingsParser` reads with `JsonDocument`. `PipeProtocol.Status` builds the reply with string interpolation. There is no `JsonSerializer`, so no source generator is needed and nothing can be trimmed away.
-- **Function pointers instead of delegates.** WinEvent hooks, `EnumWindows`, `SetTimer` and the tray window procedure are `[UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]` static methods passed as `&Method`. Because a static method has no instance, each class keeps one `static` slot (`s_slot`) that points at the live object. This is safe because there is one UI thread and one instance of each.
+- **Function pointers instead of delegates.** WinEvent hooks, `EnumWindows`, `SetTimer`, and the tray window procedure are `[UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]` static methods passed as `&Method`. Because a static method has no instance, each class keeps one `static` slot (`s_slot`) that points at the live object. This is safe because there is one UI thread and one instance of each.
 - **CsWin32.** `PInvoke` calls are generated at compile time as `LibraryImport`-style P/Invokes, which AOT handles. Struct fields such as `NOTIFYICONDATAW.szTip` are written through pointers.
 - **Version lookup.** `AppInfo.FromAssembly` reads `AssemblyInformationalVersionAttribute` directly, which is AOT-safe.
-- **Warnings.** The rule is zero IL2xxx and IL3xxx warnings. Do not add `Activator`, `Type.GetType`, `Enum.GetValues` on non-generic types or serializer calls without checking the publish output.
+- **Warnings.** The rule is zero IL2xxx and IL3xxx warnings. Do not add `Activator`, `Type.GetType`, `Enum.GetValues` on non-generic types, or serializer calls without checking the publish output.
 
 ## Where to change things
 
 | To change... | Edit |
 |---|---|
 | How neighbors are found or clamped | `core/SeamBuilder.cs`, then add a `.layout` in `tests/fixtures/` and change the other two builds too |
-| How edges snap, slide and break away | `core/Attraction.cs` and `core/PointerDrag.cs`, then the other two builds |
-| Which edges count as resized, throttle, settle and verify timing, and the move path | `app/DragController.cs` |
+| How edges snap, slide, and break away | `core/Attraction.cs` and `core/PointerDrag.cs`, then the other two builds |
+| Which edges count as resized, throttle, settle, and verify timing, and the move path | `app/DragController.cs` |
 | Which windows are eligible | `Win32Inventory.Eligible` in `win32/Win32Inventory.cs` |
 | How windows are moved | `win32/Win32Mover.cs` |
 | A new setting | `SettingsModel` and `SettingsParser` in `app/Settings.cs`, then `EngineState.Apply`, and update `docs/spec/contract.md` |
@@ -221,8 +221,8 @@ Everything in the first two boxes lives for the whole process. `Snapshot` and `S
 Every step runs through `pwsh tools/ci/run.ps1 -Target dotnet -Steps lint,build,test,coverage`. The local build watcher and the GitHub workflows call the same script. The step definitions are in `tools/ci/targets/dotnet.ps1`.
 
 - **Test framework.** xUnit with `Microsoft.NET.Test.Sdk` and `coverlet.collector`. Package versions are pinned in `Directory.Packages.props`.
-- **Where tests live.** `tests/core/` holds `MagneticBorders.Core.Tests` (`GeometryTests`, `SeamBuilderTests`, `SeamTests`, `AttractionTests`, `PointerDragTests` and `FixtureTests`, which runs every shared `.layout` file). `tests/app/` holds `MagneticBorders.Application.Tests`: the `DragControllerTests`, `DragControllerBehaviorTests` and `AttractionControllerTests` classes with fake ports (`FakeInventory`, `SnapInventory`, `FakeMover`, `FakeClock`, `FakeTimer`, `FakeHook`, `NullLog`, `RecordingLog`), `SettingsParserTests`, `PipeProtocolTests`, `EngineStateTests` and `AppInfoTests`. The `win32` and `host` projects have no unit tests. They are covered by running the app.
-- **Coverage.** `coverage.runsettings` selects the Cobertura format and excludes tests, `fixture-runner`, generated code and anything marked `ExcludeFromCodeCoverage`. The step merges the reports into `artifacts/coverage/dotnet.cobertura.xml` and fails below 40 percent line coverage.
-- **Lint.** `dotnet format MagneticBorders.slnx --verify-no-changes --severity error`, then a full `dotnet build` with `-warnaserror`. `Directory.Build.props` sets `AnalysisLevel` to `latest-recommended`, turns on `EnforceCodeStyleInBuild` and `TreatWarningsAsErrors`. The C# build `.editorconfig` raises file-scoped namespaces, unused usings and read-only fields to warnings. The test `.editorconfig` turns off `CA1707` so test names can use underscores. On top of that, the Native AOT rule stays: no IL2xxx or IL3xxx warnings.
+- **Where tests live.** `tests/core/` holds `MagneticBorders.Core.Tests` (`GeometryTests`, `SeamBuilderTests`, `SeamTests`, `AttractionTests`, `PointerDragTests`, and `FixtureTests`, which runs every shared `.layout` file). `tests/app/` holds `MagneticBorders.Application.Tests`: the `DragControllerTests`, `DragControllerBehaviorTests`, and `AttractionControllerTests` classes with fake ports (`FakeInventory`, `SnapInventory`, `FakeMover`, `FakeClock`, `FakeTimer`, `FakeHook`, `NullLog`, `RecordingLog`), `SettingsParserTests`, `PipeProtocolTests`, `EngineStateTests`, and `AppInfoTests`. The `win32` and `host` projects have no unit tests. They are covered by running the app.
+- **Coverage.** `coverage.runsettings` selects the Cobertura format and excludes tests, `fixture-runner`, generated code, and anything marked `ExcludeFromCodeCoverage`. The step merges the reports into `artifacts/coverage/dotnet.cobertura.xml` and fails below 40 percent line coverage.
+- **Lint.** `dotnet format MagneticBorders.slnx --verify-no-changes --severity error`, then a full `dotnet build` with `-warnaserror`. `Directory.Build.props` sets `AnalysisLevel` to `latest-recommended`, turns on `EnforceCodeStyleInBuild`, and `TreatWarningsAsErrors`. The C# build `.editorconfig` raises file-scoped namespaces, unused usings, and read-only fields to warnings. The test `.editorconfig` turns off `CA1707` so test names can use underscores. On top of that, the Native AOT rule stays: no IL2xxx or IL3xxx warnings.
 - **Deterministic builds.** `Deterministic` is on, packages use `packages.lock.json` files, and the pinned SDK is in `global.json`. With `-Ci` the script sets `ContinuousIntegrationBuild`, restores with `--locked-mode`, and maps paths to `/_/`.
-- **Architectures.** The host project restores `win-x64` and `win-arm64`. x64 builds, tests and publishes natively. ARM64 builds and publishes the host with `-r win-arm64` and is not tested.
+- **Architectures.** The host project restores `win-x64` and `win-arm64`. x64 builds, tests, and publishes natively. ARM64 builds and publishes the host with `-r win-arm64` and is not tested.

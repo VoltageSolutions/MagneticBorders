@@ -43,7 +43,7 @@ struct ControllerOptions {
 };
 
 /// Drag state machine: Idle -> Classifying -> Resizing | Moving | Ignoring -> Idle.
-/// On a resize it builds seams, throttles and applies member moves, learns minimum sizes, snaps the dragged window
+/// On a resize it builds seams, throttles, and applies member moves, learns minimum sizes, snaps the dragged window
 /// back when a neighbor hits its minimum, and schedules a Verify pass. On a move it runs an Attraction and puts the
 /// dragged window on the held position after every location change that is not its own. Single-threaded: every method runs on the UI
 /// thread. Borrows its ports (they must outlive it); owns no OS resources.
@@ -53,7 +53,7 @@ public:
     DragController(WindowInventory& inventory, WindowMover& mover, Clock& clock, Timer& timer,
                    Log& log, ControllerOptions options = {});
 
-    /// Resets drag state, takes a snapshot and enters Classifying (or Ignoring if glue and attraction are off or the
+    /// Resets drag state, takes a snapshot, and enters Classifying (or Ignoring if glue and attraction are off or the
     /// window is ineligible).
     void on_move_size_start(WindowId id) override;
     /// Classifies the first location change as a move or a resize. A resize throttles and applies member moves and
@@ -62,7 +62,7 @@ public:
     /// After a resize applies the final frames (snapping the dragged window back if clamped) and arms the Verify
     /// timer. After a move applies the held position once when it still matters (SNAP-050 to SNAP-052).
     void on_move_size_end(WindowId id) override;
-    /// Dispatches Flush, Settle and Verify timer expiry.
+    /// Dispatches Flush, Settle, and Verify timer expiry.
     void on_timer(TimerKind kind) override;
     /// During a move with the pointer hook, returns where the cursor must go so the window lands on its held
     /// position (SNAP-070 to SNAP-074). Otherwise lets the movement through.

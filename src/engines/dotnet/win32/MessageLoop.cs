@@ -17,7 +17,7 @@ public static unsafe class MessageLoop
         PInvoke.PeekMessage(&m, HWND.Null, 0, 0, PEEK_MESSAGE_REMOVE_TYPE.PM_NOREMOVE);
     }
 
-    /// <summary>Pumps messages until WM_QUIT. WinEvent callbacks, timers and tray messages are all delivered from inside this loop.</summary>
+    /// <summary>Pumps messages until WM_QUIT. WinEvent callbacks, timers, and tray messages are all delivered from inside this loop.</summary>
     public static void Run()
     {
         MSG msg;

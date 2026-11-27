@@ -1,7 +1,7 @@
 #Requires -Version 7
 <#
 .SYNOPSIS
-  Single entry point for building, checking and packaging one part of Magnetic Borders.
+  Single entry point for building, checking, and packaging one part of Magnetic Borders.
   The local build watcher and the GitHub workflows both call this script, so a step that
   passes locally passes in CI.
 

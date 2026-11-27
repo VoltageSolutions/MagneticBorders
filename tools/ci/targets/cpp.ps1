@@ -1,5 +1,5 @@
 # C++ engine (src/engines/cpp). Steps follow tools/ci/README.md; run.ps1 calls them from the engine folder.
-# x64 builds and tests natively; arm64 is cross-compiled (tests, lint and coverage are x64 only).
+# x64 builds and tests natively; arm64 is cross-compiled (tests, lint, and coverage are x64 only).
 
 function Get-CppPreset($ctx) { if ($ctx.Arch -eq 'arm64') { 'release-arm64' } else { 'release' } }
 

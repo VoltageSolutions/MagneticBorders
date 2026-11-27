@@ -1,6 +1,6 @@
 namespace MagneticBorders.Core;
 
-/// <summary>What kind of line an edge is held on: a work-area side (Screen), another window's facing edge (EdgeToEdge, SNAP-033) or another window's edge of the same side for stacked windows (Aligned, SNAP-034).</summary>
+/// <summary>What kind of line an edge is held on: a work-area side (Screen), another window's facing edge (EdgeToEdge, SNAP-033), or another window's edge of the same side for stacked windows (Aligned, SNAP-034).</summary>
 public enum TargetKind { Screen, EdgeToEdge, Aligned }
 
 /// <summary>Why a held edge was let go: the free position moved past the breakaway distance (SNAP-041) or the target stopped being a target (SNAP-035).</summary>
@@ -67,7 +67,7 @@ public readonly record struct EdgeSpan(int Lo, int Hi);
 
 /// <summary>Another window as a target: its frame and, for each edge (indexed by Edge), the parts of that edge that no window above it in the z-order covers (SNAP-038).</summary>
 /// <param name="Frame">Visual frame.</param>
-/// <param name="Visible">Visible spans of the left, top, right and bottom edges, in Edge order.</param>
+/// <param name="Visible">Visible spans of the left, top, right, and bottom edges, in Edge order.</param>
 public sealed record TargetWindow(Rect Frame, IReadOnlyList<IReadOnlyList<EdgeSpan>> Visible)
 {
     private static readonly Edge[] s_edges = [Edge.Left, Edge.Top, Edge.Right, Edge.Bottom];
@@ -149,7 +149,7 @@ public sealed class Attraction
     private readonly List<AttractionEvent> _events = [];
     private Held? _x, _y;
 
-    /// <summary>Creates the attraction. <paramref name="others"/> are the other eligible windows on the same monitor, <paramref name="work"/> is the work area of that monitor and <paramref name="sides"/> tells which of its sides are targets.</summary>
+    /// <summary>Creates the attraction. <paramref name="others"/> are the other eligible windows on the same monitor, <paramref name="work"/> is the work area of that monitor, and <paramref name="sides"/> tells which of its sides are targets.</summary>
     public Attraction(AttractionConfig config, IReadOnlyList<TargetWindow> others, Rect work, SideTargets sides)
     {
         _pullIn = Math.Max(config.PullIn, 0);

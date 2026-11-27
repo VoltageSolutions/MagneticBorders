@@ -8,9 +8,9 @@ namespace mb {
 using WindowId = std::uint64_t;
 
 /// Axis-aligned rectangle in screen pixels with half-open extents (r and b are exclusive).
-/// Used for visual frames, work areas and planned frames.
+/// Used for visual frames, work areas, and planned frames.
 struct Rect {
-    /// Left, top, right and bottom coordinates.
+    /// Left, top, right, and bottom coordinates.
     int l{}, t{}, r{}, b{};
     /// Width in pixels (r - l).
     [[nodiscard]] constexpr int width() const noexcept { return r - l; }
@@ -69,7 +69,7 @@ enum class Edge { Left, Top, Right, Bottom };
     return f;
 }
 
-/// A window as the domain sees it: id, visual frame and minimum size.
+/// A window as the domain sees it: id, visual frame, and minimum size.
 /// Built by the inventory adapter; the controller may raise the minimums with learned values.
 struct WinInfo {
     /// Window identifier.

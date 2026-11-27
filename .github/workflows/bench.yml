@@ -4,7 +4,7 @@ name: Benchmark
 # summary table on the run page. Start it by hand (Actions, Benchmark, Run workflow) to pick the run count, the idle time,
 # and the soak length. A pull request that changes the harness runs it with short defaults, so the harness validates itself.
 #
-# Hosted runners are shared virtual machines and noisy. Use these numbers for trends, leaks (handles, GDI and USER
+# Hosted runners are shared virtual machines and noisy. Use these numbers for trends, leaks (handles, GDI, and USER
 # objects, private bytes per 1,000 drags), and sanity checks. Do not quote absolute latency from them: measure on a
 # quiet PC (docs/how-it-works/benchmarks.md). When a runner has no interactive desktop, the drag and soak scenarios report
 # "skipped: no interactive desktop" and the other metrics are still recorded.

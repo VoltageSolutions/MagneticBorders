@@ -15,7 +15,7 @@ Dependencies point inward: Host -> Win32 -> Application -> Core. Only Host knows
 Hook callbacks are `[UnmanagedCallersOnly]` statics routed through one static slot in `WinEventSource` (and one in `Win32PointerHook` for the mouse hook).
 
 ## Versus WPF MVVM + DI
-- No XAML, views or view-models: the "UI" is a message loop, so there is nothing to bind.
+- No XAML, views, or view-models: the "UI" is a message loop, so there is nothing to bind.
 - The ports (`IWindowInventory`, `IWindowMover`, ...) play the role MVVM services play, but there is no
   INotifyPropertyChanged; the controller is a plain state machine tested with fakes.
 - DI is the same Microsoft.Extensions container, but registered explicitly (no reflection scanning) so Native AOT works.

@@ -1,4 +1,4 @@
-// Small adapters for the Clock, Timer and Log ports: SteadyClock, Win32Timer, ConsoleLog.
+// Small adapters for the Clock, Timer, and Log ports: SteadyClock, Win32Timer, ConsoleLog.
 #pragma once
 #include <chrono>
 #include <cstdio>

@@ -2,7 +2,7 @@ using MagneticBorders.Core;
 
 namespace MagneticBorders.Application;
 
-/// <summary>Phase of the current drag: Idle (no drag), Classifying (waiting for the first location change), Resizing (seams built, neighbors follow), Moving (magnetic attraction holds the dragged window's edges) or Ignoring (neither a glued resize nor an attracted move).</summary>
+/// <summary>Phase of the current drag: Idle (no drag), Classifying (waiting for the first location change), Resizing (seams built, neighbors follow), Moving (magnetic attraction holds the dragged window's edges), or Ignoring (neither a glued resize nor an attracted move).</summary>
 public enum DragState { Idle, Classifying, Resizing, Moving, Ignoring }
 
 /// <summary>Magnetic attraction tunables in effective pixels (96 DPI); the controller scales them by Snapshot.DpiScale.</summary>
@@ -20,7 +20,7 @@ public sealed record SnapOptions
     public bool Windows { get; init; } = true;
 }
 
-/// <summary>State machine for one drag. A resize builds seams and moves the glued neighbors (magnetic coupling); a move runs an Attraction (magnetic attraction) that either holds the cursor through the pointer hook or moves the dragged window back to the held position. Receives move/size start, location change, timer, pointer and end events and drives IWindowMover. All members run on the UI thread: events arrive from WinEvent callbacks and Win32 timers, both dispatched by the UI thread's message loop. Owned by DI as a singleton; depends only on ports.</summary>
+/// <summary>State machine for one drag. A resize builds seams and moves the glued neighbors (magnetic coupling); a move runs an Attraction (magnetic attraction) that either holds the cursor through the pointer hook or moves the dragged window back to the held position. Receives move/size start, location change, timer, pointer, and end events and drives IWindowMover. All members run on the UI thread: events arrive from WinEvent callbacks and Win32 timers, both dispatched by the UI thread's message loop. Owned by DI as a singleton; depends only on ports.</summary>
 /// <param name="inventory">Window snapshots and frame reads.</param>
 /// <param name="mover">Applies batched window moves.</param>
 /// <param name="clock">Millisecond clock for throttling and logs.</param>
@@ -84,7 +84,7 @@ public sealed class DragController(
     /// <summary>Milliseconds since the current drag started.</summary>
     private ulong Elapsed => clock.NowMs() - _t0;
 
-    /// <summary>Called when a window starts a move or size loop. Cancels timers, stops a pointer hook left running, takes a snapshot and enters Classifying, or Ignoring when both features are inactive or the window is unknown.</summary>
+    /// <summary>Called when a window starts a move or size loop. Cancels timers, stops a pointer hook left running, takes a snapshot, and enters Classifying, or Ignoring when both features are inactive or the window is unknown.</summary>
     public void OnMoveSizeStart(ulong id)
     {
         timer.CancelAll();
@@ -111,7 +111,7 @@ public sealed class DragController(
         State = DragState.Classifying;
     }
 
-    /// <summary>Called for each location change of the dragged window. In Classifying a change that keeps the size is a move (Moving, or Ignoring without magnetic attraction); otherwise it decides which edges changed, builds seams and enters Resizing. In Resizing it applies the new frame to the seam members and re-arms the Settle timer. In Moving it updates the attraction.</summary>
+    /// <summary>Called for each location change of the dragged window. In Classifying a change that keeps the size is a move (Moving, or Ignoring without magnetic attraction); otherwise it decides which edges changed, builds seams, and enters Resizing. In Resizing it applies the new frame to the seam members and re-arms the Settle timer. In Moving it updates the attraction.</summary>
     public void OnLocationChange(ulong id)
     {
         if (id != _id || _snap is null) return;

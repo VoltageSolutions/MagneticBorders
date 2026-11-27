@@ -1,4 +1,4 @@
-//! `Win32Inventory`: window eligibility, monitor snapshot and frame lookup via `EnumWindows` and DWM.
+//! `Win32Inventory`: window eligibility, monitor snapshot, and frame lookup via `EnumWindows` and DWM.
 
 use crate::diagnostics::{candidate_line, move_result_line, Candidate};
 use crate::misc::AppLog;

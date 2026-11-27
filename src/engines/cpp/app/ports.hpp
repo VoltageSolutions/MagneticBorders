@@ -29,7 +29,7 @@ struct Snapshot {
 class WindowInventory {
 public:
     virtual ~WindowInventory() = default;
-    /// Returns eligible windows, the work area and the DPI scale for the monitor of `dragged`.
+    /// Returns eligible windows, the work area, and the DPI scale for the monitor of `dragged`.
     [[nodiscard]] virtual Snapshot snapshot(WindowId dragged) = 0;
     /// Returns the current visual frame of a window, or nullopt if it cannot be read.
     [[nodiscard]] virtual std::optional<Rect> frame_of(WindowId id) = 0;

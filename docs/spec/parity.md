@@ -4,7 +4,7 @@ The C++, Rust, and C# engines must behave identically. Shared `.layout` fixtures
 
 ## Why three engines
 
-Magnetic Borders is built as the same engine in three languages to compare them for clarity, memory use and responsiveness. C++ is the reference build and the PowerToys candidate, since FancyZones and the PowerToys module interface are C++.
+Magnetic Borders is built as the same engine in three languages to compare them for clarity, memory use, and responsiveness. C++ is the reference build and the PowerToys candidate, since FancyZones and the PowerToys module interface are C++.
 
 ## Behavior
 
@@ -14,13 +14,13 @@ Magnetic Borders is built as the same engine in three languages to compare them 
 | PAR-002 | A behavior change must land in all three engines in the same change, with a fixture when it is geometric. |
 | PAR-003 | The three engines must implement the same [contract](contract.md), so the settings app works with each. |
 | PAR-004 | The three engines must log the same events with the same shape (see RESIZE-050 to RESIZE-054). |
-| PAR-005 | The three engines must use the same mutex name, pipe name, data directory and registry value. |
+| PAR-005 | The three engines must use the same mutex name, pipe name, data directory, and registry value. |
 
 ## Structure
 
 | ID | Rule |
 |---|---|
-| PAR-010 | Each engine must have the folders `core/`, `app/`, `win32/` and `host/`, plus `fixture-runner/` and unit tests beside the code. |
+| PAR-010 | Each engine must have the folders `core/`, `app/`, `win32/`, and `host/`, plus `fixture-runner/` and unit tests beside the code. |
 | PAR-011 | Dependencies must point inward only: core, then app, then win32, then host. |
 | PAR-012 | `core/` and `app/` must not use Win32 types. |
 | PAR-013 | Ports must have the same names across languages, adapted to the language's casing. |
@@ -49,6 +49,6 @@ Magnetic Borders is built as the same engine in three languages to compare them 
 | ID | Rule |
 |---|---|
 | PAR-040 | Comparisons must run the same scripted workload on all three engines. |
-| PAR-041 | A comparison must report at least working set, handle and GDI counts, idle CPU, neighbor lag (p50, p95, max), startup time and exe size. |
+| PAR-041 | A comparison must report at least working set, handle and GDI counts, idle CPU, neighbor lag (p50, p95, max), startup time, and exe size. |
 | PAR-042 | Neighbor lag should be under 20 ms at p95 for the test apps. |
 | PAR-043 | The drag path should not allocate after the first event. |

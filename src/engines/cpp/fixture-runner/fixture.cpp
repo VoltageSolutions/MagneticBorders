@@ -1,4 +1,4 @@
-// Fixture parser, runner and checker (pure domain code, no Windows headers).
+// Fixture parser, runner, and checker (pure domain code, no Windows headers).
 #include "fixture.hpp"
 
 #include <algorithm>

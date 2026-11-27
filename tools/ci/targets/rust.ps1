@@ -61,7 +61,7 @@ function Invoke-Coverage($ctx) {
     Initialize-RustEnv $ctx
     Assert-Tool cargo-llvm-cov 'Run tools/setup-dev.ps1.'
     $out = Join-Path $ctx.CoverageDir 'rust.cobertura.xml'
-    # The fixture-runner binary, integration-test files and the build script are tooling, not engine code.
+    # The fixture-runner binary, integration-test files, and the build script are tooling, not engine code.
     $ignore = '(fixture-runner[\\/]src[\\/]main\.rs|[\\/]tests[\\/]|[\\/]build\.rs)'
     Exec { cargo llvm-cov --workspace --locked --cobertura --output-path $out --ignore-filename-regex $ignore }
     Show-RustCrateCoverage $out

@@ -3,7 +3,7 @@ using MagneticBorders.Core;
 
 namespace FixtureRunner;
 
-/// <summary>One parsed .layout test case: windows, an optional drag and the expected result. Parse reads the text format; Run executes the core algorithm; Check compares with the expectations. No Win32 types.</summary>
+/// <summary>One parsed .layout test case: windows, an optional drag, and the expected result. Parse reads the text format; Run executes the core algorithm; Check compares with the expectations. No Win32 types.</summary>
 public sealed class Fixture
 {
     /// <summary>Glue tolerance in pixels.</summary>
