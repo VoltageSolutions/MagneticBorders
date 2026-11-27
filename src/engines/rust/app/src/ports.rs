@@ -88,8 +88,8 @@ pub trait PointerEvents {
     /// Windows is about to put the cursor at `proposed`. Returns the position to put it at instead, or `None` to
     /// let the movement through unchanged.
     fn on_pointer_move(&mut self, proposed: Point) -> Option<Point>;
-    /// A mouse button was released. The move is over even if its end event has not arrived yet.
-    fn on_pointer_release(&mut self);
+    /// A mouse button was released at `cursor`. The move is over even if its end event has not arrived yet.
+    fn on_pointer_release(&mut self, cursor: Point);
 }
 
 /// Everything the Win32 event adapters deliver to the controller: drag events and mouse movement.

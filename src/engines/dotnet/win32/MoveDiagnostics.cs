@@ -1,4 +1,5 @@
 using System.Globalization;
+using MagneticBorders.Application;
 using MagneticBorders.Core;
 
 namespace MagneticBorders.Win32;
@@ -7,7 +8,7 @@ namespace MagneticBorders.Win32;
 internal static class MoveDiagnostics
 {
     /// <summary>Formats a rectangle as l,t,r,b.</summary>
-    public static string RectText(Rect r) => string.Create(CultureInfo.InvariantCulture, $"{r.L},{r.T},{r.R},{r.B}");
+    public static string RectText(Rect r) => DragDiagnostics.RectText(r);
 
     /// <summary>Returns actual minus requested per side.</summary>
     public static Rect Delta(Rect requested, Rect actual) => new(actual.L - requested.L, actual.T - requested.T, actual.R - requested.R, actual.B - requested.B);

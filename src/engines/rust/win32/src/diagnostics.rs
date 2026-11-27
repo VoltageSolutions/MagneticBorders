@@ -19,10 +19,7 @@ use windows::Win32::UI::HiDpi::{
 /// `MONITORINFO.dwFlags` bit of the primary monitor.
 const MONITORINFOF_PRIMARY: u32 = 1;
 
-/// Formats a rectangle as `l,t,r,b`.
-pub(crate) fn rect_text(r: Rect) -> String {
-    format!("{},{},{},{}", r.l, r.t, r.r, r.b)
-}
+pub(crate) use mb_app::diagnostics::rect_text;
 
 /// Returns `actual - requested` per side.
 pub(crate) fn delta(requested: Rect, actual: Rect) -> Rect {

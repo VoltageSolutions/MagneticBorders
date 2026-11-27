@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "diagnostics.hpp"
+
 namespace mb {
 namespace {
 constexpr std::uint64_t kThrottleMs = 8;
@@ -287,11 +289,14 @@ std::optional<Point> DragController::on_pointer_move(const Point& proposed) {
     const Point out = pointer_->move(proposed, clock_.now_ms());
     log_snap_events();
     if (out == proposed) return std::nullopt;
+    if (opts_.verbose) log_.debug(drag_diag::pointer_hold_line(proposed, out, pointer_->window()));
     return out;
 }
 
-void DragController::on_pointer_release() {
-    if (pointer_ && hook_ != nullptr) hook_->stop();
+void DragController::on_pointer_release(const Point& cursor) {
+    if (!pointer_) return;
+    if (opts_.verbose) log_.debug(drag_diag::pointer_release_line(cursor, pointer_->cursor()));
+    if (hook_ != nullptr) hook_->stop();
 }
 
 void DragController::log_snap_events() {
@@ -334,16 +339,33 @@ std::optional<Rect> DragController::held_position() {
     return a->current();
 }
 
+void DragController::finish_pointer_move(WindowId id) {
+    const auto held = held_position();
+    stop_pointer();
+    const auto frame = inventory_.frame_of(id);
+    // SNAP-075: Windows put the window where the cursor is. When that is off the held position and nothing else
+    // changed its size, the held position is applied once.
+    const bool same_size =
+        frame && frame->width() == start_frame_.width() && frame->height() == start_frame_.height();
+    const char* action = "none";
+    if (held && frame && *frame != *held) action = same_size ? "applied" : "skipped-size";
+    if (opts_.verbose) log_.debug(drag_diag::move_correction_line(id, frame, held, action));
+    const bool applied = std::string_view(action) == "applied";
+    if (applied) {
+        const std::vector<Move> moves{{id, *held}};
+        mover_.apply(moves);
+    }
+    say("move end id=" + std::to_string(id) + " snaps=" + std::to_string(drag_snaps_) + " pointer" +
+        (applied ? " applied" : ""));
+    if (opts_.verbose) inventory_.report_move_result(id, held);
+}
+
 void DragController::finish_move(WindowId id) {
-    const auto held = opts_.verbose ? held_position() : std::nullopt;
     if (pointer_) {
-        // SNAP-075: Windows already put the window where the cursor is, so nothing is applied.
-        stop_pointer();
-        say("move end id=" + std::to_string(id) + " snaps=" + std::to_string(drag_snaps_) +
-            " pointer");
-        if (opts_.verbose) inventory_.report_move_result(id, held);
+        finish_pointer_move(id);
         return;
     }
+    const auto held = opts_.verbose ? held_position() : std::nullopt;
     const auto frame = inventory_.frame_of(id);
     if (!attraction_) return;
     bool applied = false;

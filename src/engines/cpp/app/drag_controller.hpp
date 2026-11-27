@@ -67,9 +67,9 @@ public:
     /// During a move with the pointer hook, returns where the cursor must go so the window lands on its held
     /// position (SNAP-070 to SNAP-074). Otherwise lets the movement through.
     [[nodiscard]] std::optional<Point> on_pointer_move(const Point& proposed) override;
-    /// Stops the pointer hook as soon as the mouse button is released, so the cursor can never stay held after
-    /// a move (SNAP-075).
-    void on_pointer_release() override;
+    /// Stops the pointer hook as soon as the mouse button is released at `cursor`, so the cursor can never stay held
+    /// after a move (SNAP-075).
+    void on_pointer_release(const Point& cursor) override;
 
     /// Uses `hook` (or none) to hold the cursor during moves; takes effect on the next drag. Without a hook, or
     /// when it cannot start, a move moves the window back to the held position after Windows moves it. UI thread.
@@ -106,6 +106,7 @@ private:
     [[nodiscard]] Attraction* active_attraction();
     void on_move(const Rect& frame);
     void finish_move(WindowId id);
+    void finish_pointer_move(WindowId id);
     void log_snap_events();
     [[nodiscard]] Planned plan_for(const Rect& frame) const;
     std::vector<Move> final_moves(const Rect& frame, bool& snapped);

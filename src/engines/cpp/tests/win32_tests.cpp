@@ -403,7 +403,7 @@ namespace {
 /// Pointer sink that lets every movement through.
 struct PassThrough : PointerEvents {
     std::optional<Point> on_pointer_move(const Point&) override { return std::nullopt; }
-    void on_pointer_release() override {}
+    void on_pointer_release(const Point&) override {}
 };
 }  // namespace
 

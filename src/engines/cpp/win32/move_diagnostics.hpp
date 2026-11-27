@@ -7,15 +7,12 @@
 #include <string>
 #include <string_view>
 
+#include "app/diagnostics.hpp"
 #include "core/geometry.hpp"
 
 namespace mb::win32::diag {
 
-/// Formats a rectangle as `l,t,r,b`.
-[[nodiscard]] inline std::string rect_text(const Rect& r) {
-    return std::to_string(r.l) + "," + std::to_string(r.t) + "," + std::to_string(r.r) + "," +
-           std::to_string(r.b);
-}
+using mb::drag_diag::rect_text;
 
 /// Returns `actual - requested` per side.
 [[nodiscard]] constexpr Rect delta(const Rect& requested, const Rect& actual) noexcept {

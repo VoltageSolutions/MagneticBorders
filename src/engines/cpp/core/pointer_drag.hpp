@@ -23,6 +23,8 @@ public:
 
     /// The attraction, for its events and counters.
     [[nodiscard]] Attraction& attraction() noexcept { return attraction_; }
+    /// The cursor position returned by the last move (the start position before the first).
+    [[nodiscard]] Point cursor() const noexcept { return cursor_; }
     /// The window position that matches the cursor returned by the last move.
     [[nodiscard]] Rect window() const noexcept;
 

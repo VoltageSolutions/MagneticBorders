@@ -318,13 +318,17 @@ public sealed class DragController(
         if (_pointer is null || State != DragState.Moving) return null;
         var o = _pointer.Move(proposed, clock.NowMs());
         LogSnapEvents();
-        return o == proposed ? null : o;
+        if (o == proposed) return null;
+        log.Debug(DragDiagnostics.PointerHoldLine(proposed, o, _pointer.Window));
+        return o;
     }
 
-    /// <summary>Stops the pointer hook as soon as the mouse button is released, so the cursor can never stay held after a move (SNAP-075).</summary>
-    public void OnPointerRelease()
+    /// <summary>Stops the pointer hook as soon as the mouse button is released at <paramref name="cursor"/>, so the cursor can never stay held after a move (SNAP-075).</summary>
+    public void OnPointerRelease(Point cursor)
     {
-        if (_pointer is not null) Hook?.Remove();
+        if (_pointer is null) return;
+        log.Debug(DragDiagnostics.PointerReleaseLine(cursor, _pointer.Cursor));
+        Hook?.Remove();
     }
 
     /// <summary>The attraction of the current move, with or without the pointer hook.</summary>
@@ -383,14 +387,21 @@ public sealed class DragController(
         _lastHeld = applied.Count == 0 ? held : applied[0].Frame;
     }
 
-    /// <summary>Ends a move. With the pointer hook Windows already put the window where the cursor is, so nothing is applied (SNAP-075). Without it, the held position is applied once when the window sits at the last free position and kept its size (SNAP-050, SNAP-051); nothing is applied after that (SNAP-052).</summary>
+    /// <summary>Ends a move. With the pointer hook Windows already put the window where the cursor is; when that is off the held position and the window kept its size, the held position is applied once (SNAP-075). Without it, the held position is applied once when the window sits at the last free position and kept its size (SNAP-050, SNAP-051); nothing is applied after that (SNAP-052).</summary>
     private void FinishMove(ulong id)
     {
         Rect? held = ActiveAttraction is { IsHeld: true } active ? active.Current : null;
         if (_pointer is not null)
         {
             StopPointer();
-            L($"move end id={id} snaps={_dragSnaps} pointer");
+            var current = inventory.FrameOf(id);
+            var action = "none";
+            if (held is { } target && current is { } cur && cur != target)
+                action = cur.Width == _start.Width && cur.Height == _start.Height ? "applied" : "skipped-size";
+            log.Debug(DragDiagnostics.MoveCorrectionLine(id, current, held, action));
+            bool corrected = action == "applied" && held is not null;
+            if (corrected) mover.Apply([(id, held!.Value)]);
+            L($"move end id={id} snaps={_dragSnaps} pointer{(corrected ? " applied" : "")}");
             inventory.ReportMoveResult(id, held);
             return;
         }

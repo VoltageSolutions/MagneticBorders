@@ -68,6 +68,19 @@ TEST(MoveDiagnostics, MoveResultLine) {
               "diag: move result id=12 frame=unavailable rect=unavailable held=none");
 }
 
+TEST(MoveDiagnostics, PointerLines) {
+    EXPECT_EQ(mb::drag_diag::pointer_hold_line({395, 260}, {400, 260}, {300, 250, 500, 450}),
+              "diag: pointer hold proposed=395,260 cursor=400,260 window=300,250,500,450");
+    EXPECT_EQ(mb::drag_diag::pointer_release_line({398, -3}, {400, 260}),
+              "diag: pointer release cursor=398,-3 expected=400,260");
+    EXPECT_EQ(mb::drag_diag::move_correction_line(12, Rect{304, 247, 504, 447},
+                                                  Rect{300, 250, 500, 450}, "applied"),
+              "diag: move correction id=12 frame=304,247,504,447 held=300,250,500,450 "
+              "action=applied");
+    EXPECT_EQ(mb::drag_diag::move_correction_line(12, std::nullopt, std::nullopt, "none"),
+              "diag: move correction id=12 frame=unavailable held=none action=none");
+}
+
 TEST(MoveDiagnostics, SystemLines) {
     EXPECT_EQ(diag::system_line("22631.3880", "per-monitor-v2", true, 2),
               "diag: system os_build=22631.3880 dpi_awareness=per-monitor-v2 dwm_composition=on "

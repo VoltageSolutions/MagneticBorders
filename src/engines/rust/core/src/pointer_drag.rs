@@ -66,6 +66,11 @@ impl PointerDrag {
         &mut self.attraction
     }
 
+    /// The cursor position returned by the last move (the start position before the first).
+    pub fn cursor(&self) -> Point {
+        self.cursor
+    }
+
     /// The window position that matches the cursor returned by the last move.
     pub fn window(&self) -> Rect {
         let x = self.frame0.l + self.cursor.x - self.cursor0.x;

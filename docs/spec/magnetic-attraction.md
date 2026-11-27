@@ -63,8 +63,8 @@ All distances are in effective pixels and are scaled by the DPI of the dragged w
 
 | ID | Rule |
 |---|---|
-| SNAP-050 | Without the mouse hook, on `EVENT_SYSTEM_MOVESIZEEND`, if any edge is held and the window's current frame equals the last free position, the held position must be applied once. |
-| SNAP-051 | If the window's size changed by the end of the drag (Windows Snap, FancyZones, or another tool placed it), Magnetic attraction must not move it. |
+| SNAP-050 | Without the mouse hook, on `EVENT_SYSTEM_MOVESIZEEND`, if any edge is held and the window's current frame equals the last free position, the held position must be applied once. With the mouse hook, SNAP-075 applies instead. |
+| SNAP-051 | If the window's size changed by the end of the drag (Windows Snap, FancyZones, or another tool placed it), Magnetic attraction must not move it, with or without the mouse hook. |
 | SNAP-052 | After the drag ends nothing more may be applied. Unlike Magnetic coupling there is no Verify pass, so a tool that places the window after the drop always wins. |
 
 ## Holding the cursor
@@ -76,7 +76,7 @@ All distances are in effective pixels and are scaled by the DPI of the dragged w
 | SNAP-072 | For each mouse movement, the cursor must go where the held position puts it: the cursor plus the held position's offset from the frame, both read when the drag starts. Windows keeps that cursor-to-window offset fixed for the whole drag. When either cannot be read at drag start, both are read when the hook starts. When that differs from where Windows was about to put the cursor, the movement must be blocked and the cursor set there. Windows then moves the window to the held position, so Magnetic Borders never moves the window itself. |
 | SNAP-073 | When a movement releases an axis, the cursor must move by that movement only on that axis, so neither the cursor nor the window jumps. |
 | SNAP-074 | While an axis is held, the cursor must not move on that axis. Sliding on the other axis follows the mouse. |
-| SNAP-075 | The hook must be removed at the end of the move, at the start of the next drag, and as soon as a mouse button is released, so the cursor is never held after a move. |
+| SNAP-075 | The hook must be removed at the end of the move, at the start of the next drag, and as soon as a mouse button is released, so the cursor is never held after a move. After the hook is removed at the end of the move, if any axis is held, the window has the size it had when the drag started, and its frame differs from the held position, the held position must be applied once. Otherwise nothing is applied. The `move end` line then ends with `pointer applied`. |
 | SNAP-076 | When the hook cannot be installed or the cursor cannot be read, Magnetic attraction must fall back to moving the window back to the held position after Windows moves it (SNAP-023 to SNAP-025, SNAP-050 to SNAP-052). |
 
 ## Logging

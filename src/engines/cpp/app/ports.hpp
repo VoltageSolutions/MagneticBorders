@@ -97,8 +97,8 @@ public:
     /// Windows is about to put the cursor at `proposed`. Returns the position to put it at instead, or nullopt to
     /// let the movement through unchanged.
     [[nodiscard]] virtual std::optional<Point> on_pointer_move(const Point& proposed) = 0;
-    /// A mouse button was released. The move is over even if its end event has not arrived yet.
-    virtual void on_pointer_release() = 0;
+    /// A mouse button was released at `cursor`. The move is over even if its end event has not arrived yet.
+    virtual void on_pointer_release(const Point& cursor) = 0;
 };
 
 /// Port: watches the mouse while a window is moved (SNAP-070). Implemented by win32::PointerHook with a low-level

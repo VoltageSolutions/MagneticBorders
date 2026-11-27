@@ -87,6 +87,9 @@ Verbose logging records how each move batch is applied and what the system looks
 | ENG-085 | All three engines must write the same text after the log prefix. The prefix (time stamp and level) may differ. |
 | ENG-086 | With `--verbose`, taking the snapshot at the start of a drag must write one `diag: window` line per candidate window, the dragged window included when it is eligible. |
 | ENG-087 | With `--verbose`, the end of a move (not a resize) must write one `diag: move result` line after the `move end` line. |
+| ENG-088 | With `--verbose`, each mouse movement that the pointer hook changes must write `diag: pointer hold proposed=x,y cursor=x,y window=l,t,r,b`: the position Windows proposed, the cursor position the engine set, and the window frame that position gives. Movements let through unchanged write nothing. |
+| ENG-089 | With `--verbose`, a mouse button release seen by the pointer hook during a move must write `diag: pointer release cursor=x,y expected=x,y`: the position of the release event and the last cursor position the engine set or let through. |
+| ENG-090 | With `--verbose`, the end of a move with the pointer hook must write `diag: move correction id=N frame=l,t,r,b held=l,t,r,b\|none action=applied\|none\|skipped-size` before the `move end` line. `frame` is `unavailable` when the window cannot be read. `action` is `applied` when the held position is applied (SNAP-075), `skipped-size` when the window's size changed, and `none` otherwise. |
 
 ### Capture a log
 

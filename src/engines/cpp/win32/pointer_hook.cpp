@@ -48,7 +48,7 @@ LRESULT CALLBACK Win32PointerHook::on_mouse(int code, WPARAM wp, LPARAM lp) {
                 return 1;  // the original movement is replaced by the held cursor position
             }
         } else if (is_button_up(wp)) {
-            self->sink_->on_pointer_release();  // may stop (unhook) this hook
+            self->sink_->on_pointer_release({m->pt.x, m->pt.y});  // may stop (unhook) this hook
         }
     }
     return CallNextHookEx(nullptr, code, wp, lp);

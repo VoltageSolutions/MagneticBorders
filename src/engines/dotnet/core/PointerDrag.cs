@@ -21,6 +21,9 @@ public sealed class PointerDrag
     /// <summary>The attraction, for its events and counters.</summary>
     public Attraction Attraction { get; }
 
+    /// <summary>The cursor position returned by the last Move (the start position before the first).</summary>
+    public Point Cursor => _cursor;
+
     /// <summary>The window position that matches the cursor returned by the last Move.</summary>
     public Rect Window => AtY(AtX(_frame0, _frame0.L + _cursor.X - _cursor0.X), _frame0.T + _cursor.Y - _cursor0.Y);
 

@@ -14,6 +14,20 @@ public class MoveDiagnosticsTests
     }
 
     [Fact]
+    public void PointerLineText()
+    {
+        Assert.Equal("diag: pointer hold proposed=395,260 cursor=400,260 window=300,250,500,450", DragDiagnostics.PointerHoldLine(new Point(395, 260), new Point(400, 260), new Rect(300, 250, 500, 450)));
+        Assert.Equal("diag: pointer release cursor=398,-3 expected=400,260", DragDiagnostics.PointerReleaseLine(new Point(398, -3), new Point(400, 260)));
+    }
+
+    [Fact]
+    public void MoveCorrectionLineText()
+    {
+        Assert.Equal("diag: move correction id=12 frame=304,247,504,447 held=300,250,500,450 action=applied", DragDiagnostics.MoveCorrectionLine(12, new Rect(304, 247, 504, 447), new Rect(300, 250, 500, 450), "applied"));
+        Assert.Equal("diag: move correction id=12 frame=unavailable held=none action=none", DragDiagnostics.MoveCorrectionLine(12, null, null, "none"));
+    }
+
+    [Fact]
     public void HexAndFlagsText()
     {
         Assert.Equal("0x1a2b", MoveDiagnostics.HexId(0x1a2b));
