@@ -48,7 +48,7 @@ impl Win32Inventory {
     }
 
     /// True when a window hides what is below it: visible, not minimized, not cloaked, not click-through (overlays
-    /// such as the FancyZones editor), and not this process's own window (SNAP-038).
+    /// such as the `FancyZones` editor), and not this process's own window (SNAP-038).
     fn covers(h: HWND, own_pid: u32) -> bool {
         unsafe {
             if !IsWindowVisible(h).as_bool() || IsIconic(h).as_bool() {
