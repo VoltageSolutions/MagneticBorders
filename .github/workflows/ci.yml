@@ -360,7 +360,9 @@ jobs:
           disable_search: true
           flags: ${{ matrix.target }}
           name: ${{ matrix.target }}
-          fail_ci_if_error: true
+          # Dependabot pull requests only see Dependabot secrets. Without CODECOV_TOKEN there, Codecov rejects the
+          # upload for a branch of this repository, so a missing token does not fail the job.
+          fail_ci_if_error: ${{ secrets.CODECOV_TOKEN != '' }}
 
   # Known vulnerabilities in dependencies: NuGet packages of the C# engine and the settings app, and Rust crates
   # (RustSec advisory database). The C++ engine fetches pinned tags of nlohmann/json and GoogleTest (tests only).
