@@ -42,7 +42,7 @@ public static class PipeProtocol
                 && doc.RootElement.TryGetProperty("cmd", out var c) && c.ValueKind == JsonValueKind.String)
                 cmd = c.GetString();
         }
-        catch (JsonException) { }
+        catch (JsonException) { cmd = null; }
         return cmd switch
         {
             "status" => new(Status(s), PipeAction.None),

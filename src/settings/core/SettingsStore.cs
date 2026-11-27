@@ -34,11 +34,11 @@ public sealed class SettingsStore : ISettingsStore
     public string Path { get; }
 
     /// <summary>Per-user data folder %LOCALAPPDATA%\MagneticBorders.</summary>
-    public static string DataDir => System.IO.Path.Combine(
+    public static string DataDir => System.IO.Path.Join(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MagneticBorders");
 
     /// <summary>Default settings file inside DataDir.</summary>
-    public static string DefaultPath => System.IO.Path.Combine(DataDir, "settings.json");
+    public static string DefaultPath => System.IO.Path.Join(DataDir, "settings.json");
 
     /// <summary>See ISettingsStore.LastWriteUtc.</summary>
     public DateTime LastWriteUtc => File.Exists(Path) ? File.GetLastWriteTimeUtc(Path) : DateTime.MinValue;
@@ -58,7 +58,7 @@ public sealed class SettingsStore : ISettingsStore
             settings.WriteTo(root);
             var dir = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Path))!;
             Directory.CreateDirectory(dir);
-            var tmp = System.IO.Path.Combine(dir, $".settings.{Environment.ProcessId}.{Guid.NewGuid():N}.tmp");
+            var tmp = System.IO.Path.Join(dir, $".settings.{Environment.ProcessId}.{Guid.NewGuid():N}.tmp");
             try
             {
                 File.WriteAllText(tmp, root.ToJsonString(Pretty), new UTF8Encoding(false));

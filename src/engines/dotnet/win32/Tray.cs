@@ -251,10 +251,10 @@ public static unsafe class SettingsApp
         if (dir is null) return null;
         foreach (var c in new[]
         {
-            Path.Combine(dir, "MagneticBorders.Settings.exe"),
-            Path.Combine(dir, "settings", "MagneticBorders.Settings.exe"),
-            Path.GetFullPath(Path.Combine(dir, "..", "settings", "MagneticBorders.Settings.exe")),
-            Path.GetFullPath(Path.Combine(dir, "..", "..", "settings", Path.GetFileName(dir), "MagneticBorders.Settings.exe")),
+            Path.Join(dir, "MagneticBorders.Settings.exe"),
+            Path.Join(dir, "settings", "MagneticBorders.Settings.exe"),
+            Path.GetFullPath(Path.Join(dir, "..", "settings", "MagneticBorders.Settings.exe")),
+            Path.GetFullPath(Path.Join(dir, "..", "..", "settings", Path.GetFileName(dir), "MagneticBorders.Settings.exe")),
         })
             if (File.Exists(c)) return c;
         return null;
@@ -283,6 +283,6 @@ public static unsafe class SettingsApp
             PInvoke.CloseHandle(pi.hProcess);
             return true;
         }
-        catch (Exception ex) { log.Info("launch settings failed: " + ex.Message); return false; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception) { log.Info("launch settings failed: " + ex.Message); return false; }
     }
 }
