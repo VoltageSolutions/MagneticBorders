@@ -19,6 +19,7 @@ bool verbose = args.Contains("--verbose");
 using var log = new EngineLog(console, verbose);
 var appInfo = AppInfo.FromEntryAssembly();
 log.Info($"Magnetic Borders (.NET, Native AOT) {appInfo.Version}");
+if (verbose) SystemDiagnostics.Log(log);
 if (!MessageLoop.FullWindowDragEnabled())
     log.Info("WARNING: 'Show window contents while dragging' is off; live magnetic coupling will not work.");
 
@@ -33,7 +34,7 @@ s.AddSingleton<WindowState>();
 s.AddSingleton(p => new Win32Inventory(p.GetRequiredService<WindowState>(), []));
 s.AddSingleton<IWindowInventory>(p => p.GetRequiredService<Win32Inventory>());
 s.AddSingleton(p => new Win32PointerHook(p.GetRequiredService<ILog>()));
-s.AddSingleton<IWindowMover>(p => new Win32Mover(p.GetRequiredService<WindowState>(), p.GetRequiredService<ILog>()));
+s.AddSingleton<IWindowMover>(p => new Win32Mover(p.GetRequiredService<WindowState>(), p.GetRequiredService<ILog>(), verbose));
 s.AddSingleton(p =>
 {
     var c = new DragController(

@@ -98,7 +98,7 @@ if(MB_BUILD_TESTS)
 
   set(MB_TEST_SOURCES
     tests/core_tests.cpp tests/attraction_tests.cpp tests/pointer_drag_tests.cpp tests/controller_tests.cpp tests/settings_tests.cpp
-    tests/fixture_tests.cpp)
+    tests/move_diagnostics_tests.cpp tests/fixture_tests.cpp)
   if(WIN32)
     list(APPEND MB_TEST_SOURCES tests/win32_tests.cpp host/settings.cpp)
   endif()
@@ -118,6 +118,7 @@ if(WIN32)
     win32/win_common.cpp
     win32/win32_inventory.cpp
     win32/win32_mover.cpp
+    win32/system_diagnostics.cpp
     win32/win32_event_source.cpp
     win32/win32_timer.cpp
     win32/pointer_hook.cpp
@@ -128,7 +129,7 @@ if(WIN32)
     win32/message_window.cpp
     win32/tray_icon.cpp
     win32/run_key.cpp)
-  target_link_libraries(mb_win32 PUBLIC mb_app PRIVATE dwmapi user32 shell32 advapi32)
+  target_link_libraries(mb_win32 PUBLIC mb_app PRIVATE dwmapi shcore user32 shell32 advapi32)
   mb_warnings(mb_win32)
 
   if(MB_BUILD_TESTS)

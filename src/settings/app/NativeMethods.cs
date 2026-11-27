@@ -25,6 +25,8 @@ internal static class NativeMethods
     public const int SW_RESTORE = 9;
     /// <summary>Sets a DWM window attribute (corner preference and border colour).</summary>
     [DllImport("dwmapi.dll")] public static extern int DwmSetWindowAttribute(nint hwnd, int attr, ref int value, int size);
+    /// <summary>Reads a DWM window attribute (used to read the border colour back).</summary>
+    [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(nint hwnd, int attr, out int value, int size);
     /// <summary>Extends the window frame into the client area by the given margins.</summary>
     [DllImport("dwmapi.dll")] public static extern int DwmExtendFrameIntoClientArea(nint hwnd, ref MARGINS margins);
 

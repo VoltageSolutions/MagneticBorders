@@ -149,6 +149,9 @@ mod app {
         let path = data.join("settings.json");
         let log = AppLog::open(&data.join("logs").join("rust.log"), console, verbose);
         log.info(&format!("Magnetic Borders (Rust) {VERSION} starting, pid {}", std::process::id()));
+        if verbose {
+            log_system_diagnostics(&log);
+        }
 
         let (s, warn) = apply_reload(
             &Settings::default(),
@@ -170,7 +173,11 @@ mod app {
         let live = Rc::new(Live::new(s.glue_active(), s.glue_tolerance_px));
         let controller = DragController::new(
             Win32Inventory::new(shared.clone(), &s.excluded_apps),
-            Win32Mover::new(shared.clone()),
+            if verbose {
+                Win32Mover::with_diagnostics(shared.clone(), log.clone())
+            } else {
+                Win32Mover::new(shared.clone())
+            },
             MonotonicClock::new(),
             Win32Timer,
             log.clone(),
