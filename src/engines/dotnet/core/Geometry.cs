@@ -12,6 +12,11 @@ public readonly record struct Rect(int L, int T, int R, int B)
     public int Height => B - T;
 }
 
+/// <summary>A screen point in pixels, for example the mouse cursor.</summary>
+/// <param name="X">Horizontal coordinate.</param>
+/// <param name="Y">Vertical coordinate.</param>
+public readonly record struct Point(int X, int Y);
+
 /// <summary>One candidate window in a snapshot: opaque id (the HWND value in the Win32 layer), visual frame, and minimum size.</summary>
 /// <param name="Id">Opaque window identifier; the Win32 layer stores the HWND value.</param>
 /// <param name="Frame">Visual frame (DWM extended frame bounds), not the GetWindowRect rectangle.</param>
