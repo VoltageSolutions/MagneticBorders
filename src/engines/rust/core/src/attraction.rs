@@ -912,7 +912,7 @@ mod tests {
         assert_eq!((events[0].edge, events[0].line, events[0].kind), (Edge::Left, 0, TargetKind::Screen));
         assert!(events[0].speed.abs() < f64::EPSILON);
         assert_eq!(events[0].reason, None);
-        assert!(r.a.take_events().is_empty());
+        assert_eq!(r.a.take_events().len(), 0);
     }
 
     #[test]
