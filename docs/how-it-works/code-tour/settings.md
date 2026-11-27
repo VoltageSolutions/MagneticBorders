@@ -116,7 +116,7 @@ Closing (`CloseSafe` guarantees a single `Close`):
 
 **Pipe client.** `PipeEngineClient.SendAsync` opens `\\.\pipe\MagneticBorders`, writes `{"cmd":"status"}` plus a newline, reads one line, and parses it with `PipeResponse.Parse`. One connection per call. A 1 second timeout covers the whole exchange. If Magnetic Borders is missing, slow, or the pipe errors, it returns `PipeResponse.Failure("engine not reachable")` instead of throwing. The app sends `status` (the poll) and `quit` (the Quit Magnetic Borders button). There is no pause. The master **Enabled** switch is a saved setting, so the flyout, the settings window and the notification area menu all write the same `enabled` key.
 
-**Status polling.** `App` calls `RefreshAsync` every 2 seconds. It sets `Status` to the parsed `EngineStatus`, or to null when no running copy answers. `EngineRunning` follows `Status`, and the display text comes from `Fmt.StatusLine` and `Fmt.Summary`. `FeaturesEnabled`, `CouplingZoneEnabled` and `AttractionZoneEnabled` dim the cards that do not apply when the master switch or a feature is off.
+**Status polling.** `App` calls `RefreshAsync` every 2 seconds. It sets `Status` to the parsed `EngineStatus`, or to null when no running copy answers. `EngineRunning` follows `Status`, and the display text comes from `Fmt.StatusLine` and `Fmt.Summary`. `FeaturesEnabled`, `CouplingZoneEnabled`, and `AttractionZoneEnabled` dim the cards that do not apply when the master switch or a feature is off.
 
 ## The flyout background
 
