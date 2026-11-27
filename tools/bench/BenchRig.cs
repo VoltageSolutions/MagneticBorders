@@ -142,6 +142,18 @@ namespace MagneticBorders.Bench
         internal static extern uint GetGuiResources(IntPtr process, uint flags);
 
         [DllImport("user32.dll")]
+        internal static extern bool GetCursorPos(out POINT point);
+
+        [DllImport("user32.dll")]
+        internal static extern short GetAsyncKeyState(int key);
+
+        [DllImport("user32.dll")]
+        internal static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        internal static extern void NotifyWinEvent(uint winEvent, IntPtr hwnd, int idObject, int idChild);
+
+        [DllImport("user32.dll")]
         internal static extern bool SetProcessDpiAwarenessContext(IntPtr context);
 
         [DllImport("user32.dll")]
@@ -186,6 +198,8 @@ namespace MagneticBorders.Bench
         private const uint SwpNoMove = 0x0002;
         private const uint SwpNoZOrder = 0x0004;
         private const uint SwpNoActivate = 0x0010;
+        private const uint EventSystemMoveSizeStart = 0x000A;
+        private const uint EventSystemMoveSizeEnd = 0x000B;
         private const uint MouseMove = 0x0001;
         private const uint MouseLeftDown = 0x0002;
         private const uint MouseLeftUp = 0x0004;
@@ -211,6 +225,14 @@ namespace MagneticBorders.Bench
         {
             _layout = layout;
         }
+
+        /// <summary>
+        /// When true, Drag does not use the mouse. It announces the start and the end of a resize with NotifyWinEvent
+        /// (EVENT_SYSTEM_MOVESIZESTART and EVENT_SYSTEM_MOVESIZEEND, which Windows raises for a real border drag) and
+        /// resizes the dragged window with SetWindowPos in between. Engines see the same events as in a real drag,
+        /// but Windows' own resize loop does not run.
+        /// </summary>
+        public bool Simulated { get; set; }
 
         /// <summary>The number of windows in the layout.</summary>
         public int Count { get { return _windows.Count; } }
@@ -281,13 +303,19 @@ namespace MagneticBorders.Bench
         {
             Reset();
             Thread.Sleep(40);
-            Native.POINT grab = FindGrabPoint();
-            int startEdge = Visible(_windows[0]).Right;
-            if (!Native.SetCursorPos(grab.X, grab.Y))
+            Native.POINT grab = new Native.POINT();
+            if (!Simulated)
             {
-                throw new RigException("SetCursorPos failed (error " + Marshal.GetLastWin32Error() + ")");
+                grab = FindGrabPoint();
+                if (!Native.SetCursorPos(grab.X, grab.Y))
+                {
+                    throw new RigException("SetCursorPos failed (error " + Marshal.GetLastWin32Error() + ")");
+                }
+                Thread.Sleep(15);
             }
-            Thread.Sleep(15);
+            int startEdge = Visible(_windows[0]).Right;
+            Native.RECT outer;
+            Native.GetWindowRect(_windows[0], out outer);
 
             var gaps = new List<int>(4096);
             int maxTravel = 0;
@@ -314,13 +342,23 @@ namespace MagneticBorders.Bench
             for (int i = 1; i <= steps; i++) { offsets.Add(i * stepPx); }
             for (int i = steps - 1; i >= 0; i--) { offsets.Add(i * stepPx); }
 
+            string diagnostics = string.Empty;
             bool pressed = false;
             var clock = Stopwatch.StartNew();
+            double durationMs = 0;
             try
             {
-                Button(MouseLeftDown);
-                pressed = true;
+                if (Simulated)
+                {
+                    Native.NotifyWinEvent(EventSystemMoveSizeStart, _windows[0], 0, 0);
+                }
+                else
+                {
+                    Button(MouseLeftDown);
+                    pressed = true;
+                }
                 Thread.Sleep(30);
+                if (!Simulated) { diagnostics = Diagnose(grab); }
                 Volatile.Write(ref sampling, true);
                 double t0 = clock.Elapsed.TotalMilliseconds;
                 for (int j = 0; j < offsets.Count; j++)
@@ -330,27 +368,34 @@ namespace MagneticBorders.Bench
                     {
                         if (deadline - clock.Elapsed.TotalMilliseconds > 1.0) { Thread.Sleep(1); } else { Thread.Yield(); }
                     }
-                    MoveTo(grab.X + offsets[j], grab.Y);
+                    if (Simulated)
+                    {
+                        Native.SetWindowPos(_windows[0], IntPtr.Zero, outer.Left, outer.Top, (outer.Right - outer.Left) + offsets[j], outer.Bottom - outer.Top, SwpNoZOrder | SwpNoActivate);
+                    }
+                    else
+                    {
+                        MoveTo(grab.X + offsets[j], grab.Y);
+                    }
                 }
                 Thread.Sleep(stepMs);
             }
             finally
             {
                 Volatile.Write(ref sampling, false);
+                durationMs = clock.Elapsed.TotalMilliseconds;
                 if (pressed) { Button(MouseLeftUp); }
-                double durationMs = clock.Elapsed.TotalMilliseconds;
+                if (Simulated) { Native.NotifyWinEvent(EventSystemMoveSizeEnd, _windows[0], 0, 0); }
                 Volatile.Write(ref stop, true);
                 poller.Join(2000);
-                _lastDurationMs = durationMs;
             }
             Thread.Sleep(settleMs);
 
             int minTravel = Math.Max(2, Math.Min(amplitudePx / 2, 20));
             if (maxTravel < minTravel)
             {
-                throw new RigException("the dragged window did not follow the injected mouse input (moved " + maxTravel + " px)");
+                throw new RigException("the dragged window did not follow the injected mouse input (moved " + maxTravel + " px; " + diagnostics + ")");
             }
-            return new DragResult { Steps = offsets.Count, DurationMs = _lastDurationMs, MaxTravelPx = maxTravel, Gaps = gaps.ToArray() };
+            return new DragResult { Steps = offsets.Count, DurationMs = durationMs, MaxTravelPx = maxTravel, Gaps = gaps.ToArray() };
         }
 
         /// <summary>Mean, percentiles, maximum and the share of samples that are not 0 px.</summary>
@@ -376,8 +421,6 @@ namespace MagneticBorders.Bench
             lag.DisagreePct = 100.0 * nonZero / sorted.Length;
             return lag;
         }
-
-        private double _lastDurationMs;
 
         private static double Percentile(int[] sorted, double p)
         {
@@ -433,6 +476,19 @@ namespace MagneticBorders.Bench
                 if (Native.SendMessage(hwnd, WmNcHitTest, IntPtr.Zero, lParam).ToInt64() == HtRight) { return p; }
             }
             throw new RigException("no resize border point on the first test window is reachable (the desktop may be locked or covered)");
+        }
+
+        // What the desktop reports right after the button press, to explain a drag that did not start.
+        private string Diagnose(Native.POINT grab)
+        {
+            Native.POINT cursor;
+            Native.GetCursorPos(out cursor);
+            IntPtr under = Native.WindowFromPoint(cursor);
+            bool buttonDown = (Native.GetAsyncKeyState(0x01) & 0x8000) != 0;
+            return "grab " + grab.X + "," + grab.Y + "; cursor " + cursor.X + "," + cursor.Y
+                + "; window under cursor is test window " + _windows.IndexOf(under)
+                + "; left button down " + buttonDown
+                + "; foreground is test window " + _windows.IndexOf(Native.GetForegroundWindow());
         }
 
         private static void MoveTo(int x, int y)

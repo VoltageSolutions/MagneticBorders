@@ -16,7 +16,10 @@
     soak     Many short drags; reports the slope of private bytes, handles, GDI and USER objects per 1,000 drags.
     size     Exe and folder size on disk.
 
-  Drag and soak need an interactive, unlocked desktop. When windows or input cannot be created, those scenarios report
+  Drag and soak need an interactive, unlocked desktop to create windows. By default (-DragInput auto) the script first
+  tries real mouse input (SendInput). When Windows does not deliver it, as on some hosted CI runners, drags are
+  simulated: the harness raises the same WinEvents Windows raises for a border drag and resizes the dragged window with
+  SetWindowPos. The summary says which input was used. When the windows cannot be created at all, drag and soak report
   "skipped: no interactive desktop" and the other scenarios still run.
 
   The script replaces %LOCALAPPDATA%\MagneticBorders\settings.json with the defaults for the duration of the run and
@@ -45,6 +48,7 @@ param(
     [int]$IdleSeconds = 300,
     [int]$Drags = 20,
     [ValidateSet('pair', 'row3', 'grid')][string[]]$Layouts = @('pair', 'grid'),
+    [ValidateSet('auto', 'mouse', 'simulated')][string]$DragInput = 'auto',
     [int]$DragAmplitude = 120,
     [int]$StepPx = 4,
     [int]$StepMs = 8,
@@ -197,9 +201,36 @@ function Measure-Idle($proc, [int]$seconds) {
     }
 }
 
+$script:InputMode = 'mouse'
+$script:InputNote = $null
+
+function Open-Rig([string]$layout) {
+    $rig = [MagneticBorders.Bench.Rig]::Open($layout)
+    $rig.Simulated = ($script:InputMode -eq 'simulated')
+    return $rig
+}
+
+# Decides once whether real mouse input reaches the test windows.
+function Resolve-DragInput {
+    if ($DragInput -ne 'auto') { $script:InputMode = $DragInput; return }
+    $script:InputMode = 'mouse'
+    try { $rig = [MagneticBorders.Bench.Rig]::Open('pair') }
+    catch { return }   # no windows at all: the scenarios report the skip
+    try {
+        $rig.Simulated = $false
+        $null = $rig.Drag(40, 8, $StepMs, 100, $false)
+    }
+    catch {
+        if (-not (Test-RigError $_)) { throw }
+        $script:InputMode = 'simulated'
+        $script:InputNote = "Windows did not deliver injected mouse input ($($_.Exception.GetBaseException().Message)), so drags are simulated: the harness raises EVENT_SYSTEM_MOVESIZESTART and EVENT_SYSTEM_MOVESIZEEND and resizes the dragged window with SetWindowPos."
+    }
+    finally { $rig.Dispose() }
+}
+
 function Measure-Drag($proc, [string]$layout, [int]$count) {
     $metrics = [ordered]@{}
-    $rig = [MagneticBorders.Bench.Rig]::Open($layout)
+    $rig = Open-Rig $layout
     try {
         $statusBefore = Get-EngineStatus
         $cpuBefore = Get-CpuMs $proc
@@ -233,7 +264,7 @@ function Measure-Drag($proc, [string]$layout, [int]$count) {
 
 function Measure-Soak($proc, [int]$total, [int]$points) {
     $metrics = [ordered]@{}
-    $rig = [MagneticBorders.Bench.Rig]::Open('pair')
+    $rig = Open-Rig 'pair'
     try {
         $warm = [Math]::Min(50, [Math]::Max(5, [int]($total / 10)))
         for ($i = 0; $i -lt $warm; $i++) { $null = $rig.Drag(40, 8, $StepMs, 150, $false) }
@@ -397,7 +428,7 @@ function New-Summary($records, $meta) {
     $null = $sb.AppendLine()
     $null = $sb.AppendLine("$($meta.os), $($meta.arch), $($meta.cpu), $($meta.cores) logical processors, display $($meta.display).")
     $null = $sb.AppendLine("$($meta.runs) measured runs per engine after $($meta.warmups) warm-up, engines interleaved. Each cell is the median with the range of runs in brackets. Lower is better for every row.")
-    $null = $sb.AppendLine("Idle $($meta.idle_seconds) s, $($meta.drags) drags per layout, soak $($meta.soak_drags) drags.")
+    $null = $sb.AppendLine("Idle $($meta.idle_seconds) s, $($meta.drags) drags per layout, soak $($meta.soak_drags) drags. Drag input: $($meta.drag_input).")
     $null = $sb.AppendLine()
     $null = $sb.AppendLine('| Metric | ' + (($names | ForEach-Object { $_ }) -join ' | ') + ' |')
     $null = $sb.AppendLine('|---|' + (($names | ForEach-Object { '---' }) -join '|') + '|')
@@ -416,7 +447,9 @@ function New-Summary($records, $meta) {
         $label = if ($row.unit) { "$($row.label) ($($row.unit))" } else { $row.label }
         $null = $sb.AppendLine("| $label | " + ($cells -join ' | ') + ' |')
     }
-    $notes = @($records | ForEach-Object { $e = $_.engine; foreach ($t in $_.notes) { "${e}: $t" } } | Sort-Object -Unique)
+    $notes = @()
+    if ($script:InputNote) { $notes += $script:InputNote }
+    $notes += @($records | ForEach-Object { $e = $_.engine; foreach ($t in $_.notes) { "${e}: $t" } } | Sort-Object -Unique)
     if ($notes.Count -gt 0) {
         $null = $sb.AppendLine()
         $null = $sb.AppendLine('Notes:')
@@ -460,6 +493,7 @@ $meta = [ordered]@{
     drags        = $Drags
     layouts      = $Layouts
     soak_drags   = $SoakDrags
+    drag_input   = 'n/a'
     exes         = [ordered]@{}
 }
 $repoPattern = [regex]::Escape($repo)
@@ -468,6 +502,12 @@ foreach ($n in $Engines) { $meta.exes[$n] = $exes[$n] -replace $repoPattern, '.'
 $records = [System.Collections.Generic.List[object]]::new()
 [MagneticBorders.Bench.Proc]::BeginHighResolutionTimer()
 try {
+    if (($Scenarios -contains 'drag') -or ($Scenarios -contains 'soak')) {
+        Resolve-DragInput
+        $meta.drag_input = $script:InputMode
+        Write-Host "Drag input: $script:InputMode"
+        if ($script:InputNote) { Write-Host $script:InputNote }
+    }
     $total = $Warmups + $Runs
     for ($i = 0; $i -lt $total; $i++) {
         $isWarmup = $i -lt $Warmups

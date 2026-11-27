@@ -18,6 +18,8 @@ Every run starts one engine, waits until the named pipe answers `{"cmd":"status"
 
 The harness opens plain top-level windows at exact visible rects (the extended frame bounds, as the engine uses). The `pair` layout has two windows side by side, `row3` has three in a row, and `grid` has four in a 2 by 2 block, where one border has three windows on its line. The harness presses on the resize border of the first window, moves the cursor out and back in steps of 4 px every 8 ms, and releases. While the button is down, a separate thread reads the visible rects of every window as fast as it can. At each reading, the gap is the largest distance between the dragged edge and an edge that should share its line. A gap of 0 means the windows move as one. Reported values are the mean, median (p50), p95, p99, and maximum of all readings, and the share of readings with a gap.
 
+When Windows does not deliver injected mouse input, as on some hosted CI runners, the harness simulates the drag instead (`-DragInput simulated` forces this). It raises the same two window events that Windows raises at the start and the end of a border drag (`EVENT_SYSTEM_MOVESIZESTART` and `EVENT_SYSTEM_MOVESIZEEND`) and resizes the dragged window with `SetWindowPos` in between. The engine sees the same event stream, but Windows' own resize loop does not run. The summary names the input that was used.
+
 The same drags are counted by the engine. The `glued_drags` field of the pipe status proves the engine engaged: the table shows the share of drags that it glued.
 
 The gap includes the time the window system needs to apply a move, which is the same for every engine. Compare engines to each other. Do not read the absolute gap as engine latency.
@@ -58,13 +60,13 @@ Results go to `artifacts/bench/`: `results.json` has every run and every metric,
 
 ### On a virtual machine or a second PC
 
-A second PC is a good second opinion, and a virtual machine is useful for repeatable runs, with caveats. Use a signed-in, unlocked desktop session. A locked session or a disconnected remote desktop session has no input desktop, and the drag scenarios report `skipped: no interactive desktop`. Give the machine at least two cores and run it at 100 percent display scaling. Copy `tools/bench/`, `tools/compare.ps1`, and the three published engine folders (`cpp`, `rust`, and `dotnet`), then pass the exe paths with `-CppExe`, `-RustExe`, and `-DotnetExe`. PowerShell 7 is the only requirement. There are no packages to install.
+A second PC is a good second opinion, and a virtual machine is useful for repeatable runs, with caveats. Use a signed-in, unlocked desktop session. A locked session or a disconnected remote desktop session has no input desktop, and the harness falls back to simulated drags or, when it cannot create windows, reports `skipped: no interactive desktop`. Give the machine at least two cores and run it at 100 percent display scaling. Copy `tools/bench/`, `tools/compare.ps1`, and the three published engine folders (`cpp`, `rust`, and `dotnet`), then pass the exe paths with `-CppExe`, `-RustExe`, and `-DotnetExe`. PowerShell 7 is the only requirement. There are no packages to install.
 
 ## Run it in GitHub Actions
 
 The **Benchmark** workflow (`.github/workflows/bench.yml`) builds the three engines for x64 and ARM64, runs the harness on a hosted x64 runner and on a Windows 11 on ARM runner, and puts the table on the run page. Start it from Actions with **Run workflow**, and pick the number of runs, the idle seconds, and the soak length. A pull request that changes `tools/bench/` runs it with short settings.
 
-Hosted runners are shared virtual machines, so absolute numbers are noisy. Use them for trends between commits and for leaks, which show up as a steady slope in handles, GDI objects, USER objects, or private bytes, whatever the speed of the machine. Use a quiet local machine for the numbers that decide anything. If a runner has no interactive desktop, the drag and soak rows say `skipped: no interactive desktop`, and the rest of the table is still filled in.
+Hosted runners are shared virtual machines, so absolute numbers are noisy. Use them for trends between commits and for leaks, which show up as a steady slope in handles, GDI objects, USER objects, or private bytes, whatever the speed of the machine. Use a quiet local machine for the numbers that decide anything. If a runner cannot create windows at all, the drag and soak rows say `skipped: no interactive desktop`, and the rest of the table is still filled in.
 
 ## Reading the results
 
