@@ -1,0 +1,160 @@
+name: Benchmark
+
+# Runs the C++, Rust, and C# engines through the same scripted workload (tools/bench/bench.ps1) and publishes the
+# summary table on the run page. Start it by hand (Actions, Benchmark, Run workflow) to pick the run count, the idle time,
+# and the soak length. A pull request that changes the harness runs it with short defaults, so the harness validates itself.
+#
+# Hosted runners are shared virtual machines and noisy. Use these numbers for trends, leaks (handles, GDI and USER
+# objects, private bytes per 1,000 drags), and sanity checks. Do not quote absolute latency from them: measure on a
+# quiet PC (docs/how-it-works/benchmarks.md). When a runner has no interactive desktop, the drag and soak scenarios report
+# "skipped: no interactive desktop" and the other metrics are still recorded.
+on:
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: Measured runs per engine (one warm-up run is added)
+        type: number
+        default: 3
+      idle_seconds:
+        description: Seconds of the idle scenario per run
+        type: number
+        default: 60
+      soak_drags:
+        description: Drags in the soak scenario per run
+        type: number
+        default: 300
+  pull_request:
+    paths:
+      - 'tools/bench/**'
+      - 'tools/compare.ps1'
+      - '.github/workflows/bench.yml'
+
+concurrency:
+  group: bench-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  CARGO_TERM_COLOR: always
+  # The benchmark needs the shipped app only.
+  MB_BUILD_TESTS: 'OFF'
+
+jobs:
+  # Both architectures are built on an x64 runner (ARM64 is cross-compiled, as in CI). The ARM64 builds run on windows-11-arm.
+  build:
+    name: Build (${{ matrix.arch }})
+    runs-on: windows-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      - name: Install Rust toolchain
+        working-directory: src/engines/rust
+        run: rustup toolchain install
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            src/engines/rust/target
+          key: cargo-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('src/engines/rust/Cargo.lock', 'src/engines/rust/rust-toolchain.toml') }}
+          restore-keys: cargo-${{ runner.os }}-${{ matrix.arch }}-
+
+      - uses: actions/cache@v6
+        with:
+          path: src/engines/cpp/build/*/_deps
+          key: fetchcontent-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('src/engines/cpp/CMakeLists.txt') }}
+
+      - name: Build C++
+        run: pwsh tools/ci/run.ps1 -Target cpp -Steps restore,build,publish -Arch ${{ matrix.arch }} -Ci
+
+      - name: Build Rust
+        run: pwsh tools/ci/run.ps1 -Target rust -Steps restore,build,publish -Arch ${{ matrix.arch }} -Ci
+
+      - name: Build C#
+        run: pwsh tools/ci/run.ps1 -Target dotnet -Steps restore,build,publish -Arch ${{ matrix.arch }} -Ci
+
+      - name: Upload the engines
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-build-${{ matrix.arch }}
+          path: |
+            artifacts/cpp/${{ matrix.arch }}
+            artifacts/rust/${{ matrix.arch }}
+            artifacts/dotnet/${{ matrix.arch }}
+          retention-days: 7
+          if-no-files-found: error
+
+  bench:
+    name: Benchmark (${{ matrix.arch }})
+    needs: build
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64, runner: windows-latest }
+          - { arch: arm64, runner: windows-11-arm }
+    env:
+      BENCH_RUNS: ${{ inputs.runs || 2 }}
+      BENCH_IDLE_SECONDS: ${{ inputs.idle_seconds || 20 }}
+      BENCH_SOAK_DRAGS: ${{ inputs.soak_drags || 100 }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: bench-build-${{ matrix.arch }}
+          path: artifacts
+
+      - name: Show the downloaded builds
+        run: Get-ChildItem artifacts -Recurse -File | ForEach-Object { '{0}  {1:N0} bytes' -f $_.FullName, $_.Length }
+
+      - name: Run the benchmark
+        run: >
+          pwsh tools/bench/bench.ps1
+          -Arch ${{ matrix.arch }}
+          -Runs $env:BENCH_RUNS
+          -IdleSeconds $env:BENCH_IDLE_SECONDS
+          -SoakDrags $env:BENCH_SOAK_DRAGS
+          -Drags 10
+
+      - name: Publish the summary
+        if: ${{ !cancelled() }}
+        run: |
+          $summary = 'artifacts/bench/summary.md'
+          if (Test-Path $summary) {
+            "### Benchmark (${{ matrix.arch }})" | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+            Get-Content $summary | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+          }
+
+      - name: Upload the results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-results-${{ matrix.arch }}
+          path: artifacts/bench
+          retention-days: 30
+          if-no-files-found: warn

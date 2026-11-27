@@ -17,7 +17,7 @@ The same engine is built three times, in C++, Rust and C#, so the languages can 
 | Common | `src/common/` | `assets/`: icon sources (`icon.svg`, `icon-small.svg`), `icon.ico`, brand wordmarks. Shared contract files and engine strings also live here. |
 | Fixtures | `tests/fixtures/` | Shared `.layout` test cases. Every engine must pass all of them. |
 | Docs | `docs/` | The specs in `docs/spec/` and the docs site. |
-| Tools | `tools/` | `ci/run.ps1` (the one build entry point), `build-watcher.ps1` (local build loop), `setup-dev.ps1` (installs the toolchains). |
+| Tools | `tools/` | `ci/run.ps1` (the one build entry point), `build-watcher.ps1` (local build loop), `setup-dev.ps1` (installs the toolchains), `bench/bench.ps1` (engine benchmark), `compare.ps1` (quick benchmark for the watcher's `compare` target). |
 
 Every engine uses the same folders, so the languages can be read side by side: `core/` (pure geometry), `app/` (drag controller, ports, settings, pipe protocol), `win32/` (adapters), `host/` (composition root), `fixture-runner/`, and unit tests beside the code (`tests/` in C++ and C#, inside each crate in Rust). Dependencies point inward only: core <- app <- win32 <- host. Keep Win32 types out of core and app. The settings app uses `app/` (WinUI 3 exe), `core/` (view models, settings model, pipe client) and `tests/`.
 
@@ -61,6 +61,7 @@ In `.github/workflows/`, named after GameControllerForZwift's workflows without 
 
 - `ci.yml` (**CI**): every app on every pull request (into `main` or a `release/**` branch). Not on push to `main`: the pull request already ran it. Jobs: Version, Lint (per part), x64 (build, test, coverage, publish, and the settings smoke test), ARM64 (cross-built), ARM smoke test (on an ARM64 runner), Unit Test Results (one check with the totals), Coverage (Codecov, one flag per part), Vulnerabilities (NuGet and RustSec), Parity, and Tester build (a downloadable build linked from a comment on the pull request).
 - `cd.yml` (**CD**): when a new version lands on `main`, builds, packages and publishes the GitHub release `vX.Y.Z`, then opens `release/vX.(Y+1).0` with its version set.
+- `bench.yml` (**Benchmark**): by hand, and on pull requests that touch `tools/bench/`. Builds the three engines and runs `tools/bench/bench.ps1` on x64 and ARM64 runners. Hosted runners are noisy, so read it for trends and leaks. It is not a required check.
 - `docs-ci.yml` (**Docs CI**): strict docs build on pull requests that touch the docs.
 - `docs-cd.yml` (**Docs CD**): builds the docs and deploys them to GitHub Pages from `main`.
 - `codeql.yml` (**CodeQL**): on pull requests and monthly, and called by `codeql-and-coverage.yml`.
