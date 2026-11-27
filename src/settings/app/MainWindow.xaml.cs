@@ -29,7 +29,7 @@ public sealed partial class MainWindow : Window
         Title = Fmt.Get("WindowTitle");
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
-        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico"));
+        AppWindow.SetIcon(Path.Join(AppContext.BaseDirectory, "Assets", "icon.ico"));
         var s = ScaleFor(_hwnd);
         AppWindow.Resize(new SizeInt32((int)(920 * s), (int)(780 * s)));
         Closed += (_, _) => ViewModel.FlushSave();

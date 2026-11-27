@@ -68,7 +68,7 @@ public sealed class DragController(
         _t0 = clock.NowMs();
         _snap = inventory.Snapshot(id);
         WinInfo? me = null;
-        foreach (var w in _snap.Windows) if (w.Id == id) me = w;
+        foreach (var w in _snap.Windows.Where(c => c.Id == id)) me = w;
         if (me is null) { State = DragState.Ignoring; return; }
         _start = _last = me.Value.Frame;
         State = DragState.Classifying;

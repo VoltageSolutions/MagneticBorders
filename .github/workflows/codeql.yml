@@ -54,6 +54,36 @@ jobs:
           MB_BUILD_TESTS: 'OFF'
         run: pwsh tools/ci/run.ps1 -Target cpp -Steps restore,build -Arch x64 -Ci
 
+      # The C++ results are uploaded after the filter below, the other languages directly.
       - uses: github/codeql-action/analyze@v4
         with:
+          category: '/language:${{ matrix.language }}'
+          upload: ${{ matrix.language == 'c-cpp' && 'never' || 'always' }}
+          output: sarif-results
+
+      # FetchContent downloads nlohmann/json and GoogleTest into src/engines/cpp/build/, inside the checkout, so the
+      # traced build reports their headers. paths-ignore does not apply to a traced build; this drops those results.
+      - name: Drop results in downloaded C++ dependencies
+        if: matrix.language == 'c-cpp'
+        shell: pwsh
+        run: |
+          foreach ($file in Get-ChildItem sarif-results -Filter *.sarif) {
+            $sarif = Get-Content -Raw $file.FullName | ConvertFrom-Json -Depth 100
+            $dropped = 0
+            foreach ($run in $sarif.runs) {
+              $kept = @($run.results | Where-Object {
+                $uri = $_.locations[0].physicalLocation.artifactLocation.uri
+                -not ($uri -like 'src/engines/cpp/build/*' -or $uri -like '*/_deps/*')
+              })
+              $dropped += @($run.results).Count - $kept.Count
+              $run.results = $kept
+            }
+            $sarif | ConvertTo-Json -Depth 100 -Compress | Set-Content -NoNewline -Encoding utf8NoBOM $file.FullName
+            Write-Host "$($file.Name): dropped $dropped results in downloaded dependencies."
+          }
+
+      - uses: github/codeql-action/upload-sarif@v4
+        if: matrix.language == 'c-cpp'
+        with:
+          sarif_file: sarif-results
           category: '/language:${{ matrix.language }}'

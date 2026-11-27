@@ -21,7 +21,7 @@ internal sealed class EngineLog : ILog, IDisposable
             var mode = fi.Exists && fi.Length > 1_048_576 ? FileMode.Create : FileMode.Append;
             _file = new StreamWriter(new FileStream(Paths.LogFile, mode, FileAccess.Write, FileShare.ReadWrite)) { AutoFlush = true };
         }
-        catch { _file = null; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { _file = null; }
     }
 
     /// <summary>Writes one timestamped line to the file and, if enabled, the console. Thread safe.</summary>
@@ -29,7 +29,9 @@ internal sealed class EngineLog : ILog, IDisposable
     {
         lock (_lock)
         {
-            try { _file?.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {msg}"); } catch { }
+            // A failed log write must not fail the caller; the console copy below still goes out.
+            try { _file?.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {msg}"); }
+            catch (IOException ex) { System.Diagnostics.Debug.WriteLine("log write failed: " + ex.Message); }
             if (_console) Console.WriteLine(msg);
         }
     }
@@ -72,7 +74,7 @@ internal static class SettingsStore
                 return null;
             }
             catch (IOException) { Thread.Sleep(50); }
-            catch (Exception ex) { log.Info("WARNING: settings.json unreadable: " + ex.Message); return null; }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException) { log.Info("WARNING: settings.json unreadable: " + ex.Message); return null; }
         }
         log.Info("WARNING: settings.json locked, keeping previous settings");
         return null;
@@ -95,6 +97,6 @@ internal static class SettingsStore
             File.Move(tmp, Paths.SettingsFile, overwrite: true);
             log.Info($"Enabled switched {(current ? "off" : "on")} from the tray menu");
         }
-        catch (Exception ex) { log.Info("WARNING: could not update settings.json; the Enabled switch was not changed: " + ex.Message); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { log.Info("WARNING: could not update settings.json; the Enabled switch was not changed: " + ex.Message); }
     }
 }

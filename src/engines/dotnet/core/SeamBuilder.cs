@@ -8,7 +8,7 @@ public static class SeamBuilder
     public static Seam? Build(IReadOnlyList<WinInfo> windows, ulong draggedId, Edge edge, Rect workArea, Config cfg)
     {
         WinInfo? dragged = null;
-        foreach (var w in windows) if (w.Id == draggedId) dragged = w;
+        foreach (var w in windows.Where(c => c.Id == draggedId)) dragged = w;
         if (dragged is null) return null;
 
         int tol = cfg.GlueTolerance;
@@ -21,9 +21,8 @@ public static class SeamBuilder
         var s = Span(dragged.Value.Frame);
 
         var cands = new List<(WinInfo W, Side Side, int D)>();
-        foreach (var w in windows)
+        foreach (var w in windows.Where(c => c.Id != draggedId))
         {
-            if (w.Id == draggedId) continue;
             int dOpp = w.Frame.Coord(opp) - x;
             int dSame = w.Frame.Coord(edge) - x;
             if (Math.Abs(dOpp) <= tol) cands.Add((w, Side.Opposite, dOpp));

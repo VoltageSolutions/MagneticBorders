@@ -109,8 +109,8 @@ public static class SettingsParser
             }
             var excluded = new List<string>();
             if (root.TryGetProperty("excluded_apps", out var ex) && ex.ValueKind == JsonValueKind.Array)
-                foreach (var e in ex.EnumerateArray())
-                    if (e.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(e.GetString())) excluded.Add(e.GetString()!.Trim());
+                foreach (var e in ex.EnumerateArray().Where(c => c.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(c.GetString())))
+                    excluded.Add(e.GetString()!.Trim());
             model = new SettingsModel
             {
                 Enabled = enabled,
