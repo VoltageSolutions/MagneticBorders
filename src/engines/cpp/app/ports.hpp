@@ -33,6 +33,12 @@ public:
     [[nodiscard]] virtual Snapshot snapshot(WindowId dragged) = 0;
     /// Returns the current visual frame of a window, or nullopt if it cannot be read.
     [[nodiscard]] virtual std::optional<Rect> frame_of(WindowId id) = 0;
+    /// Verbose diagnostics: called when a move ends, with the position Magnetic attraction held (nullopt when no
+    /// axis was held). The adapter may log where the window is. The default does nothing.
+    virtual void report_move_result(WindowId id, const std::optional<Rect>& held) {
+        (void)id;
+        (void)held;
+    }
 };
 
 /// Port: moves and resizes windows. Implemented by win32::Win32Mover; called on the UI thread.

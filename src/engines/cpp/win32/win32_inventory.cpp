@@ -3,6 +3,11 @@
 
 #include <dwmapi.h>
 
+#include <string>
+
+#include "move_diagnostics.hpp"
+#include "paths.hpp"
+
 namespace mb::win32 {
 namespace {
 
@@ -12,6 +17,8 @@ struct EnumContext {
     DWORD own_pid;
     std::vector<WinInfo>* out;
     std::vector<std::pair<WindowId, Rect>>* stack;
+    Log* diagnostics;
+    HWND dragged;
 };
 
 /// True when a window hides what is below it: visible, not minimized, not cloaked, not click-through (overlays
@@ -37,6 +44,24 @@ std::wstring exe_name_of(DWORD pid) {
     std::wstring path(buf, len);
     const auto slash = path.find_last_of(L"\\/");
     return slash == std::wstring::npos ? path : path.substr(slash + 1);
+}
+
+std::wstring class_name_of(HWND h) {
+    wchar_t buf[256];
+    const int len = GetClassNameW(h, buf, static_cast<int>(std::size(buf)));
+    return len > 0 ? std::wstring(buf, static_cast<std::size_t>(len)) : std::wstring{};
+}
+
+std::wstring exe_name_of_window(HWND h) {
+    DWORD pid = 0;
+    GetWindowThreadProcessId(h, &pid);
+    return exe_name_of(pid);
+}
+
+void log_candidate(const EnumContext& ctx, HWND h, const Rect& frame, const RECT& wr) {
+    ctx.diagnostics->debug(diag::candidate_line(
+        to_id(h), frame, {wr.left, wr.top, wr.right, wr.bottom}, GetDpiForWindow(h),
+        wide_to_utf8(class_name_of(h)), wide_to_utf8(exe_name_of_window(h)), h == ctx.dragged));
 }
 
 bool eligible(HWND h, const EnumContext& ctx) {
@@ -81,6 +106,7 @@ BOOL CALLBACK enum_proc(HWND h, LPARAM lp) {
                                               wr.right - frame->r, wr.bottom - frame->b});
     ctx.out->push_back(
         {to_id(h), *frame, GetSystemMetrics(SM_CXMINTRACK), GetSystemMetrics(SM_CYMINTRACK)});
+    if (ctx.diagnostics) log_candidate(ctx, h, *frame, wr);
     return TRUE;
 }
 
@@ -99,11 +125,21 @@ Snapshot Win32Inventory::snapshot(WindowId dragged) {
     const UINT dpi = GetDpiForWindow(dh);
     snap.dpi_scale = dpi ? dpi / 96.0 : 1.0;
 
-    EnumContext ctx{&registry_, mon, GetCurrentProcessId(), &snap.windows, &snap.stack};
+    EnumContext ctx{&registry_,   mon, GetCurrentProcessId(), &snap.windows, &snap.stack,
+                    diagnostics_, dh};
     EnumWindows(enum_proc, reinterpret_cast<LPARAM>(&ctx));
     return snap;
 }
 
 std::optional<Rect> Win32Inventory::frame_of(WindowId id) { return visual_frame(to_hwnd(id)); }
+
+void Win32Inventory::report_move_result(WindowId id, const std::optional<Rect>& held) {
+    if (!diagnostics_) return;
+    const HWND h = to_hwnd(id);
+    RECT wr{};
+    std::optional<Rect> rect;
+    if (GetWindowRect(h, &wr)) rect = Rect{wr.left, wr.top, wr.right, wr.bottom};
+    diagnostics_->debug(diag::move_result_line(id, visual_frame(h), rect, held));
+}
 
 }  // namespace mb::win32

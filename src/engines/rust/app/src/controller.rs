@@ -397,8 +397,15 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragControl
     }
 
     /// Ends a move drag (SNAP-050 to SNAP-052, SNAP-075).
-    fn finish_move(&mut self, m: &Moving) {
+    fn finish_move(&mut self, m: &mut Moving) {
         let id = m.id;
+        let held = match &mut m.mode {
+            Mode::Pointer(p) => {
+                let a = p.attraction();
+                a.held().then(|| a.current())
+            }
+            Mode::Frame(a) => a.held().then(|| a.current()),
+        };
         let mut applied = false;
         match &m.mode {
             Mode::Pointer(_) => {
@@ -429,6 +436,7 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragControl
             (Mode::Frame(_), false) => "",
         };
         self.info_at(m.t0, &format!("move end id={id} snaps={}{tail}", m.snaps));
+        self.inventory.report_move_result(id, held);
     }
 
     fn on_settle(&mut self) {
@@ -555,8 +563,8 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragEvents 
     fn on_move_size_end(&mut self, id: u64) {
         self.timer.cancel_all();
         if matches!(&self.state, State::Moving(m) if m.id == id) {
-            if let Some(m) = self.take_moving() {
-                self.finish_move(&m);
+            if let Some(mut m) = self.take_moving() {
+                self.finish_move(&mut m);
             }
             return;
         }
@@ -628,9 +636,12 @@ mod tests {
 
     type Snap = Rc<RefCell<Snapshot>>;
 
+    type Results = Rc<RefCell<Vec<(u64, Option<Rect>)>>>;
+
     struct Inv {
         snap: Snap,
         frames: Frames,
+        results: Results,
     }
     impl WindowInventory for Inv {
         fn snapshot(&mut self, _d: u64) -> Snapshot {
@@ -638,6 +649,9 @@ mod tests {
         }
         fn frame_of(&mut self, id: u64) -> Option<Rect> {
             self.frames.borrow().get(&id).copied()
+        }
+        fn report_move_result(&mut self, id: u64, held: Option<Rect>) {
+            self.results.borrow_mut().push((id, held));
         }
     }
     struct Mov {
@@ -728,6 +742,7 @@ mod tests {
         force: Frames,
         lines: Lines,
         hook: Hook,
+        results: Results,
     }
 
     impl Rig {
@@ -761,8 +776,9 @@ mod tests {
         let lines: Lines = Rc::default();
         let hook: Hook =
             Rc::new(RefCell::new(HookState { at: Some(Point { x: 300, y: 260 }), ..HookState::default() }));
+        let results: Results = Rc::default();
         let mut c = DragController::new(
-            Inv { snap: snap.clone(), frames: frames.clone() },
+            Inv { snap: snap.clone(), frames: frames.clone(), results: results.clone() },
             Mov { batches: batches.clone(), floor_w: floor, force: force.clone() },
             Clk(time.clone()),
             Tmr(armed.clone()),
@@ -773,7 +789,7 @@ mod tests {
         if with_hook {
             c = c.with_pointer_hook(Box::new(Fake(hook.clone())));
         }
-        Rig { c, snap, frames, batches, time, armed, force, lines, hook }
+        Rig { c, snap, frames, batches, time, armed, force, lines, hook, results }
     }
 
     fn win(id: u64, x: i32, w: i32, min_w: i32) -> WinInfo {
@@ -1058,6 +1074,34 @@ mod tests {
         assert_eq!(*r.batches.borrow(), vec![vec![(1, HELD)]]);
         assert_eq!((r.c.live.move_drags.get(), r.c.live.snaps.get(), r.c.live.drags.get()), (1, 1, 0));
         assert!(r.logged("snap hold right=500 target=edge-to-edge"));
+    }
+
+    #[test]
+    fn a_move_end_reports_the_held_position_to_the_inventory() {
+        let mut r = move_rig(false);
+        r.c.on_move_size_start(1);
+        r.move_to(NEAR);
+        r.c.on_move_size_end(1);
+        assert_eq!(*r.results.borrow(), vec![(1, Some(HELD))]);
+    }
+
+    #[test]
+    fn a_move_end_without_a_held_axis_reports_none() {
+        let mut r = move_rig(false);
+        r.c.on_move_size_start(1);
+        r.move_to(Rect::new(400, 500, 600, 700));
+        r.c.on_move_size_end(1);
+        assert_eq!(*r.results.borrow(), vec![(1, None)]);
+    }
+
+    #[test]
+    fn a_resize_end_does_not_report_a_move_result() {
+        let mut r = rig(two(), None);
+        r.c.on_move_size_start(1);
+        r.set(1, Rect::from_xywh(0, 0, 1820, 1440));
+        r.c.on_location_change(1);
+        r.c.on_move_size_end(1);
+        assert!(r.results.borrow().is_empty());
     }
 
     #[test]

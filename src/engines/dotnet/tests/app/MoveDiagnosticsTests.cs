@@ -50,6 +50,32 @@ public class MoveDiagnosticsTests
     }
 
     [Fact]
+    public void CandidateLineText()
+    {
+        var frame = new Rect(1000, 100, 1900, 890);
+        var rect = new Rect(990, 100, 1910, 900);
+        Assert.Equal(new Rect(-10, 0, 10, 10), MoveDiagnostics.Border(rect, frame));
+        Assert.Equal(
+            "diag: window id=12 frame=1000,100,1900,890 rect=990,100,1910,900 border=-10,0,10,10 dpi=120 class=ConsoleWindowClass exe=WindowsTerminal.exe dragged=yes",
+            MoveDiagnostics.CandidateLine(12, frame, rect, 120, "ConsoleWindowClass", "WindowsTerminal.exe", true));
+        var same = new Rect(0, 0, 10, 10);
+        Assert.Equal(
+            "diag: window id=3 frame=0,0,10,10 rect=0,0,10,10 border=0,0,0,0 dpi=96 class=unknown exe=unknown dragged=no",
+            MoveDiagnostics.CandidateLine(3, same, same, 96, "", "", false));
+    }
+
+    [Fact]
+    public void MoveResultLineText()
+    {
+        Assert.Equal(
+            "diag: move result id=12 frame=1,2,3,4 rect=0,2,4,5 held=1,2,3,4",
+            MoveDiagnostics.MoveResultLine(12, new Rect(1, 2, 3, 4), new Rect(0, 2, 4, 5), new Rect(1, 2, 3, 4)));
+        Assert.Equal(
+            "diag: move result id=12 frame=unavailable rect=unavailable held=none",
+            MoveDiagnostics.MoveResultLine(12, null, null, null));
+    }
+
+    [Fact]
     public void SystemLines()
     {
         Assert.Equal(

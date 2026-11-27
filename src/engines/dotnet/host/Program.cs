@@ -31,7 +31,7 @@ s.AddSingleton<Win32Timer>();
 s.AddSingleton<ITimer>(p => p.GetRequiredService<Win32Timer>());
 s.AddSingleton<IClock, StopwatchClock>();
 s.AddSingleton<WindowState>();
-s.AddSingleton(p => new Win32Inventory(p.GetRequiredService<WindowState>(), []));
+s.AddSingleton(p => new Win32Inventory(p.GetRequiredService<WindowState>(), [], verbose ? p.GetRequiredService<ILog>() : null));
 s.AddSingleton<IWindowInventory>(p => p.GetRequiredService<Win32Inventory>());
 s.AddSingleton(p => new Win32PointerHook(p.GetRequiredService<ILog>()));
 s.AddSingleton<IWindowMover>(p => new Win32Mover(p.GetRequiredService<WindowState>(), p.GetRequiredService<ILog>(), verbose));

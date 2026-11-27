@@ -373,10 +373,12 @@ public sealed class DragController(
     /// <summary>Ends a move. With the pointer hook Windows already put the window where the cursor is, so nothing is applied (SNAP-075). Without it, the held position is applied once when the window sits at the last free position and kept its size (SNAP-050, SNAP-051); nothing is applied after that (SNAP-052).</summary>
     private void FinishMove(ulong id)
     {
+        Rect? held = ActiveAttraction is { IsHeld: true } active ? active.Current : null;
         if (_pointer is not null)
         {
             StopPointer();
             L($"move end id={id} snaps={_dragSnaps} pointer");
+            inventory.ReportMoveResult(id, held);
             return;
         }
         var frame = inventory.FrameOf(id);
@@ -388,6 +390,7 @@ public sealed class DragController(
             applied = true;
         }
         L($"move end id={id} snaps={_dragSnaps}{(applied ? " applied" : "")}");
+        inventory.ReportMoveResult(id, held);
         _attraction = null;
     }
 

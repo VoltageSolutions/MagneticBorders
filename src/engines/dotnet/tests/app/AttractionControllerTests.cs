@@ -9,6 +9,8 @@ internal sealed class SnapInventory : IWindowInventory
     public Dictionary<ulong, Rect> Frames { get; } = [];
     public Snapshot Snapshot(ulong draggedId) => Snap;
     public Rect? FrameOf(ulong id) => Frames.TryGetValue(id, out var r) ? r : null;
+    public List<(ulong Id, Rect? Held)> Results { get; } = [];
+    public void ReportMoveResult(ulong id, Rect? held) => Results.Add((id, held));
 }
 
 /// <summary>Pointer hook that records installs and removals and reports a settable cursor.</summary>
@@ -159,6 +161,26 @@ public class AttractionControllerTests
         r.Ctl.OnLocationChange(1); // 195 px in 5 ms
         Assert.Empty(r.Mover.Batches);
         Assert.Equal(0, r.Ctl.Snaps);
+    }
+
+    [Fact]
+    public void A_move_end_reports_the_held_position_to_the_inventory()
+    {
+        var r = new Rig();
+        r.Ctl.OnMoveSizeStart(1);
+        r.MoveTo(Near);
+        r.Ctl.OnMoveSizeEnd(1);
+        Assert.Equal((1UL, (Rect?)Held), Assert.Single(r.Inv.Results));
+    }
+
+    [Fact]
+    public void A_move_end_without_a_held_axis_reports_none()
+    {
+        var r = new Rig();
+        r.Ctl.OnMoveSizeStart(1);
+        r.MoveTo(new Rect(400, 500, 600, 700));
+        r.Ctl.OnMoveSizeEnd(1);
+        Assert.Equal((1UL, (Rect?)null), Assert.Single(r.Inv.Results));
     }
 
     [Fact]

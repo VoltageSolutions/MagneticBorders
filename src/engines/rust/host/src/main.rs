@@ -172,7 +172,11 @@ mod app {
         let shared = Shared::default();
         let live = Rc::new(Live::new(s.glue_active(), s.glue_tolerance_px));
         let controller = DragController::new(
-            Win32Inventory::new(shared.clone(), &s.excluded_apps),
+            if verbose {
+                Win32Inventory::new(shared.clone(), &s.excluded_apps).with_diagnostics(log.clone())
+            } else {
+                Win32Inventory::new(shared.clone(), &s.excluded_apps)
+            },
             if verbose {
                 Win32Mover::with_diagnostics(shared.clone(), log.clone())
             } else {

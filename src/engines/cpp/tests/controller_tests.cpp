@@ -15,7 +15,11 @@ namespace {
 struct FakeInventory : WindowInventory {
     Snapshot snap;
     std::map<WindowId, Rect> frames;
+    std::vector<std::pair<WindowId, std::optional<Rect>>> results;
     Snapshot snapshot(WindowId) override { return snap; }
+    void report_move_result(WindowId id, const std::optional<Rect>& held) override {
+        results.emplace_back(id, held);
+    }
     std::optional<Rect> frame_of(WindowId id) override {
         const auto it = frames.find(id);
         return it == frames.end() ? std::nullopt : std::optional{it->second};
@@ -536,6 +540,36 @@ TEST_F(MoveFixture, AFastMoveDoesNotSnap) {  // SNAP-012
     ctl.on_location_change(1);  // 195 px in 5 ms
     EXPECT_TRUE(mover.batches.empty());
     EXPECT_EQ(ctl.snaps(), 0u);
+}
+
+TEST_F(MoveFixture, AVerboseMoveEndReportsTheHeldPositionToTheInventory) {
+    DragController verbose{inv, mover, clock, timer, log, ControllerOptions{12, "Test", true, {}}};
+    verbose.on_move_size_start(1);
+    inv.frames[1] = kNear;
+    clock.t += 100;
+    verbose.on_location_change(1);
+    verbose.on_move_size_end(1);
+    ASSERT_EQ(inv.results.size(), 1U);
+    EXPECT_EQ(inv.results[0].first, 1U);
+    EXPECT_EQ(inv.results[0].second, std::optional<Rect>{kHeld});
+}
+
+TEST_F(MoveFixture, AVerboseMoveEndWithoutAHeldAxisReportsNone) {
+    DragController verbose{inv, mover, clock, timer, log, ControllerOptions{12, "Test", true, {}}};
+    verbose.on_move_size_start(1);
+    inv.frames[1] = {400, 500, 600, 700};
+    clock.t += 100;
+    verbose.on_location_change(1);
+    verbose.on_move_size_end(1);
+    ASSERT_EQ(inv.results.size(), 1U);
+    EXPECT_FALSE(inv.results[0].second.has_value());
+}
+
+TEST_F(MoveFixture, AQuietMoveEndDoesNotReport) {
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    ctl.on_move_size_end(1);
+    EXPECT_TRUE(inv.results.empty());
 }
 
 TEST_F(MoveFixture, TheEndAppliesTheHeldPositionOnceWhenWindowsPutTheWindowBackAtTheFreePosition) {

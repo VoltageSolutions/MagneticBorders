@@ -118,6 +118,8 @@ private:
     void on_settle();
     void on_verify();
     void say(const std::string& msg);
+    /// The position the active attraction holds, or nullopt when no axis is held.
+    std::optional<Rect> held_position();
     [[nodiscard]] std::uint64_t since_start() { return clock_.now_ms() - drag_start_ms_; }
 
     WindowInventory& inventory_;

@@ -19,6 +19,8 @@ public interface IWindowInventory
     Snapshot Snapshot(ulong draggedId);
     /// <summary>Current visual frame of a window, or null if it cannot be read.</summary>
     Rect? FrameOf(ulong id);
+    /// <summary>Verbose diagnostics: called when a move ends, with the position Magnetic attraction held (null when no axis was held). The adapter may log where the window is. The default does nothing.</summary>
+    void ReportMoveResult(ulong id, Rect? held) { }
 }
 
 /// <summary>Port: moves windows. Called on the UI thread. Implemented by Win32Mover.</summary>

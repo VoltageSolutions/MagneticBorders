@@ -313,12 +313,20 @@ void DragController::on_move(const Rect& frame) {
     last_held_ = applied.empty() ? held : applied.front().frame;
 }
 
+std::optional<Rect> DragController::held_position() {
+    const Attraction* a = active_attraction();
+    if (a == nullptr || !a->held()) return std::nullopt;
+    return a->current();
+}
+
 void DragController::finish_move(WindowId id) {
+    const auto held = opts_.verbose ? held_position() : std::nullopt;
     if (pointer_) {
         // SNAP-075: Windows already put the window where the cursor is, so nothing is applied.
         stop_pointer();
         say("move end id=" + std::to_string(id) + " snaps=" + std::to_string(drag_snaps_) +
             " pointer");
+        if (opts_.verbose) inventory_.report_move_result(id, held);
         return;
     }
     const auto frame = inventory_.frame_of(id);
@@ -333,6 +341,7 @@ void DragController::finish_move(WindowId id) {
     }
     say("move end id=" + std::to_string(id) + " snaps=" + std::to_string(drag_snaps_) +
         (applied ? " applied" : ""));
+    if (opts_.verbose) inventory_.report_move_result(id, held);
     attraction_.reset();  // SNAP-052: nothing more is applied
 }
 

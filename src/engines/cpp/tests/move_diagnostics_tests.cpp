@@ -49,6 +49,25 @@ TEST(MoveDiagnostics, FailureAndSkipLines) {
     EXPECT_EQ(diag::skip_line(0x10, "hung"), "move: skipped hwnd=0x10 reason=hung");
 }
 
+TEST(MoveDiagnostics, CandidateLine) {
+    EXPECT_EQ(diag::border({990, 100, 1910, 900}, {1000, 100, 1900, 890}), (Rect{-10, 0, 10, 10}));
+    EXPECT_EQ(diag::candidate_line(12, {1000, 100, 1900, 890}, {990, 100, 1910, 900}, 120,
+                                   "ConsoleWindowClass", "WindowsTerminal.exe", true),
+              "diag: window id=12 frame=1000,100,1900,890 rect=990,100,1910,900 "
+              "border=-10,0,10,10 dpi=120 class=ConsoleWindowClass exe=WindowsTerminal.exe "
+              "dragged=yes");
+    EXPECT_EQ(diag::candidate_line(3, {0, 0, 10, 10}, {0, 0, 10, 10}, 96, "", "", false),
+              "diag: window id=3 frame=0,0,10,10 rect=0,0,10,10 border=0,0,0,0 dpi=96 "
+              "class=unknown exe=unknown dragged=no");
+}
+
+TEST(MoveDiagnostics, MoveResultLine) {
+    EXPECT_EQ(diag::move_result_line(12, Rect{1, 2, 3, 4}, Rect{0, 2, 4, 5}, Rect{1, 2, 3, 4}),
+              "diag: move result id=12 frame=1,2,3,4 rect=0,2,4,5 held=1,2,3,4");
+    EXPECT_EQ(diag::move_result_line(12, std::nullopt, std::nullopt, std::nullopt),
+              "diag: move result id=12 frame=unavailable rect=unavailable held=none");
+}
+
 TEST(MoveDiagnostics, SystemLines) {
     EXPECT_EQ(diag::system_line("22631.3880", "per-monitor-v2", true, 2),
               "diag: system os_build=22631.3880 dpi_awareness=per-monitor-v2 dwm_composition=on "

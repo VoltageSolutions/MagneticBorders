@@ -26,6 +26,9 @@ pub trait WindowInventory {
     fn snapshot(&mut self, dragged_id: u64) -> Snapshot;
     /// Current visible frame of a window, or `None` when it is gone.
     fn frame_of(&mut self, id: u64) -> Option<Rect>;
+    /// Verbose diagnostics: called when a move ends, with the position Magnetic attraction held (`None` when no axis
+    /// was held). The adapter may log where the window is. The default does nothing.
+    fn report_move_result(&mut self, _id: u64, _held: Option<Rect>) {}
 }
 
 /// Writes window positions. Called by the controller on the UI thread.

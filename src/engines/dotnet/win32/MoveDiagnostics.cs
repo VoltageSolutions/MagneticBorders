@@ -42,6 +42,20 @@ internal static class MoveDiagnostics
     /// <summary>Line for a window left out of a batch. Reason is "no-offsets", "banned" or "hung".</summary>
     public static string SkipLine(ulong id, string reason) => $"move: skipped hwnd={HexId(id)} reason={reason}";
 
+    /// <summary>Formats an optional rectangle as l,t,r,b, or "unavailable" when it could not be read.</summary>
+    public static string RectOrUnavailable(Rect? r) => r is { } rect ? RectText(rect) : "unavailable";
+
+    /// <summary>Returns rect minus frame per side: the invisible border between GetWindowRect and the visual frame.</summary>
+    public static Rect Border(Rect rect, Rect frame) => Delta(frame, rect);
+
+    /// <summary>Line for one candidate window of a drag snapshot. Frame is the DWM extended frame bounds and rect is GetWindowRect. An empty window class or exe is written as "unknown".</summary>
+    public static string CandidateLine(ulong id, Rect frame, Rect rect, uint dpi, string windowClass, string exe, bool dragged) =>
+        string.Create(CultureInfo.InvariantCulture, $"diag: window id={id} frame={RectText(frame)} rect={RectText(rect)} border={RectText(Border(rect, frame))} dpi={dpi} class={(windowClass.Length == 0 ? "unknown" : windowClass)} exe={(exe.Length == 0 ? "unknown" : exe)} dragged={(dragged ? "yes" : "no")}");
+
+    /// <summary>Line for a window at the end of a move: where it is (frame, rect; "unavailable" when unreadable) and the position Magnetic attraction held ("none" when no axis was held).</summary>
+    public static string MoveResultLine(ulong id, Rect? frame, Rect? rect, Rect? held) =>
+        string.Create(CultureInfo.InvariantCulture, $"diag: move result id={id} frame={RectOrUnavailable(frame)} rect={RectOrUnavailable(rect)} held={(held is { } h ? RectText(h) : "none")}");
+
     /// <summary>Start-up line with the system facts. dpiAwareness is "unaware", "system", "per-monitor", "per-monitor-v2" or "unknown"; osBuild is "build.revision" or "unknown".</summary>
     public static string SystemLine(string osBuild, string dpiAwareness, bool dwmComposition, int monitors) =>
         string.Create(CultureInfo.InvariantCulture, $"diag: system os_build={osBuild} dpi_awareness={dpiAwareness} dwm_composition={(dwmComposition ? "on" : "off")} monitors={monitors}");
