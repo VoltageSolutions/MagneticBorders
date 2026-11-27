@@ -1,8 +1,9 @@
 name: CodeQL
 
+# Pull requests, a monthly scan, and the CodeQL and Coverage workflow (codeql-and-coverage.yml), which calls this
+# workflow on every push to main so pull requests are compared against a current baseline.
 on:
-  push:
-    branches: [main]
+  workflow_call:
   pull_request:
     branches: [main, 'release/**']
   schedule:

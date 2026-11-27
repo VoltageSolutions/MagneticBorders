@@ -59,11 +59,12 @@ The version lives in four files: `src/engines/cpp/CMakeLists.txt`, `src/engines/
 
 In `.github/workflows/`, named after GameControllerForZwift's workflows without the platform prefix:
 
-- `ci.yml` (**CI**): every app on every pull request and push to `main`. Jobs: Version, Lint (per part), x64 (build, test, coverage, publish, and the settings smoke test), ARM64 (cross-built), ARM smoke test (on an ARM64 runner), Unit Test Results (one check with the totals), Coverage (Codecov, one flag per part), Vulnerabilities (NuGet and RustSec), Parity, and Tester build (a downloadable build linked from a comment on the pull request).
+- `ci.yml` (**CI**): every app on every pull request (into `main` or a `release/**` branch). Not on push to `main`: the pull request already ran it. Jobs: Version, Lint (per part), x64 (build, test, coverage, publish, and the settings smoke test), ARM64 (cross-built), ARM smoke test (on an ARM64 runner), Unit Test Results (one check with the totals), Coverage (Codecov, one flag per part), Vulnerabilities (NuGet and RustSec), Parity, and Tester build (a downloadable build linked from a comment on the pull request).
 - `cd.yml` (**CD**): when a new version lands on `main`, builds, packages and publishes the GitHub release `vX.Y.Z`, then opens `release/vX.(Y+1).0` with its version set.
 - `docs-ci.yml` (**Docs CI**): strict docs build on pull requests that touch the docs.
 - `docs-cd.yml` (**Docs CD**): builds the docs and deploys them to GitHub Pages from `main`.
-- `codeql.yml` (**CodeQL**): on pull requests, on push to `main`, and monthly. Coverage runs in CI, so it is not combined here.
+- `codeql.yml` (**CodeQL**): on pull requests and monthly, and called by `codeql-and-coverage.yml`.
+- `codeql-and-coverage.yml` (**CodeQL and Coverage**): on push to `main`, refreshes the CodeQL and Codecov baselines that pull requests are compared against.
 - `release-branch.yml` (**Release Branch**): when a `release/vX.Y.Z` branch is created by hand, sets its version to X.Y.Z. The version must be higher than the latest release.
 
 The single required check is **CI result**. Do not require the other jobs by name.
