@@ -14,7 +14,7 @@ public sealed class Win32Mover(WindowState state, ILog log) : IWindowMover
     private const SET_WINDOW_POS_FLAGS Flags =
         SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOOWNERZORDER;
 
-    /// <summary>Converts visual frames to window rectangles using the cached offsets, moves the windows and returns the frames read back. Skips excluded and hung windows; a window whose fallback move fails is excluded for the session.</summary>
+    /// <summary>Converts visual frames to window rectangles using the cached offsets, moves the windows, and returns the frames read back. Skips excluded and hung windows; a window whose fallback move fails is excluded for the session.</summary>
     public IReadOnlyList<(ulong Id, Rect Frame)> Apply(IReadOnlyList<(ulong Id, Rect Frame)> moves)
     {
         var todo = new List<(ulong Id, HWND H, Rect W)>();

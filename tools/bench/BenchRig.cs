@@ -247,7 +247,7 @@ namespace MagneticBorders.Bench
             return Native.GetSystemMetrics(0) + "x" + Native.GetSystemMetrics(1) + " at " + Native.GetDpiForSystem() + " dpi";
         }
 
-        /// <summary>Creates the windows of a layout: pair, row3 or grid. Throws RigException when no window can be created.</summary>
+        /// <summary>Creates the windows of a layout: pair, row3, or grid. Throws RigException when no window can be created.</summary>
         public static Rig Open(string layout)
         {
             TrySetDpiAware();
@@ -398,7 +398,7 @@ namespace MagneticBorders.Bench
             return new DragResult { Steps = offsets.Count, DurationMs = durationMs, MaxTravelPx = maxTravel, Gaps = gaps.ToArray() };
         }
 
-        /// <summary>Mean, percentiles, maximum and the share of samples that are not 0 px.</summary>
+        /// <summary>Mean, percentiles, maximum, and the share of samples that are not 0 px.</summary>
         public static Lag Summarize(int[] gaps)
         {
             var lag = new Lag();

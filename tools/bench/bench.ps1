@@ -9,11 +9,11 @@
   engine with {"cmd":"quit"}. The first -Warmups runs are recorded but left out of the summary.
 
   Scenarios (startup is measured on every launch):
-    idle     CPU time, private bytes, working set, handles, threads, GDI and USER objects, sampled every second.
+    idle     CPU time, private bytes, working set, handles, threads, GDI, and USER objects, sampled every second.
     drag     Scripted drags of the border between test windows with SendInput. Reports engine CPU per drag and the
              gap in pixels between the dragged edge and the edges that must follow it (mean, p50, p95, p99, max, and the
              share of samples with a gap).
-    soak     Many short drags; reports the slope of private bytes, handles, GDI and USER objects per 1,000 drags.
+    soak     Many short drags; reports the slope of private bytes, handles, GDI, and USER objects per 1,000 drags.
     size     Exe and folder size on disk.
 
   Drag and soak need an interactive, unlocked desktop to create windows. By default (-DragInput auto) the script first

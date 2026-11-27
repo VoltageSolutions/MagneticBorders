@@ -1,8 +1,8 @@
 name: CI
 
-# Every lint, build, test, coverage, publish and smoke step calls tools/ci/run.ps1, the same entry point as local builds.
-# Every app is built on every change. Lint, the x64 and ARM64 builds, parity and vulnerabilities run in parallel; the
-# test report, coverage upload, ARM smoke test and tester build follow the builds they need.
+# Every lint, build, test, coverage, publish, and smoke step calls tools/ci/run.ps1, the same entry point as local builds.
+# Every app is built on every change. Lint, the x64 and ARM64 builds, parity, and vulnerabilities run in parallel; the
+# test report, coverage upload, ARM smoke test, and tester build follow the builds they need.
 # The docs build is docs-ci.yml. `CI result` is the one check to require.
 # CI runs on pull requests only: a merge to main was already tested on its pull request. The CodeQL and Coverage
 # workflow (codeql-and-coverage.yml) refreshes the CodeQL and Codecov baselines on main.
@@ -102,7 +102,7 @@ jobs:
           cache: true
           cache-dependency-path: '**/packages.lock.json'
 
-      # rust-toolchain.toml pins the compiler, components and both Windows targets.
+      # rust-toolchain.toml pins the compiler, components, and both Windows targets.
       - name: Install Rust toolchain
         if: matrix.target == 'rust'
         working-directory: src/engines/rust
@@ -180,7 +180,7 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
-  # ARM64 is cross-compiled on the x64 runner (run.ps1 enters the MSVC arm64 environment). Tests, lint and coverage
+  # ARM64 is cross-compiled on the x64 runner (run.ps1 enters the MSVC arm64 environment). Tests, lint, and coverage
   # run on x64 only; the ARM smoke test runs the published ARM64 settings app on an ARM64 runner.
   arm64:
     name: arm64 (${{ matrix.target }})

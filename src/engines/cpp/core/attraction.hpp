@@ -84,7 +84,7 @@ struct Span {
 struct TargetWindow {
     /// Visual frame.
     Rect frame{};
-    /// Visible spans of the left, top, right and bottom edges, in Edge order.
+    /// Visible spans of the left, top, right, and bottom edges, in Edge order.
     std::array<std::vector<Span>, 4> visible;
 };
 

@@ -1,4 +1,4 @@
-//! Value types of the domain: `Rect`, `Edge`, `WinInfo` and `Config`. All coordinates are physical pixels.
+//! Value types of the domain: `Rect`, `Edge`, `WinInfo`, and `Config`. All coordinates are physical pixels.
 
 /// Physical-pixel point, for example a cursor position.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

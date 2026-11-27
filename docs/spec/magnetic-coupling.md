@@ -89,7 +89,7 @@ A window is eligible when all of these hold.
 | RESIZE-051 | A built seam must log one line with the grabbed edges and the member ids. |
 | RESIZE-052 | A Settle that re-plans must log one `settled` line with the dragged position, the clamp, the gap, and each mismatching member's requested and actual size. |
 | RESIZE-053 | Verify must log `end +<ms> ok` or `end +<ms> fixed` with details. |
-| RESIZE-054 | With `--verbose`, every apply must log its position, clamp and member count. |
+| RESIZE-054 | With `--verbose`, every apply must log its position, clamp, and member count. |
 
 ## Input
 

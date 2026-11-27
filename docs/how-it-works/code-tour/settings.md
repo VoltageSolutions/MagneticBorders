@@ -20,9 +20,9 @@ Dependencies point one way: `app` references `core`, and `tests` references `cor
 | `App` | class | `src/settings/app/App.xaml.cs` | Application root. Owns the shared `ViewModel`, the 2 second poll, and the one window or flyout. | `Program`, `MainWindow`, `FlyoutWindow`, `SettingsViewModel` |
 | `App.xaml` | XAML | `src/settings/app/App.xaml` | Merges the WinUI 3 control styles. | `App` |
 | `MainWindow` | class | `src/settings/app/MainWindow.xaml.cs` | Full settings window code-behind: title bar, size, remove/add/open-spec handlers. | `App.ViewModel`, `NativeMethods` |
-| `MainWindow.xaml` | XAML | `src/settings/app/MainWindow.xaml` | One scrolling page of settings cards in groups: General, Magnetic coupling, Magnetic attraction, Flyout, Excluded apps and About. | `SettingsViewModel`, `Fmt` |
+| `MainWindow.xaml` | XAML | `src/settings/app/MainWindow.xaml` | One scrolling page of settings cards in groups: General, Magnetic coupling, Magnetic attraction, Flyout, Excluded apps, and About. | `SettingsViewModel`, `Fmt` |
 | `FlyoutWindow` | class | `src/settings/app/FlyoutWindow.xaml.cs` | Flyout: borderless, topmost, placed near the notification area, closes on focus loss. `ApplyBackdrop` sets the background. | `App`, `NativeMethods`, `SettingsViewModel` |
-| `FlyoutWindow.xaml` | XAML | `src/settings/app/FlyoutWindow.xaml` | Flyout layout: header, an Enabled toggle, Magnetic coupling and Magnetic attraction toggles, and an Open settings button. `SolidFill` is the opaque background used by the solid setting. | `SettingsViewModel` |
+| `FlyoutWindow.xaml` | XAML | `src/settings/app/FlyoutWindow.xaml` | Flyout layout: header, an Enabled toggle, Magnetic coupling, and Magnetic attraction toggles, and an Open settings button. `SolidFill` is the opaque background used by the solid setting. | `SettingsViewModel` |
 | `Fmt` | static class | `src/settings/app/Fmt.cs` | Looks up strings in `Resources.resw` (`Get`) and formats them for `x:Bind` function bindings (`Px`, `Drags`, `StatusLine`, `Summary`, `Version`). | `MainWindow.xaml`, `EngineStatus` |
 | `Strings/en-US/Resources.resw` | resources | `src/settings/app/Strings/en-US/Resources.resw` | Every user-facing string. XAML picks them up through `x:Uid`, code through `Fmt.Get`. | `MainWindow.xaml`, `FlyoutWindow.xaml`, `Fmt` |
 | `NativeMethods` | internal static class | `src/settings/app/NativeMethods.cs` | `user32` and `dwmapi` P/Invokes: cursor, DPI, foreground, rounded corners. Also holds the `POINT` struct. | `FlyoutWindow`, `MainWindow` |
@@ -31,7 +31,7 @@ Dependencies point one way: `app` references `core`, and `tests` references `cor
 
 | Type | Kind | File | Purpose | Collaborators |
 |---|---|---|---|---|
-| `SettingsViewModel` | sealed partial class | `src/settings/core/SettingsViewModel.cs` | Shared view model for both windows. Debounced save, status polling, and the commands `RefreshCommand`, `QuitEngineCommand`, `AddAppCommand` and `RemoveAppCommand`. | `ISettingsStore`, `IEngineClient`, `EngineStatus` |
+| `SettingsViewModel` | sealed partial class | `src/settings/core/SettingsViewModel.cs` | Shared view model for both windows. Debounced save, status polling, and the commands `RefreshCommand`, `QuitEngineCommand`, `AddAppCommand`, and `RemoveAppCommand`. | `ISettingsStore`, `IEngineClient`, `EngineStatus` |
 | `AppSettings` | sealed class | `src/settings/core/AppSettings.cs` | Typed view of `settings.json` (schema 1) with clamping and defaults, including `ui.flyout_backdrop`. | `SettingsStore`, `SettingsViewModel` |
 | `FlyoutBackdrop` | enum | `src/settings/core/AppSettings.cs` | `Translucent` or `Solid`; saved as the string `translucent` or `solid`. | `AppSettings`, `FlyoutWindow` |
 | `ISettingsStore` | interface | `src/settings/core/SettingsStore.cs` | Load, save, and last-write time. A seam for tests. | `SettingsViewModel` |
@@ -46,10 +46,10 @@ Dependencies point one way: `app` references `core`, and `tests` references `cor
 
 | Type | Kind | File | Purpose | Collaborators |
 |---|---|---|---|---|
-| `AppSettingsTests`, `AppInfoTests` | classes | `src/settings/tests/AppSettingsTests.cs` | Parsing, clamping, the backdrop value, `WriteTo` and the version stamp. | `AppSettings`, `AppInfo` |
+| `AppSettingsTests`, `AppInfoTests` | classes | `src/settings/tests/AppSettingsTests.cs` | Parsing, clamping, the backdrop value, `WriteTo`, and the version stamp. | `AppSettings`, `AppInfo` |
 | `PipeResponseParseTests`, `PipeEngineClientTests` | classes | `src/settings/tests/PipeTests.cs` | Reply parsing and the client against a real in-process pipe. | `PipeResponse`, `EngineStatus`, `PipeEngineClient` |
 | `TempDir` | sealed class | `src/settings/tests/SettingsTests.cs` | Temporary folder that deletes itself. | `SettingsStoreTests` |
-| `SettingsStoreTests`, `PipeResponseTests`, `ViewModelTests` | classes | `src/settings/tests/SettingsTests.cs` | Defaults, unknown-key preservation and atomic save; status and error replies; saving after a flush and the quit command through a fake client. | `SettingsStore`, `PipeResponse`, `SettingsViewModel` |
+| `SettingsStoreTests`, `PipeResponseTests`, `ViewModelTests` | classes | `src/settings/tests/SettingsTests.cs` | Defaults, unknown-key preservation, and atomic save; status and error replies; saving after a flush and the quit command through a fake client. | `SettingsStore`, `PipeResponse`, `SettingsViewModel` |
 | `SettingsStoreExtraTests`, `SettingsViewModelExtraTests` | classes | `src/settings/tests/StoreAndViewModelTests.cs` | Edge cases for the store and view model, using a `ScriptedClient`. | `SettingsStore`, `SettingsViewModel` |
 
 ## MVVM in this app
@@ -109,12 +109,12 @@ Closing (`CloseSafe` guarantees a single `Close`):
 
 - `SettingsViewModel` marks itself dirty when a setting changes and restarts a 300 ms `System.Threading.Timer`. When it fires, `FlushSave` runs on a thread-pool thread under a lock.
 - `FlushSave` reloads the file, applies the view model values (zones clamped to 0 through 64), and calls `SettingsStore.Save`.
-- `Save` reads the current JSON object, lets `AppSettings.WriteTo` overwrite only the keys the app knows (`schema`, `enabled`, `glue`, `snap`, `ui`, `excluded_apps`, `start_at_login`), and keeps everything else. Nested `glue`, `snap` and `ui` objects are merged, so unknown keys inside them survive too.
+- `Save` reads the current JSON object, lets `AppSettings.WriteTo` overwrite only the keys the app knows (`schema`, `enabled`, `glue`, `snap`, `ui`, `excluded_apps`, `start_at_login`), and keeps everything else. Nested `glue`, `snap`, and `ui` objects are merged, so unknown keys inside them survive too.
 - The result goes to a temp file in the same folder, then `File.Replace` swaps it in (`File.Move` for the first save). Magnetic Borders never reads a half-written file.
 - `ReloadFromDisk` sets `_loading` so assigning properties does not trigger a save. `RefreshAsync` calls it when the file's write time changed and nothing is pending.
 - `Closed` on `MainWindow` and `Dispose` both call `FlushSave`, so a quick change is not lost.
 
-**Pipe client.** `PipeEngineClient.SendAsync` opens `\\.\pipe\MagneticBorders`, writes `{"cmd":"status"}` plus a newline, reads one line, and parses it with `PipeResponse.Parse`. One connection per call. A 1 second timeout covers the whole exchange. If Magnetic Borders is missing, slow, or the pipe errors, it returns `PipeResponse.Failure("engine not reachable")` instead of throwing. The app sends `status` (the poll) and `quit` (the Quit Magnetic Borders button). There is no pause. The master **Enabled** switch is a saved setting, so the flyout, the settings window and the notification area menu all write the same `enabled` key.
+**Pipe client.** `PipeEngineClient.SendAsync` opens `\\.\pipe\MagneticBorders`, writes `{"cmd":"status"}` plus a newline, reads one line, and parses it with `PipeResponse.Parse`. One connection per call. A 1 second timeout covers the whole exchange. If Magnetic Borders is missing, slow, or the pipe errors, it returns `PipeResponse.Failure("engine not reachable")` instead of throwing. The app sends `status` (the poll) and `quit` (the Quit Magnetic Borders button). There is no pause. The master **Enabled** switch is a saved setting, so the flyout, the settings window, and the notification area menu all write the same `enabled` key.
 
 **Status polling.** `App` calls `RefreshAsync` every 2 seconds. It sets `Status` to the parsed `EngineStatus`, or to null when no running copy answers. `EngineRunning` follows `Status`, and the display text comes from `Fmt.StatusLine` and `Fmt.Summary`. `FeaturesEnabled`, `CouplingZoneEnabled`, and `AttractionZoneEnabled` dim the cards that do not apply when the master switch or a feature is off.
 
@@ -124,7 +124,7 @@ The **Flyout background** card in the Flyout group chooses between **Translucent
 
 ## Strings
 
-Every user-facing string lives in `src/settings/app/Strings/en-US/Resources.resw`. In XAML an element gets `x:Uid="EnabledLabel"` and the resource named `EnabledLabel.Text` (or `.Header`, `.Content`, `.Description`) supplies the value. In code, `Fmt.Get("Key")` reads the same file through a `ResourceLoader`, and `Fmt.Px`, `Fmt.Drags` and the other formatters use format strings from it (`PixelsFormat`, `DragsFormat`). The two features appear as **Magnetic coupling** and **Magnetic attraction** everywhere. To add a language, add a `Strings/<locale>/Resources.resw` with the same names. New text never goes in XAML or C# literals.
+Every user-facing string lives in `src/settings/app/Strings/en-US/Resources.resw`. In XAML an element gets `x:Uid="EnabledLabel"` and the resource named `EnabledLabel.Text` (or `.Header`, `.Content`, `.Description`) supplies the value. In code, `Fmt.Get("Key")` reads the same file through a `ResourceLoader`, and `Fmt.Px`, `Fmt.Drags`, and the other formatters use format strings from it (`PixelsFormat`, `DragsFormat`). The two features appear as **Magnetic coupling** and **Magnetic attraction** everywhere. To add a language, add a `Strings/<locale>/Resources.resw` with the same names. New text never goes in XAML or C# literals.
 
 ## Designing the UI
 
@@ -153,7 +153,7 @@ WinUI 3 has no XAML designer in Visual Studio, so design happens against the run
 | Change how a status field is parsed | `PipeResponse.Parse` in `src/settings/core/EngineStatus.cs` |
 | Format a value for display | `src/settings/app/Fmt.cs` |
 | Add a Win32 call | `src/settings/app/NativeMethods.cs` |
-| Add a test | the matching file in `src/settings/tests/` (`AppSettingsTests.cs`, `PipeTests.cs`, `SettingsTests.cs` or `StoreAndViewModelTests.cs`) |
+| Add a test | the matching file in `src/settings/tests/` (`AppSettingsTests.cs`, `PipeTests.cs`, `SettingsTests.cs`, or `StoreAndViewModelTests.cs`) |
 
 ## Tests and quality
 
@@ -162,6 +162,6 @@ Every step runs through `pwsh tools/ci/run.ps1 -Target settings -Steps lint,buil
 - **Test framework.** xUnit with `coverlet.collector`. The tests project references only `core`, so it never loads WinUI. It runs on x64 only.
 - **Where tests live.** `src/settings/tests/`, in the four files listed above. The pipe client tests talk to a real named pipe created inside the test process.
 - **Coverage.** `tests/coverage.runsettings` selects Cobertura output. The step merges the raw reports with ReportGenerator (a pinned dotnet tool) into `artifacts/coverage/settings.cobertura.xml` and fails below 40 percent line coverage. The WinUI `app` project has no tests, so the numbers describe `core`.
-- **Lint.** `dotnet format MagneticBorders.Settings.slnx --verify-no-changes --severity error`, then XamlStyler in passive mode over every `.xaml` file with the repo's `Settings.XamlStyler` config. Passive mode reports files that need formatting and never rewrites them. `Directory.Build.props` sets `AnalysisLevel` to `latest-recommended`, `EnforceCodeStyleInBuild` and `TreatWarningsAsErrors`, so analyzer findings fail the build. Vulnerability advisories (`NU1901` to `NU1904`) are reported but are not errors, so a new advisory cannot break a reproducible build.
+- **Lint.** `dotnet format MagneticBorders.Settings.slnx --verify-no-changes --severity error`, then XamlStyler in passive mode over every `.xaml` file with the repo's `Settings.XamlStyler` config. Passive mode reports files that need formatting and never rewrites them. `Directory.Build.props` sets `AnalysisLevel` to `latest-recommended`, `EnforceCodeStyleInBuild`, and `TreatWarningsAsErrors`, so analyzer findings fail the build. Vulnerability advisories (`NU1901` to `NU1904`) are reported but are not errors, so a new advisory cannot break a reproducible build.
 - **Deterministic builds.** `Deterministic` is on, `Directory.Packages.props` pins every package version, and `packages.lock.json` pins the resolved graph. With `-Ci` the script restores with `--locked-mode` and sets `ContinuousIntegrationBuild`.
-- **Architectures.** The project builds for `x64` and `ARM64` (`Platforms` in `Directory.Build.props`, `-p:Platform`). x64 is built, tested and published natively. ARM64 is built and published but not tested.
+- **Architectures.** The project builds for `x64` and `ARM64` (`Platforms` in `Directory.Build.props`, `-p:Platform`). x64 is built, tested, and published natively. ARM64 is built and published but not tested.

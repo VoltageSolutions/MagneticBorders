@@ -24,7 +24,7 @@ fn perr<T>(m: impl Into<String>) -> Result<T> {
     Err(FixtureError::Parse(m.into()))
 }
 
-/// One parsed `.layout` test case: windows, one drag and the expected result.
+/// One parsed `.layout` test case: windows, one drag, and the expected result.
 pub struct Fixture {
     /// Glue tolerance (default 12).
     pub tolerance: i32,
@@ -34,7 +34,7 @@ pub struct Fixture {
     pub names: Vec<String>,
     /// Windows; the id is the index.
     pub windows: Vec<WinInfo>,
-    /// The drag: window index, edge and signed delta. Required.
+    /// The drag: window index, edge, and signed delta. Required.
     pub drag: Option<(usize, Edge, i32)>,
     /// Expected final frames by window index; unlisted windows must stay put.
     pub expects: Vec<(usize, Rect)>,

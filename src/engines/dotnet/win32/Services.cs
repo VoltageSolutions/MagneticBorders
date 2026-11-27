@@ -110,7 +110,7 @@ public sealed class PipeServer : IDisposable
         }
     }
 
-    /// <summary>Reads one request line, calls the handler and writes one reply line. Limited to 2 seconds per client.</summary>
+    /// <summary>Reads one request line, calls the handler, and writes one reply line. Limited to 2 seconds per client.</summary>
     private async Task Serve(NamedPipeServerStream s)
     {
         try

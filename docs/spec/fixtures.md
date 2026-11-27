@@ -21,7 +21,7 @@ expect clamp 1372                # optional
 | `tolerance N` | The Magnetic coupling tolerance in pixels. |
 | `workarea x,y WxH` | The monitor work area. Edges at its boundary never form seams. |
 | `win id x,y WxH [min WxH]` | A window by id, with its visual frame and an optional minimum size. |
-| `drag id edge delta` | Drag one edge of one window. `edge` is `left`, `right`, `top` or `bottom`. `delta` is signed and applies to that edge's coordinate. |
+| `drag id edge delta` | Drag one edge of one window. `edge` is `left`, `right`, `top`, or `bottom`. `delta` is signed and applies to that edge's coordinate. |
 | `expect id x,y WxH` | The expected final frame of a window. |
 | `expect clamp N` | The expected clamped edge position. |
 
@@ -88,7 +88,7 @@ fixture-runner --print tests/fixtures/02-fancyzones-gaps.layout
 
 1. Pick the next number and a short name: `10-your-case.layout`.
 2. Add a comment that says what it checks.
-3. Write the layout, the drag and the expected frames.
+3. Write the layout, the drag, and the expected frames.
 4. Run all three runners. A fixture that fails in one engine is a parity bug.
 
 Never change a fixture's expected output without updating the matching [spec](magnetic-coupling.md) rule in the same change.

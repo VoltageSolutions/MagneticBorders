@@ -12,7 +12,7 @@ class Win32Mover final : public WindowMover {
 public:
     /// Creates the adapter over a shared registry.
     explicit Win32Mover(WindowRegistry& registry) : registry_(registry) {}
-    /// Applies the moves and returns the visual frames read back; skips hung, banned or never-inventoried windows.
+    /// Applies the moves and returns the visual frames read back; skips hung, banned, or never-inventoried windows.
     std::vector<Move> apply(std::span<const Move> moves) override;
 
 private:

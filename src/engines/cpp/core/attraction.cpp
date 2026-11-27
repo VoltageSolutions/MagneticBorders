@@ -1,4 +1,4 @@
-// Attraction implementation: target search, holding, sliding and releasing.
+// Attraction implementation: target search, holding, sliding, and releasing.
 #include "attraction.hpp"
 
 #include <algorithm>

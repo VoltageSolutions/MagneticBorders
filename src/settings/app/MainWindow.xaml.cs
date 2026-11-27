@@ -21,7 +21,7 @@ public sealed partial class MainWindow : Window
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "x:Bind needs an instance property.")]
     public SettingsViewModel ViewModel => App.ViewModel;
 
-    /// <summary>Sets the title, title bar, icon and DPI-scaled size, and flushes the view model's pending save on close.</summary>
+    /// <summary>Sets the title, title bar, icon, and DPI-scaled size, and flushes the view model's pending save on close.</summary>
     public MainWindow()
     {
         InitializeComponent();
@@ -35,7 +35,7 @@ public sealed partial class MainWindow : Window
         Closed += (_, _) => ViewModel.FlushSave();
     }
 
-    /// <summary>Restores the window if minimized, shows it and takes the foreground.</summary>
+    /// <summary>Restores the window if minimized, shows it, and takes the foreground.</summary>
     public void Bring()
     {
         if (IsIconic(_hwnd)) ShowWindow(_hwnd, SW_RESTORE);   // Win32, no presenter type test (unreliable under Native AOT)

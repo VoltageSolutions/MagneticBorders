@@ -1,12 +1,12 @@
 # AGENTS.md
 
-Guidance for AI coding agents (Claude Code, Codex, Copilot, Cursor, Gemini CLI and others) working in this repo. Humans should read [CONTRIBUTING.md](CONTRIBUTING.md).
+Guidance for AI coding agents (Claude Code, Codex, Copilot, Cursor, Gemini CLI, and others) working in this repo. Humans should read [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## What this is
 
 Magnetic Borders is a Windows 10/11 utility that glues touching window edges together: drag the border between docked windows and every window on that border resizes with it, for any layout, including FancyZones. It never takes over window management and never reads modifier keys.
 
-The same engine is built three times, in C++, Rust and C#, so the languages can be compared. One shared WinUI 3 app provides the tray flyout and the settings window. The layout follows PowerToys: a small native engine owns the tray icon and hooks, and a separate WinUI 3 app owns all UI.
+The same engine is built three times, in C++, Rust, and C#, so the languages can be compared. One shared WinUI 3 app provides the tray flyout and the settings window. The layout follows PowerToys: a small native engine owns the tray icon and hooks, and a separate WinUI 3 app owns all UI.
 
 | Part | Path | Role |
 |---|---|---|
@@ -21,7 +21,7 @@ The same engine is built three times, in C++, Rust and C#, so the languages can 
 
 Every engine uses the same folders, so the languages can be read side by side: `core/` (pure geometry), `app/` (drag controller, ports, settings, pipe protocol), `win32/` (adapters), `host/` (composition root), `fixture-runner/`, and unit tests beside the code (`tests/` in C++ and C#, inside each crate in Rust). Dependencies point inward only: core <- app <- win32 <- host. Keep Win32 types out of core and app. The settings app uses `app/` (WinUI 3 exe), `core/` (view models, settings model, pipe client) and `tests/`.
 
-## Build, test and run
+## Build, test, and run
 
 The engines and the settings app build on Windows only. The C++ domain library and fixture runner have no Windows headers and also build with g++/clang.
 
@@ -49,18 +49,18 @@ Run `lint,build,test,coverage` for each part you change before you finish. All f
 - The coverage step fails below 40 percent line coverage. Codecov (`codecov.yml`) expects 40 percent for the project and 60 percent for a patch. Aim for 80 percent in `core` and `app`.
 - Add or update tests with every change. Behavior changes also need a fixture when they are geometric.
 - Builds are deterministic: do not unpin toolchains or edit lock files by hand. Run `restore` and commit the changed lock file.
-- ARM64 is cross-built (`-Arch arm64`); tests, lint and coverage run on x64.
+- ARM64 is cross-built (`-Arch arm64`); tests, lint, and coverage run on x64.
 
 ### Versions
 
-The version lives in four files: `src/engines/cpp/CMakeLists.txt`, `src/engines/rust/Cargo.toml` (and the workspace crates in `Cargo.lock`), `src/engines/dotnet/Directory.Build.props` and `src/settings/Directory.Build.props`. Change it only with `pwsh tools/ci/set-version.ps1 -Version x.y.z`. `pwsh tools/ci/check-version.ps1` verifies that all four agree and that a `release/vX.Y.Z` branch carries X.Y.Z.
+The version lives in four files: `src/engines/cpp/CMakeLists.txt`, `src/engines/rust/Cargo.toml` (and the workspace crates in `Cargo.lock`), `src/engines/dotnet/Directory.Build.props`, and `src/settings/Directory.Build.props`. Change it only with `pwsh tools/ci/set-version.ps1 -Version x.y.z`. `pwsh tools/ci/check-version.ps1` verifies that all four agree and that a `release/vX.Y.Z` branch carries X.Y.Z.
 
 ### GitHub workflows
 
 In `.github/workflows/`, named after GameControllerForZwift's workflows without the platform prefix:
 
 - `ci.yml` (**CI**): every app on every pull request (into `main` or a `release/**` branch). Not on push to `main`: the pull request already ran it. Jobs: Version, Lint (per part), x64 (build, test, coverage, publish, and the settings smoke test), ARM64 (cross-built), ARM smoke test (on an ARM64 runner), Unit Test Results (one check with the totals), Coverage (Codecov, one flag per part), Vulnerabilities (NuGet and RustSec), Parity, and Tester build (a downloadable build linked from a comment on the pull request).
-- `cd.yml` (**CD**): when a new version lands on `main`, builds, packages and publishes the GitHub release `vX.Y.Z`, then opens `release/vX.(Y+1).0` with its version set.
+- `cd.yml` (**CD**): when a new version lands on `main`, builds, packages, and publishes the GitHub release `vX.Y.Z`, then opens `release/vX.(Y+1).0` with its version set.
 - `bench.yml` (**Benchmark**): by hand, and on pull requests that touch `tools/bench/`. Builds the three engines and runs `tools/bench/bench.ps1` on x64 and ARM64 runners. Hosted runners are noisy, so read it for trends and leaks. It is not a required check.
 - `docs-ci.yml` (**Docs CI**): strict docs build on pull requests that touch the docs.
 - `docs-cd.yml` (**Docs CD**): builds the docs and deploys them to GitHub Pages from `main`.
@@ -84,6 +84,6 @@ The single required check is **CI result**. Do not require the other jobs by nam
 - Comments and docs describe what the code does now. Do not write history ("previously", "used to") or future plans.
 - Use the serial (Oxford) comma in all English text: UI strings and their translator comments, docs, specs, the README, code comments, and commit messages. Write "A, B, and C", never "A, B and C".
 - Docs voice: Home pages may address the reader ("you"). How it works and Spec use the app name ("Magnetic Borders" or "MB") or impersonal instructions, never "I". US spelling, active voice, short sentences, no em dashes.
-- User-facing text belongs in resource files so it can be localized: `.resw` with `x:Uid` in the settings app, `STRINGTABLE` resources in the C++ engine, the equivalent in Rust and C#. Do not add new hard-coded UI strings.
+- User-facing text belongs in resource files so it can be localized: `.resw` with `x:Uid` in the settings app, `STRINGTABLE` resources in the C++ engine, the equivalent in Rust, and C#. Do not add new hard-coded UI strings.
 - Keep private data out of the repo: no machine names, local user paths, or log files.
 - When an AI helped with a commit, end the message with a `Co-Authored-By` trailer. Do not add links to AI sessions.

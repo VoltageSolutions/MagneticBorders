@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace MagneticBorders.Settings;
 
-/// <summary>Minimal user32 and dwmapi P/Invokes used for window placement, DPI and foreground handling.</summary>
+/// <summary>Minimal user32 and dwmapi P/Invokes used for window placement, DPI, and foreground handling.</summary>
 internal static class NativeMethods
 {
     /// <summary>Screen point in physical pixels (Win32 POINT).</summary>
@@ -19,7 +19,7 @@ internal static class NativeMethods
     [DllImport("user32.dll")] public static extern nint GetForegroundWindow();
     /// <summary>True when the window is minimized.</summary>
     [DllImport("user32.dll")] public static extern bool IsIconic(nint hwnd);
-    /// <summary>Shows, hides, minimizes or restores a window.</summary>
+    /// <summary>Shows, hides, minimizes, or restores a window.</summary>
     [DllImport("user32.dll")] public static extern bool ShowWindow(nint hwnd, int cmd);
     /// <summary>ShowWindow command that restores a minimized window.</summary>
     public const int SW_RESTORE = 9;

@@ -1,6 +1,6 @@
 # tools/ci
 
-`run.ps1` is the one way to build, check and package each part of the repo. The local build watcher and the GitHub workflows both call it, so results match.
+`run.ps1` is the one way to build, check, and package each part of the repo. The local build watcher and the GitHub workflows both call it, so results match.
 
 ```powershell
 pwsh tools/ci/run.ps1 -Target <cpp|rust|dotnet|settings|docs> -Steps <steps> [-Arch x64|arm64] [-Ci]
@@ -20,4 +20,4 @@ Each target lives in `targets/<target>.ps1` and defines only the steps that appl
 
 Run `pwsh tools/setup-dev.ps1` once to install the tools these steps need.
 
-Other scripts here: `check-version.ps1`, `set-version.ps1`, `parity.ps1`, `package.ps1` (release zips), `tester-build.ps1` (the pull request tester build), `smoke-settings.ps1` and `check-vulnerabilities.ps1`.
+Other scripts here: `check-version.ps1`, `set-version.ps1`, `parity.ps1`, `package.ps1` (release zips), `tester-build.ps1` (the pull request tester build), `smoke-settings.ps1`, and `check-vulnerabilities.ps1`.

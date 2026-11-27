@@ -141,7 +141,7 @@ public sealed class AppSettings
         root["ui"] = Merge(root["ui"], ("flyout_backdrop", BackdropToJson(FlyoutBackdrop)));
     }
 
-    /// <summary>Returns a copy of an existing JSON object (or a new one) with the given bool, int and string keys set, so sibling unknown keys survive.</summary>
+    /// <summary>Returns a copy of an existing JSON object (or a new one) with the given bool, int, and string keys set, so sibling unknown keys survive.</summary>
     private static JsonObject Merge(JsonNode? existing, params (string Key, object Value)[] values)
     {
         var obj = existing as JsonObject ?? new JsonObject();

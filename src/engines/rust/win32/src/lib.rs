@@ -1,5 +1,5 @@
 //! Win32 adapters (`mb-win32`): implement the `mb-app` ports with `WinEvent` hooks, EnumWindows/DWM,
-//! `DeferWindowPos`, `SetTimer` and a low-level mouse hook, and own the tray icon, settings watcher and named-pipe server.
+//! `DeferWindowPos`, `SetTimer`, and a low-level mouse hook, and own the tray icon, settings watcher, and named-pipe server.
 //! Windows-only (`cfg(windows)`); all of it runs on one UI thread, other threads only post messages to it.
 //! Depends on `mb-core` and `mb-app`.
 #![cfg(windows)]

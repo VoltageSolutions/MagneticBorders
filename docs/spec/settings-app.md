@@ -9,7 +9,7 @@
 | UI-001 | The app must be .NET 10 with the Windows App SDK, unpackaged (`WindowsPackageType=None`), self-contained, x64. |
 | UI-002 | The app must use MVVM with CommunityToolkit.Mvvm and the SettingsCard and SettingsExpander controls from the Windows Community Toolkit. |
 | UI-003 | The app must follow the system light or dark theme. The settings window must use a Mica backdrop. The flyout must use a translucent backdrop or a solid one, as `ui.flyout_backdrop` says (CFG-014). |
-| UI-004 | The settings model, JSON load and save, the pipe client and the view models must live in a library with no WinUI references, so they can be unit-tested. |
+| UI-004 | The settings model, JSON load and save, the pipe client, and the view models must live in a library with no WinUI references, so they can be unit-tested. |
 | UI-005 | The app must be a single instance. A second launch must forward its arguments (`--flyout` or none) to the running instance and exit. |
 | UI-006 | The app icon must be the shared `icon.ico`. |
 
@@ -40,7 +40,7 @@ One scrolling page in the style of Windows 11 Settings, with these groups in ord
 | UI-023 | The Magnetic coupling slider's helper text must read "How far apart two edges can be and still stick together. 0 = they must touch." |
 | UI-024 | **Magnetic attraction** must have a toggle; **Snap to screen edges** and **Snap to other windows** toggles (`snap.screen_edges`, `snap.windows`); a **Pull-in distance** slider from 0 to 64 px (`snap.distance_px`); a **Breakaway distance** slider from 0 to 128 px (`snap.breakaway_px`); and a **Snapping speed** slider from 100 to 5000 px per second (`snap.max_speed`), labelled Slow at the low end and Fast at the high end. Each setting must carry a one-line description. The other controls must be disabled while the toggle is off. |
 | UI-025 | **Excluded apps** must list executable names, each with a **Remove** button, and a text box with an **Add** button. |
-| UI-026 | **About** must show the icon, the version and a link to the documentation. |
+| UI-026 | **About** must show the icon, the version, and a link to the documentation. |
 | UI-027 | Every change must save immediately, debounced by 300 ms. |
 | UI-028 | While a window is open, the app must poll the running app's status every 2 seconds. |
 | UI-029 | **Quit Magnetic Borders** must send `quit`. |
