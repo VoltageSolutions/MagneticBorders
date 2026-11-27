@@ -33,8 +33,8 @@ public partial class App : Application
         new SettingsStore(Program.SmokeDir is null ? null : Path.Join(Program.SmokeDir, "settings.json")),
         new PipeEngineClient(), appVersion: AppInfo.FromEntryAssembly().Version);
 
-    /// <summary>Crash log file: the default one, or settings.log in the smoke-test folder.</summary>
-    private static string? CrashLogPath => Program.SmokeDir is null ? null : Path.Join(Program.SmokeDir, "settings.log");
+    /// <summary>Log file of the crash and diagnostic lines: the default one, or settings.log in the smoke-test folder.</summary>
+    internal static string? CrashLogPath => Program.SmokeDir is null ? null : Path.Join(Program.SmokeDir, "settings.log");
 
     /// <summary>How long the smoke test lets each window load and lay out before it moves on.</summary>
     private static readonly TimeSpan SmokeStep = TimeSpan.FromSeconds(2);

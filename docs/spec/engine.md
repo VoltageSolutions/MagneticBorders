@@ -72,3 +72,70 @@ Each build is a background Windows app with a notification area icon, a context 
 |---|---|
 | ENG-070 | There must be no pause state. The saved `enabled` key is the only on/off switch. |
 | ENG-071 | The notification area menu checkbox, the flyout toggle, and the settings window toggle must all write `enabled` to `settings.json`. |
+
+## Diagnostics
+
+Verbose logging records how each move batch is applied and what the system looks like, so a report of flicker or a refused size can be traced to a cause. Without `--verbose` the engine writes none of these lines and makes none of the extra reads they need.
+
+| ID | Rule |
+|---|---|
+| ENG-080 | With `--verbose`, the engine must write one `diag: system` line and one `diag: monitor` line per monitor at startup, after the startup line and before the first drag. |
+| ENG-081 | With `--verbose`, every move batch must write one `move: batch` line, then one `move: hwnd` line per window in the batch. |
+| ENG-082 | With `--verbose`, a window left out of a batch must write a `move: skipped` line. |
+| ENG-083 | With `--verbose`, a failed deferred batch must write a `move: deferred batch failed` line with the Win32 error number, and every `SetWindowPos` failure in the fallback must write a `move: SetWindowPos failed` line. |
+| ENG-084 | Without `--verbose`, the mover must not read back window rectangles, measure time or build any of these lines. |
+| ENG-085 | All three engines must write the same text after the log prefix. The prefix (time stamp and level) may differ. |
+
+### Capture a log
+
+1. Exit Magnetic Borders from its notification area menu. Only one instance runs at a time.
+1. Start the engine from a terminal with `--verbose`. Add `--console` to watch the lines live.
+
+   | Engine | Command |
+   |---|---|
+   | C++ | `MagneticBorders.Cpp.exe --verbose` |
+   | Rust | `magnetic-borders-rs.exe --verbose` (`-v` also works) |
+   | C# | `MagneticBorders.Net.exe --verbose` |
+
+1. Reproduce the problem with a short drag, then exit the engine.
+1. Attach `%LOCALAPPDATA%\MagneticBorders\logs\<engine>.log`. The settings app writes `settings.log` in the same folder (see [settings app](settings-app.md#diagnostics)).
+
+A drag writes many lines, and the engine trims the file only at startup when it is over 1 MB. Capture one problem per run.
+
+### Start-up lines
+
+```text
+diag: system os_build=22631.3880 dpi_awareness=per-monitor-v2 dwm_composition=on monitors=2
+diag: monitor 0 rect=0,0,1920,1200 work=0,0,1920,1160 dpi=144x144 primary=yes
+```
+
+| Field | Meaning |
+|---|---|
+| `os_build` | `CurrentBuildNumber` and `UBR` from the registry, or `unknown`. |
+| `dpi_awareness` | DPI awareness of the engine thread: `unaware`, `system`, `per-monitor`, `per-monitor-v2` or `unknown`. Anything but `per-monitor-v2` means Windows scales or virtualizes coordinates, which breaks pixel-exact seams. |
+| `dwm_composition` | `on` when desktop composition is enabled. |
+| `rect`, `work` | Monitor and work area in virtual-screen pixels, as `left,top,right,bottom`. |
+| `dpi` | Effective DPI of the monitor, as `x` by `y`. 96 is 100 percent. |
+
+### Move lines
+
+```text
+move: batch windows=2 mode=deferred flags=0x0214 elapsed_us=812 mismatches=1
+move: hwnd=0x1a2b requested=0,0,960,1000 actual=0,0,960,1000
+move: hwnd=0x3c4d requested=960,0,1920,1000 actual=960,0,1940,1000 delta=0,0,20,0 window_delta=0,0,20,0
+```
+
+| Line | Meaning |
+|---|---|
+| `move: batch` | One applied batch. `mode` is `deferred` (one `BeginDeferWindowPos` and `EndDeferWindowPos` batch) or `individual` (the deferred batch failed and each window got its own `SetWindowPos`). `flags` are the `SetWindowPos` flags (`0x0214` is `SWP_NOACTIVATE`, `SWP_NOZORDER` and `SWP_NOOWNERZORDER`). `elapsed_us` is the time to apply the batch in microseconds, without the read back. `mismatches` counts windows whose read back frame differs from the request. |
+| `move: hwnd` | One window after the batch. `requested` is the visual frame the engine asked for and `actual` is the visual frame read back right after (`DWMWA_EXTENDED_FRAME_BOUNDS`), or `unavailable`. `delta` (actual minus requested) appears only when they differ, and `window_delta` (`GetWindowRect` minus the requested window rectangle) only when that differs. A `delta` means the app refused or corrected the size, for example at its minimum size or by snapping to a size step. |
+| `move: skipped` | A window left out of the batch. `reason` is `no-offsets` (never inventoried; the Rust engine uses zero offsets instead and never writes this reason), `banned` (an earlier move failed, for example an elevated window) or `hung`. |
+| `move: deferred batch failed` | A call of the deferred batch failed. `step` is `begin`, `defer` (with the `hwnd` that failed) or `end`, and `error` is the Win32 error number. The engine then moves each window with `SetWindowPos`. |
+| `move: SetWindowPos failed` | A fallback move failed. The window is excluded until the engine restarts. Error 5 is access denied. |
+
+### Reading the lines
+
+- Flicker while dragging often shows as `mismatches` above 0 in consecutive batches for the same window: the window corrects its own size after each move, and the neighbor repaints twice.
+- `mode=individual` means the windows repaint one by one instead of together.
+- A large `elapsed_us` (several milliseconds) means a window is slow to process the move. Windows blocks the engine in `SetWindowPos` until the window handles its size messages.
+- A `dpi_awareness` other than `per-monitor-v2`, or monitors with different `dpi` values, can explain offsets of a pixel or more between `requested` and `actual`.

@@ -5,6 +5,7 @@
 #![cfg(windows)]
 
 mod app;
+mod diagnostics;
 mod events;
 mod inventory;
 mod misc;
@@ -14,6 +15,7 @@ mod timer;
 mod util;
 
 pub use app::{pipe_request, AppHandler, AppInfo, Tray};
+pub use diagnostics::log_system_diagnostics;
 pub use events::EventSource;
 pub use inventory::Win32Inventory;
 pub use misc::{

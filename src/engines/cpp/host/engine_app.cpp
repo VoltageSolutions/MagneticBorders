@@ -24,6 +24,7 @@
 #include "win32/run_key.hpp"
 #include "win32/settings_watcher.hpp"
 #include "win32/system_adapters.hpp"
+#include "win32/system_diagnostics.hpp"
 #include "win32/tray_icon.hpp"
 #include "win32/win32_event_source.hpp"
 #include "win32/win32_inventory.hpp"
@@ -85,10 +86,10 @@ public:
     /// Constructs the adapters and the controller and connects the timer to it.
     explicit EngineApp(const EngineOptions& opts)
         : log_(win32::log_path(kEngineId), opts.console, opts.verbose), registry_({}),
-          inventory_(registry_), mover_(registry_),
+          inventory_(registry_), mover_(registry_, opts.verbose ? &log_ : nullptr),
           controller_(inventory_, mover_, clock_, timer_, log_,
                       ControllerOptions{12, "MagneticBorders.Cpp", opts.verbose}),
-          started_(std::chrono::steady_clock::now()) {
+          verbose_(opts.verbose), started_(std::chrono::steady_clock::now()) {
         timer_.set_sink(controller_);
     }
 
@@ -96,6 +97,7 @@ public:
     int run() {
         log_.info(std::string("Magnetic Borders (C++) ") + std::string(kVersion) +
                   " starting, pid " + std::to_string(GetCurrentProcessId()));
+        if (verbose_) win32::log_system_diagnostics(log_);
         BOOL full_drag = TRUE;
         SystemParametersInfoW(SPI_GETDRAGFULLWINDOWS, 0, &full_drag, 0);
         if (!full_drag)
@@ -338,6 +340,7 @@ private:
     DragController controller_;
     Settings settings_;
     std::atomic<bool> alive_{true};
+    bool verbose_;
     std::chrono::steady_clock::time_point started_;
     HWND hwnd_{};
     UINT taskbar_created_{0};

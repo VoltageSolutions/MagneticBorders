@@ -1,11 +1,14 @@
 using MagneticBorders.Settings.Core;
 using Microsoft.UI;
+using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.Graphics;
+using Windows.System.Power;
+using Windows.UI.ViewManagement;
 using WinRT.Interop;
 using static MagneticBorders.Settings.NativeMethods;
 
@@ -33,6 +36,8 @@ public sealed partial class FlyoutWindow : Window
     private DateTime _shownAt;
     /// <summary>Set once a close has started so Close is only called once.</summary>
     private bool _closing;
+    /// <summary>HRESULTs of the DWM calls made in the constructor and the border color that was applied, for settings.log.</summary>
+    private readonly int _cornerHr, _borderHr, _frameHr, _borderColor;
 
     /// <summary>Shared view model, the source for x:Bind in FlyoutWindow.xaml.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "x:Bind needs an instance property.")]
@@ -58,17 +63,19 @@ public sealed partial class FlyoutWindow : Window
         AppWindow.SetPresenter(p);
 
         var round = DWMWCP_ROUND;
-        _ = DwmSetWindowAttribute(_hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int));
+        _cornerHr = DwmSetWindowAttribute(_hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int));
         // A fixed neutral border for the theme. DWMWA_COLOR_DEFAULT would follow "Show accent color on title bars and
         // window borders", which draws the flyout's edge in the accent color.
         var borderColor = Application.Current.RequestedTheme == ApplicationTheme.Dark ? BorderDark : BorderLight;
-        _ = DwmSetWindowAttribute(_hwnd, DWMWA_BORDER_COLOR, ref borderColor, sizeof(int));
+        _borderColor = borderColor;
+        _borderHr = DwmSetWindowAttribute(_hwnd, DWMWA_BORDER_COLOR, ref borderColor, sizeof(int));
         var margins = new MARGINS { Bottom = 1 };   // a one pixel glass edge makes DWM draw the system shadow
-        _ = DwmExtendFrameIntoClientArea(_hwnd, ref margins);
+        _frameHr = DwmExtendFrameIntoClientArea(_hwnd, ref margins);
 
         Activated += (_, e) =>
         {
             StartupProbe(e);
+            Log(FlyoutDiagnostics.Activation(e.WindowActivationState.ToString(), ElapsedMs()));
             if (e.WindowActivationState == WindowActivationState.Deactivated && DateTime.UtcNow - _shownAt > TimeSpan.FromMilliseconds(150))
                 CloseSafe();
         };
@@ -80,7 +87,54 @@ public sealed partial class FlyoutWindow : Window
         {
             if (DateTime.UtcNow - _shownAt > TimeSpan.FromMilliseconds(800) && GetForegroundWindow() != _hwnd) CloseSafe();
         };
-        Closed += (_, _) => _focusWatch.Stop();
+        Closed += (_, _) =>
+        {
+            _focusWatch.Stop();
+            Log(FlyoutDiagnostics.Closed(ElapsedMs()));
+        };
+    }
+
+    /// <summary>Appends one line to settings.log (the smoke-test folder during a smoke test).</summary>
+    private static void Log(string message) => DiagnosticsLog.Write(message, App.CrashLogPath);
+
+    /// <summary>Milliseconds since the flyout was shown (0 before it is shown).</summary>
+    private long ElapsedMs() => _shownAt == default ? 0 : (long)(DateTime.UtcNow - _shownAt).TotalMilliseconds;
+
+    /// <summary>
+    /// Writes the lines of one flyout open to settings.log: theme state, the backdrop decision with the system facts
+    /// behind it, power state, the DWM calls with their HRESULTs and the window DPI and size. Never throws, so a
+    /// failing system query cannot stop the flyout from opening.
+    /// </summary>
+    private void LogOpen(FlyoutBackdrop setting, RectInt32 work)
+    {
+        try
+        {
+            var ui = new UISettings();
+            var systemTheme = ui.GetColorValue(UIColorType.Background).R < 128 ? "dark" : "light";
+            var contentTheme = (Content as FrameworkElement)?.ActualTheme.ToString() ?? "none";
+            Log(FlyoutDiagnostics.Open(
+                Environment.OSVersion.Version.ToString(), Application.Current.RequestedTheme.ToString(), contentTheme, systemTheme, new AccessibilitySettings().HighContrast));
+
+            var acrylic = DesktopAcrylicController.IsSupported();
+            var effects = ui.AdvancedEffectsEnabled;
+            var saver = PowerManager.EnergySaverStatus;
+            var choice = FlyoutDiagnostics.ChooseBackdrop(setting, acrylic, effects, saver == EnergySaverStatus.On);
+            Log(FlyoutDiagnostics.Backdrop(setting, choice, acrylic, MicaController.IsSupported(), effects));
+            Log(FlyoutDiagnostics.Power(saver.ToString(), PowerManager.PowerSupplyStatus.ToString()));
+
+            var readHr = DwmGetWindowAttribute(_hwnd, DWMWA_BORDER_COLOR, out var readback, sizeof(int));
+            Log(FlyoutDiagnostics.Dwm(_cornerHr, _borderColor, _borderHr, readback, readHr, _frameHr));
+
+            var position = AppWindow.Position;
+            var size = AppWindow.Size;
+            Log(FlyoutDiagnostics.Window(GetDpiForWindow(_hwnd), size.Width, size.Height, position.X, position.Y, work.X, work.Y, work.X + work.Width, work.Y + work.Height));
+        }
+#pragma warning disable CA1031 // Diagnostics must never stop the flyout from opening.
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            Log("flyout diagnostics failed: " + ex.GetType().Name + " " + ex.Message);
+        }
     }
 
     /// <summary>Debug builds only: writes the time from process start to the first activation to the debugger output. Compiled out of Release.</summary>
@@ -126,6 +180,7 @@ public sealed partial class FlyoutWindow : Window
         Activate();
         SetForegroundWindow(_hwnd);
         _focusWatch.Start();
+        LogOpen(ViewModel.FlyoutBackdrop, work);
     }
 
     /// <summary>Closes the window once; repeated calls are no-ops.</summary>
