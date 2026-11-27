@@ -44,9 +44,9 @@ public sealed unsafe class Win32PointerHook(ILog log) : IPointerHook, IDisposabl
     /// <summary>GetCursorPos, or null when it fails.</summary>
     public Point? ReadCursor()
     {
-        POINT p;
+        System.Drawing.Point p;
         if (!PInvoke.GetCursorPos(&p)) return null;
-        return new Point(p.x, p.y);
+        return new Point(p.X, p.Y);
     }
 
     /// <summary>Removes the hook.</summary>
@@ -69,7 +69,7 @@ public sealed unsafe class Win32PointerHook(ILog log) : IPointerHook, IDisposabl
                 if (msg == PInvoke.WM_MOUSEMOVE)
                 {
                     var m = (MSLLHOOKSTRUCT*)lp.Value;
-                    if (sink.OnPointerMove(new Point(m->pt.x, m->pt.y)) is { } to)
+                    if (sink.OnPointerMove(new Point(m->pt.X, m->pt.Y)) is { } to)
                     {
                         PInvoke.SetCursorPos(to.X, to.Y);
                         return (LRESULT)1; // the original movement is replaced by the held cursor position
