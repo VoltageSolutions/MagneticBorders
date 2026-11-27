@@ -77,3 +77,9 @@ WM_RBUTTONUP
 WM_CONTEXTMENU
 WM_NULL
 HWND_MESSAGE
+EnumDisplayMonitors
+GetDpiForMonitor
+DwmIsCompositionEnabled
+GetThreadDpiAwarenessContext
+AreDpiAwarenessContextsEqual
+GetAwarenessFromDpiAwarenessContext

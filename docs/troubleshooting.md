@@ -12,6 +12,17 @@ To watch the log live, start the engine from a terminal with `--console`. Add `-
 
 Each drag writes one line with the grabbed edges and the windows that joined. If you report a bug, attach the log and say which engine you ran.
 
+## Coupled windows flicker while I drag, or the flyout has a white border
+
+Both can depend on the graphics hardware, the display scaling, and the Windows transparency and power settings, so the log records them. To capture one:
+
+1. Exit Magnetic Borders from its notification area menu.
+1. Start the engine from a terminal with `--verbose`, for example `MagneticBorders.Cpp.exe --verbose`.
+1. Drag a shared border until the flicker shows, then open the flyout from the notification area icon until the white border shows. Exit the engine.
+1. Attach `%LOCALAPPDATA%\MagneticBorders\logs\<engine>.log` and `%LOCALAPPDATA%\MagneticBorders\logs\settings.log`.
+
+The [engine spec](spec/engine.md#diagnostics) explains each line of the engine log, and the [settings app spec](spec/settings-app.md#diagnostics) explains each line of `settings.log`.
+
 ## Nothing happens when I drag
 
 Magnetic Borders follows the location updates Windows sends while you drag. If this Windows option is off, Windows won't send update events until you let go. This prevents Magnetic Borders from working. MB will write a warning to its log at startup if this option is off.

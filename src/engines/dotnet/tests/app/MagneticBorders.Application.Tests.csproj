@@ -9,6 +9,10 @@
     <PackageReference Include="coverlet.collector" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The Win32 layer does not build on this target; its pure formatting helper has no Win32 types. -->
+    <Compile Include="..\..\win32\MoveDiagnostics.cs" Link="MoveDiagnostics.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\app\MagneticBorders.Application.csproj" />
   </ItemGroup>
 </Project>

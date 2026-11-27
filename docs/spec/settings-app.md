@@ -59,3 +59,25 @@ One scrolling page in the style of Windows 11 Settings, with these groups in ord
 | ID | Rule |
 |---|---|
 | UI-043 | `MagneticBorders.Settings.exe --smoke [folder]` must open the settings window and then the flyout, let each load, and exit with code 0, without single-instance redirection. It must read and write settings and the crash log in `folder` (a temporary folder by default), never in `%LOCALAPPDATA%`. An unhandled exception must exit with 1 and a timeout with 2. CI runs it on the published x64 and ARM64 builds. |
+
+## Diagnostics
+
+The settings app writes diagnostic lines to `%LOCALAPPDATA%\MagneticBorders\logs\settings.log`, the file that also holds crash entries. Each line starts with the local time. The app replaces the file when it grows past 1 MB, and during a smoke test it writes to the smoke folder instead. Writing never fails the app: a write error is ignored.
+
+| ID | Rule |
+|---|---|
+| UI-050 | Each time the flyout opens, the app must write the lines `flyout open`, `flyout backdrop`, `flyout power`, `flyout dwm` and `flyout window`, in that order. |
+| UI-051 | The flyout must write a `flyout activation` line for every activation change and a `flyout closed` line when it closes. |
+| UI-052 | A failure while collecting these facts must write a `flyout diagnostics failed` line and must not stop the flyout from opening. |
+
+| Line | Fields |
+|---|---|
+| `flyout open` | `os` (Windows version), `app_theme` (the app theme WinUI resolved at start-up), `content_theme` (the theme the flyout content is drawn with), `system_theme` (`dark` or `light` from the system background color) and `high_contrast`. A difference between `app_theme` and `system_theme` shows a theme that changed after the app started. |
+| `flyout backdrop` | `setting` (`translucent` or `solid`), `effective` (`acrylic`, `solid` or `solid-fallback`), the `reason` for it, `desktop_acrylic_supported` and `mica_supported` (the `IsSupported()` results of the system backdrop controllers) and `transparency_effects` (`UISettings.AdvancedEffectsEnabled`). `solid-fallback` means acrylic is requested but Windows is expected to draw a solid color: acrylic is unsupported, transparency effects are off or energy saver is on. |
+| `flyout power` | `energy_saver` (`PowerManager.EnergySaverStatus`) and `power_supply` (`PowerManager.PowerSupplyStatus`). |
+| `flyout dwm` | The HRESULT of each DWM call: the corner preference, the border color applied (a COLORREF, `0x00BBGGRR`) with its HRESULT, the border color read back with its HRESULT, and the frame extension. A read back that differs from the applied color means DWM did not keep it. An HRESULT other than `0x00000000` means the call failed. |
+| `flyout window` | `dpi` and `scale` of the window, `size` and `position` in physical pixels, and the `work_area` of the monitor it was placed in. |
+| `flyout activation` | The activation `state` (`CodeActivated`, `PointerActivated` or `Deactivated`) and `after_ms`, the time since the flyout was shown. |
+| `flyout closed` | `after_ms`, the time since the flyout was shown. |
+
+To capture a log, open the flyout from the notification area icon on the affected machine while the problem shows, close it, and attach `settings.log`.

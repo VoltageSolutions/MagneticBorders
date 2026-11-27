@@ -23,6 +23,7 @@
 #include "win32/pointer_hook.hpp"
 #include "win32/settings_watcher.hpp"
 #include "win32/system_adapters.hpp"
+#include "win32/system_diagnostics.hpp"
 #include "win32/tray_icon.hpp"
 #include "win32/win32_event_source.hpp"
 #include "win32/win32_inventory.hpp"
@@ -333,6 +334,41 @@ TEST(Win32Mover, SkipsUnknownBannedAndMovesOwnWindows) {
 
     registry.ban(id);
     EXPECT_TRUE(mover.apply(own).empty());
+}
+
+/// Log that keeps every line, for the diagnostics tests.
+struct CaptureLog final : Log {
+    std::vector<std::string> lines;
+    void info(std::string_view msg) override { lines.emplace_back(msg); }
+    void debug(std::string_view msg) override { lines.emplace_back(msg); }
+};
+
+TEST(Win32Mover, DiagnosticsLogSkipsAndBatchLines) {
+    win32::WindowRegistry registry({});
+    CaptureLog log;
+    win32::Win32Mover mover{registry, &log};
+    const std::vector<Move> unknown{{12345, {0, 0, 10, 10}}};
+    EXPECT_TRUE(mover.apply(unknown).empty());
+    ASSERT_EQ(log.lines.size(), 1U);
+    EXPECT_EQ(log.lines[0], "move: skipped hwnd=0x3039 reason=no-offsets");
+
+    log.lines.clear();
+    Recorder recorder;
+    win32::MessageWindow window{recorder};
+    const WindowId id = win32::to_id(window.hwnd());
+    registry.remember_offsets(id, {});
+    const std::vector<Move> own{{id, {10, 10, 210, 110}}};
+    (void)mover.apply(own);
+    EXPECT_TRUE(std::ranges::any_of(log.lines, [](const std::string& l) {
+        return l.starts_with("move: batch windows=1 mode=");
+    }));
+}
+
+TEST(Win32SystemDiagnostics, ReportsSystemAndMonitorLines) {
+    CaptureLog log;
+    win32::log_system_diagnostics(log);
+    ASSERT_FALSE(log.lines.empty());
+    EXPECT_TRUE(log.lines[0].starts_with("diag: system os_build="));
 }
 
 TEST(Win32Pipe, ServerAnswersRequestLines) {
