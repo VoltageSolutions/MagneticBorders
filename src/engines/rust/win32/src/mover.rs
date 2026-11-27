@@ -150,7 +150,7 @@ mod tests {
         let log = AppLog::open(&path, false, true);
         let mut mover = Win32Mover::with_diagnostics(Shared::default(), log);
         let applied = mover.apply(&[(0x3039, Rect::new(0, 0, 100, 100))]);
-        assert!(applied.is_empty());
+        assert_eq!(applied, vec![]);
         let text = std::fs::read_to_string(&path).unwrap();
         assert!(text.contains("move: deferred batch failed step="));
         assert!(text.contains("move: SetWindowPos failed hwnd=0x3039"));
@@ -164,6 +164,6 @@ mod tests {
         let shared = Shared::default();
         shared.banned.borrow_mut().insert(7);
         let mut mover = Win32Mover::new(shared);
-        assert!(mover.apply(&[(7, Rect::new(0, 0, 10, 10))]).is_empty());
+        assert_eq!(mover.apply(&[(7, Rect::new(0, 0, 10, 10))]), vec![]);
     }
 }
