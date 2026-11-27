@@ -129,7 +129,10 @@ public class AppInfoTests
     [Fact]
     public void FromAssembly_reads_the_version_stamped_on_the_application_assembly()
     {
-        Assert.Equal("0.2.0", AppInfo.FromAssembly(typeof(EngineState).Assembly).Version);
+        // The tests and the application share <Version> from Directory.Build.props, so this holds for any version.
+        var expected = AppInfo.FromAssembly(typeof(AppInfoTests).Assembly).Version;
+        Assert.Matches(@"^\d+\.\d+\.\d+$", expected);
+        Assert.Equal(expected, AppInfo.FromAssembly(typeof(EngineState).Assembly).Version);
     }
 
     [Fact]

@@ -61,7 +61,7 @@ jobs:
         working-directory: src/engines/rust
         run: rustup toolchain install
 
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         if: matrix.target == 'rust'
         with:
           path: |
@@ -72,7 +72,7 @@ jobs:
           key: cargo-${{ runner.os }}-x64-${{ hashFiles('src/engines/rust/Cargo.lock', 'src/engines/rust/rust-toolchain.toml') }}
           restore-keys: cargo-${{ runner.os }}-x64-
 
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         if: matrix.target == 'cpp'
         with:
           path: src/engines/cpp/build/*/_deps
@@ -108,7 +108,7 @@ jobs:
         working-directory: src/engines/rust
         run: rustup toolchain install
 
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         if: matrix.target == 'rust'
         with:
           path: |
@@ -124,7 +124,7 @@ jobs:
         with:
           tool: cargo-llvm-cov,cargo-nextest
 
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         if: matrix.target == 'cpp'
         with:
           path: src/engines/cpp/build/*/_deps
@@ -205,7 +205,7 @@ jobs:
         working-directory: src/engines/rust
         run: rustup toolchain install
 
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         if: matrix.target == 'rust'
         with:
           path: |
@@ -216,7 +216,7 @@ jobs:
           key: cargo-${{ runner.os }}-arm64-${{ hashFiles('src/engines/rust/Cargo.lock', 'src/engines/rust/rust-toolchain.toml') }}
           restore-keys: cargo-${{ runner.os }}-arm64-
 
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         if: matrix.target == 'cpp'
         with:
           path: src/engines/cpp/build/*/_deps
@@ -258,7 +258,7 @@ jobs:
         working-directory: src/engines/rust
         run: rustup toolchain install
 
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index
@@ -268,7 +268,7 @@ jobs:
           key: cargo-${{ runner.os }}-x64-${{ hashFiles('src/engines/rust/Cargo.lock', 'src/engines/rust/rust-toolchain.toml') }}
           restore-keys: cargo-${{ runner.os }}-x64-
 
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         with:
           path: src/engines/cpp/build/*/_deps
           key: fetchcontent-${{ runner.os }}-x64-${{ hashFiles('src/engines/cpp/CMakeLists.txt') }}
@@ -360,7 +360,9 @@ jobs:
           disable_search: true
           flags: ${{ matrix.target }}
           name: ${{ matrix.target }}
-          fail_ci_if_error: true
+          # Dependabot pull requests only see Dependabot secrets. Without CODECOV_TOKEN there, Codecov rejects the
+          # upload for a branch of this repository, so a missing token does not fail the job.
+          fail_ci_if_error: ${{ secrets.CODECOV_TOKEN != '' }}
 
   # Known vulnerabilities in dependencies: NuGet packages of the C# engine and the settings app, and Rust crates
   # (RustSec advisory database). The C++ engine fetches pinned tags of nlohmann/json and GoogleTest (tests only).
