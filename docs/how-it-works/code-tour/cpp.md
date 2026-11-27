@@ -11,9 +11,9 @@ This page explains every type in `src/engines/cpp/` so the code can be read file
 | `src/engines/cpp/win32/` | `mb_win32` | Adapters for the ports, hooks, tray, pipe, RAII handles. | `app`, `core` |
 | `src/engines/cpp/host/` | `magnetic_borders` | Composition root (`engine_app.cpp`), `main.cpp`, manifest, resources. | all |
 | `src/engines/cpp/fixture-runner/` | `mb_fixture`, `fixture_runner` | Parses `tests/fixtures/*.layout` and checks the domain. `mb_fixture` is the library, `fixture_runner` the console tool. | `core` |
-| `src/engines/cpp/tests/` | `mb_tests` | GoogleTest: domain, controller with fake ports, settings, pipe, fixtures and the Win32 adapters. | `app`, `mb_fixture`, `win32` |
+| `src/engines/cpp/tests/` | `mb_tests` | GoogleTest: domain, controller with fake ports, settings, pipe, fixtures, and the Win32 adapters. | `app`, `mb_fixture`, `win32` |
 
-The `core`, `app` and `fixture-runner` code has no Windows headers, so it also builds with g++ or clang. Only two globals exist: the `thread_local` instance slots in `win32_event_source.cpp` and `win32_timer.cpp`, and `g_ui_thread` in `engine_app.cpp` for the Ctrl+C handler.
+The `core`, `app`, and `fixture-runner` code has no Windows headers, so it also builds with g++ or clang. Only two globals exist: the `thread_local` instance slots in `win32_event_source.cpp` and `win32_timer.cpp`, and `g_ui_thread` in `engine_app.cpp` for the Ctrl+C handler.
 
 ## core
 
@@ -38,21 +38,21 @@ The `core`, `app` and `fixture-runner` code has no Windows headers, so it also b
 
 | Type | Kind | File | Purpose | Collaborators |
 |---|---|---|---|---|
-| `Snapshot` | struct | `app/ports.hpp` | Windows, work area and DPI scale captured at drag start. | `WindowInventory`, `DragController` |
+| `Snapshot` | struct | `app/ports.hpp` | Windows, work area, and DPI scale captured at drag start. | `WindowInventory`, `DragController` |
 | `WindowInventory` | port | `app/ports.hpp` | Reads eligible windows and single frames. | `Win32Inventory` |
 | `WindowMover` | port | `app/ports.hpp` | Applies a batch of moves and returns the frames read back. | `Win32Mover` |
 | `Clock` | port | `app/ports.hpp` | Millisecond time. | `SteadyClock` |
-| `TimerKind`, `Timer` | enum, port | `app/ports.hpp` | One-shot `Flush`, `Settle` and `Verify` timers. | `Win32Timer` |
+| `TimerKind`, `Timer` | enum, port | `app/ports.hpp` | One-shot `Flush`, `Settle`, and `Verify` timers. | `Win32Timer` |
 | `TimerEvents` | port | `app/ports.hpp` | Receives timer expiry. | `DragController`, `Win32Timer` |
 | `Log` | port | `app/ports.hpp` | Line logger. | `FileLog`, `ConsoleLog` |
-| `DragEvents` | port | `app/ports.hpp` | Receives start, location change and end of a drag. | `DragController`, `WinEventSource` |
+| `DragEvents` | port | `app/ports.hpp` | Receives start, location change, and end of a drag. | `DragController`, `WinEventSource` |
 | `ControllerOptions` | struct | `app/drag_controller.hpp` | Tolerance, build name, verbose flag. | `EngineApp` |
 | `DragController` | class | `app/drag_controller.hpp` | The drag state machine (`Idle`, `Classifying`, `Resizing`, `Ignoring`). | all ports, `build_seam`, `propagate` |
 | `Settings` | struct | `app/settings.hpp` | Parsed `settings.json` with defaults. `glue_active()` is `enabled && glue_enabled`. | `parse_settings`, `EngineApp` |
 | `parse_settings` | free function | `app/settings.cpp` | Tolerant, clamping parser. Returns nothing for non-objects. | `EngineApp::reload_settings` |
 | `with_enabled` | free function | `app/settings.cpp` | Returns the settings text with the top-level `enabled` key set and every other key kept. Returns nothing for non-objects. | `EngineApp::toggle_enabled` |
 | `EngineStatus` | struct | `app/pipe_protocol.hpp` | Status snapshot for the `status` command. | `EngineApp::status` |
-| `PipeAction`, `PipeReply` | enum, struct | `app/pipe_protocol.hpp` | `PipeAction` is `None`, `Reload` or `Quit`. `PipeReply` is the reply line plus the action the host must run. | `EngineApp::handle_pipe` |
+| `PipeAction`, `PipeReply` | enum, struct | `app/pipe_protocol.hpp` | `PipeAction` is `None`, `Reload`, or `Quit`. `PipeReply` is the reply line plus the action the host must run. | `EngineApp::handle_pipe` |
 | `handle_pipe_request` | free function | `app/pipe_protocol.cpp` | Pure command parser and reply builder. | `EngineApp` |
 
 ## win32
@@ -104,11 +104,11 @@ The `core`, `app` and `fixture-runner` code has no Windows headers, so it also b
 | Type | Kind | File | Purpose | Collaborators |
 |---|---|---|---|---|
 | `BuildSeam`, `Propagate`, `Geometry` suites | GoogleTest | `tests/core_tests.cpp` | Seam discovery, closure, clamping, edge helpers. | `core` |
-| `FakeInventory`, `FakeMover`, `FakeClock`, `FakeTimer`, `NullLog`, `RecordingLog` | test doubles | `tests/controller_tests.cpp` | Fake ports so timers, time and log lines are controlled by the test. | `DragController` |
+| `FakeInventory`, `FakeMover`, `FakeClock`, `FakeTimer`, `NullLog`, `RecordingLog` | test doubles | `tests/controller_tests.cpp` | Fake ports so timers, time, and log lines are controlled by the test. | `DragController` |
 | `Fixture`, `QuadFixture` (test fixtures) | classes | `tests/controller_tests.cpp` | Two side-by-side windows, and four windows in a grid, each with a controller wired to the fakes. | `DragController` |
-| `FixtureParse`, `FixtureRun`, `FixtureCheck`, `Fixtures` suites | GoogleTest | `tests/fixture_tests.cpp` | The `.layout` parser, runner and checker. `EverySharedLayoutPasses` runs every file in `tests/fixtures/`. | `mb_fixture` |
+| `FixtureParse`, `FixtureRun`, `FixtureCheck`, `Fixtures` suites | GoogleTest | `tests/fixture_tests.cpp` | The `.layout` parser, runner, and checker. `EverySharedLayoutPasses` runs every file in `tests/fixtures/`. | `mb_fixture` |
 | `Settings`, `Pipe` suites | GoogleTest | `tests/settings_tests.cpp` | Parser defaults, clamping, BOM, `with_enabled`, protocol replies. | `parse_settings`, `with_enabled`, `handle_pipe_request` |
-| `TempDataEnvironment`, `Recorder`, `TimerSink`, `NullEvents` | test helpers | `tests/win32_tests.cpp` | A temporary data folder, and small sinks for messages, timers and drag events. | `win32` |
+| `TempDataEnvironment`, `Recorder`, `TimerSink`, `NullEvents` | test helpers | `tests/win32_tests.cpp` | A temporary data folder, and small sinks for messages, timers, and drag events. | `win32` |
 | `Win32Registry`, `Win32Handles`, `Win32Paths`, `HostSettingsFile`, `Win32FileLog`, `Win32System`, `Win32Timer`, `Win32EventSource`, `Win32MessageWindow`, `Win32TrayIcon`, `Win32SettingsWatcher`, `Win32Inventory`, `Win32Mover`, `Win32Pipe` suites | GoogleTest | `tests/win32_tests.cpp` | The real adapters against the real OS: handles, paths, atomic settings write, log truncation, timers, hooks, notification area icon, watcher, pipe. | `win32`, `host/settings.cpp` |
 
 ## Follow one drag through the code
@@ -122,7 +122,7 @@ This section traces a right-edge resize of window A with window B glued on its r
 5. **Plan and apply.** `on_location_change` arms the `Settle` timer, then either calls `apply_frame` or, if the last apply was under 8 ms ago, stores the frame and arms `Flush`. `apply_frame` calls `plan_for`, which calls `propagate` for each seam and merges moves per window. `apply` calls `Win32Mover::apply`.
 6. **DeferWindowPos.** `Win32Mover::apply` adds the registry offsets to each frame, skips hung or banned windows, and calls `apply_deferred`: `BeginDeferWindowPos`, one `DeferWindowPos` per target, `EndDeferWindowPos`. If that fails, it falls back to `SetWindowPos` per window and bans windows that fail. It reads the applied frames back with `visual_frame`. Back in `apply`, `learn_minimums` raises minimums for windows that came out larger than requested.
 7. **Trailing work.** `Win32Timer::on_timer` calls `DragController::on_timer`. `Flush` runs `on_flush` and applies the last pending frame. `Settle` runs `on_settle`, which calls `find_mismatches` and reapplies if a member did not take its frame.
-8. **End.** `handle` removes the location hook and calls `DragController::on_move_size_end`. It cancels timers, reads the final frame and calls `final_moves`. If a neighbor hit its minimum, the dragged window is snapped back in the same batch. It then calls `apply`, sets `verify_pending_` and arms `Verify` (60 ms).
+8. **End.** `handle` removes the location hook and calls `DragController::on_move_size_end`. It cancels timers, reads the final frame and calls `final_moves`. If a neighbor hit its minimum, the dragged window is snapped back in the same batch. It then calls `apply`, sets `verify_pending_`, and arms `Verify` (60 ms).
 9. **Verify.** `Win32Timer::on_timer` calls `on_timer`, which calls `on_verify`. It runs `find_mismatches` and checks the dragged window against `final_frame_`. If anything differs, it calls `final_moves` and `apply` once more, logs `fixed`, and clears the seams.
 
 ## Settings and pipe
@@ -143,7 +143,7 @@ This section traces a right-edge resize of window A with window B glued on its r
 4. `handle_pipe` performs the returned `PipeAction`: `reload_settings(false)` for `Reload`, `PostQuitMessage` for `Quit`, nothing for `None`. It then returns the reply line, and `on_message` wakes the pipe thread through the condition variable.
 5. A second instance uses `pipe_request` in `main.cpp` to send `status` before it shows its "already running" message.
 
-**Notification area menu and the Enabled switch.** `on_tray` opens the flyout on a left click (`launch_settings_app(L"--flyout")`) and calls `show_menu` otherwise. `show_menu` builds the menu: a grayed header, a checkable **Enabled** item (`kMenuEnabled`, checked when `settings_.enabled` is true), **Settings**, a separator and **Exit**. Choosing Enabled calls `toggle_enabled`. It reads the file with `read_settings_file`, flips the key with `with_enabled`, and writes it back with `write_settings_file`. The settings watcher then reloads it like any other edit, so the tray, the flyout and the settings window all flip the same saved `enabled` key. The tooltip adds "disabled" when it is off. There is no pause.
+**Notification area menu and the Enabled switch.** `on_tray` opens the flyout on a left click (`launch_settings_app(L"--flyout")`) and calls `show_menu` otherwise. `show_menu` builds the menu: a grayed header, a checkable **Enabled** item (`kMenuEnabled`, checked when `settings_.enabled` is true), **Settings**, a separator, and **Exit**. Choosing Enabled calls `toggle_enabled`. It reads the file with `read_settings_file`, flips the key with `with_enabled`, and writes it back with `write_settings_file`. The settings watcher then reloads it like any other edit, so the tray, the flyout, and the settings window all flip the same saved `enabled` key. The tooltip adds "disabled" when it is off. There is no pause.
 
 ## Diagram
 
@@ -178,14 +178,14 @@ flowchart TD
     DC --> CORE["core: build_seam, propagate"]
 ```
 
-Solid arrows from `EngineApp` mean it owns the object and destroys it in reverse order. Dotted arrows are borrowed references. `run` itself owns the window, notification area icon, event source, watcher and pipe server as locals, so they are destroyed before the adapters.
+Solid arrows from `EngineApp` mean it owns the object and destroys it in reverse order. Dotted arrows are borrowed references. `run` itself owns the window, notification area icon, event source, watcher, and pipe server as locals, so they are destroyed before the adapters.
 
 ## Where to change things
 
 | Task | Files |
 |---|---|
 | Change how touching windows are found or clamped | `core/seam.cpp`, then add a `tests/fixtures/*.layout` case and `tests/core_tests.cpp` |
-| Change drag timing, throttle, settle or verify | `app/drag_controller.cpp` (`kThrottleMs`, `kSettleMs`, `kVerifyMs`), `tests/controller_tests.cpp` |
+| Change drag timing, throttle, settle, or verify | `app/drag_controller.cpp` (`kThrottleMs`, `kSettleMs`, `kVerifyMs`), `tests/controller_tests.cpp` |
 | Add a port or change one | `app/ports.hpp`, its adapter in `win32/`, the fakes in `tests/controller_tests.cpp` |
 | Change which windows are eligible | `win32/win32_inventory.cpp` (`eligible`) |
 | Change how windows are moved | `win32/win32_mover.cpp` |
@@ -196,7 +196,7 @@ Solid arrows from `EngineApp` mean it owns the object and destroys it in reverse
 | Change command-line flags or single-instance logic | `host/main.cpp` |
 | Change the fixture file format | `fixture-runner/fixture.cpp`, `docs/spec/fixtures.md` |
 | Change a Win32 adapter | its file in `win32/`, then its suite in `tests/win32_tests.cpp` |
-| Change version, manifest or resources | `CMakeLists.txt`, `host/version.hpp.in`, `host/app.rc.in`, `host/app.manifest` |
+| Change version, manifest, or resources | `CMakeLists.txt`, `host/version.hpp.in`, `host/app.rc.in`, `host/app.manifest` |
 
 ## Tests and quality
 

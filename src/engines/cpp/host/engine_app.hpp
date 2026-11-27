@@ -15,7 +15,7 @@ struct EngineOptions {
     bool verbose{false};
 };
 
-/// Composition root for the running engine: wires adapters, controller, tray, watcher and pipe, runs the message loop
+/// Composition root for the running engine: wires adapters, controller, tray, watcher, and pipe, runs the message loop
 /// and returns the exit code (2 after a fatal exception). Everything touching engine state runs on the calling (UI)
 /// thread; called from main().
 int run_engine(const EngineOptions& options);

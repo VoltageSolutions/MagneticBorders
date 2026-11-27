@@ -1,4 +1,4 @@
-// Shared Win32 helpers: HWND/WindowId conversion, visual_frame, RAII handles and the WindowRegistry.
+// Shared Win32 helpers: HWND/WindowId conversion, visual_frame, RAII handles, and the WindowRegistry.
 #pragma once
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -104,7 +104,7 @@ struct FrameOffsets {
     int l{}, t{}, r{}, b{};
 };
 
-/// Per-session state shared by Win32Inventory and Win32Mover: excluded executables, frame offsets and banned windows.
+/// Per-session state shared by Win32Inventory and Win32Mover: excluded executables, frame offsets, and banned windows.
 /// UI thread only.
 class WindowRegistry {
 public:

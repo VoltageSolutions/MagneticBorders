@@ -17,7 +17,7 @@ Move a window slowly toward another window or the edge of the screen. When its e
 
 ## Limits
 
-- There is no key to skip snapping, because Shift, Ctrl, Alt and Win belong to FancyZones, Windows and Grab And Move. Move faster instead.
+- There is no key to skip snapping, because Shift, Ctrl, Alt, and Win belong to FancyZones, Windows, and Grab And Move. Move faster instead.
 - Only the edges you can see attract. A window hidden behind others doesn't pull yours.
 - A window only snaps to windows on the same monitor, and the border between two monitors is not an edge.
 - While a window is held, your pointer is held with it. This keeps the window steady.

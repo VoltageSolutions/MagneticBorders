@@ -45,7 +45,7 @@ struct Moving {
     t0: u64,
 }
 
-/// An active glued resize: the seams, throttle bookkeeping and the frames last requested per member.
+/// An active glued resize: the seams, throttle bookkeeping, and the frames last requested per member.
 struct Resize {
     id: u64,
     seams: Vec<Seam>,
@@ -66,7 +66,7 @@ struct Verify {
     t0: u64,
 }
 
-/// Controller state; `Ignoring` covers ineligible windows, drags with nothing to do and resizes with no seam.
+/// Controller state; `Ignoring` covers ineligible windows, drags with nothing to do, and resizes with no seam.
 enum State {
     Idle,
     Classifying(Drag),

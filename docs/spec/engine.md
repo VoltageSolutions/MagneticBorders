@@ -11,7 +11,7 @@ Each build is a background Windows app with a notification area icon, a context 
 | ENG-003 | `--verbose` must enable verbose logging. |
 | ENG-004 | The engine must always write the log file, with or without `--console`. |
 | ENG-005 | At startup the engine must check `SPI_GETDRAGFULLWINDOWS` and log a warning if it is off. |
-| ENG-006 | The engine must log its build name, version and pid at startup. |
+| ENG-006 | The engine must log its build name, version, and pid at startup. |
 | ENG-007 | An unhandled startup error must show a message box titled `Magnetic Borders - fatal error`. |
 
 ## Single instance
@@ -53,7 +53,7 @@ Each build is a background Windows app with a notification area icon, a context 
 
 | ID | Rule |
 |---|---|
-| ENG-050 | The log file must be `%LOCALAPPDATA%\MagneticBorders\logs\<engine>.log`, where `<engine>` is `cpp`, `rust` or `dotnet`. |
+| ENG-050 | The log file must be `%LOCALAPPDATA%\MagneticBorders\logs\<engine>.log`, where `<engine>` is `cpp`, `rust`, or `dotnet`. |
 | ENG-051 | The engine must truncate the log file at startup if it is larger than 1 MB. |
 | ENG-052 | The engine must count `drags` (resize drags seen) and `glued_drags` (drags that built a seam). |
 | ENG-053 | The version must come from one source per build system (see [CONTRIBUTING.md](https://github.com/VoltageSolutions/MagneticBorders/blob/main/CONTRIBUTING.md#versioning)). |

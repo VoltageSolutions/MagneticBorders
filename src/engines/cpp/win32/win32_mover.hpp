@@ -15,7 +15,7 @@ public:
     /// or null for none (the normal case).
     explicit Win32Mover(WindowRegistry& registry, Log* diagnostics = nullptr)
         : registry_(registry), diagnostics_(diagnostics) {}
-    /// Applies the moves and returns the visual frames read back; skips hung, banned or never-inventoried windows.
+    /// Applies the moves and returns the visual frames read back; skips hung, banned, or never-inventoried windows.
     std::vector<Move> apply(std::span<const Move> moves) override;
 
 private:

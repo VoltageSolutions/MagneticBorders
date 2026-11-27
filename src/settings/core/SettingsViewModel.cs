@@ -81,7 +81,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     public bool EngineRunning => Status is not null;
     /// <summary>
     /// True when the master switch is on. The coupling and attraction controls bind their IsEnabled to this, so
-    /// everything but start at login, excluded apps and the flyout background greys out when Enabled is off.
+    /// everything but start at login, excluded apps, and the flyout background greys out when Enabled is off.
     /// </summary>
     public bool FeaturesEnabled => Enabled;
     /// <summary>True when the coupling detection zone slider is usable: Enabled and GlueEnabled.</summary>

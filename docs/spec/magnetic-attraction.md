@@ -64,7 +64,7 @@ All distances are in effective pixels and are scaled by the DPI of the dragged w
 | ID | Rule |
 |---|---|
 | SNAP-050 | Without the mouse hook, on `EVENT_SYSTEM_MOVESIZEEND`, if any edge is held and the window's current frame equals the last free position, the held position must be applied once. |
-| SNAP-051 | If the window's size changed by the end of the drag (Windows Snap, FancyZones or another tool placed it), Magnetic attraction must not move it. |
+| SNAP-051 | If the window's size changed by the end of the drag (Windows Snap, FancyZones, or another tool placed it), Magnetic attraction must not move it. |
 | SNAP-052 | After the drag ends nothing more may be applied. Unlike Magnetic coupling there is no Verify pass, so a tool that places the window after the drop always wins. |
 
 ## Holding the cursor

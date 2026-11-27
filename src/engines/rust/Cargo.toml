@@ -23,7 +23,7 @@ missing_docs = "warn"
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
-# Win32 interop converts between i32/u32/usize/u64 handles, coordinates and sizes constantly; the values are
+# Win32 interop converts between i32/u32/usize/u64 handles, coordinates, and sizes constantly; the values are
 # bounded by the OS, so these casts are intentional.
 cast_possible_truncation = "allow"
 cast_possible_wrap = "allow"

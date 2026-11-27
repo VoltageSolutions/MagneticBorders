@@ -18,7 +18,7 @@ struct NamedWin {
     WinInfo info;
 };
 
-/// One parsed `.layout` case: layout, drag and expectations.
+/// One parsed `.layout` case: layout, drag, and expectations.
 struct Fixture {
     /// Glue tolerance in pixels.
     int tolerance{12};

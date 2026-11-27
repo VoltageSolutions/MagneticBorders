@@ -125,7 +125,7 @@ pub struct Span {
 pub struct TargetWindow {
     /// Visual frame.
     pub frame: Rect,
-    /// Visible spans of the left, top, right and bottom edges, in `Edge` order.
+    /// Visible spans of the left, top, right, and bottom edges, in `Edge` order.
     pub visible: [Vec<Span>; 4],
 }
 

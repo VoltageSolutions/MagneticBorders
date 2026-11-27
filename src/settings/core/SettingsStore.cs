@@ -72,7 +72,7 @@ public sealed class SettingsStore : ISettingsStore
         }
     }
 
-    /// <summary>Returns the parsed root object, or null when the file is missing, empty or not a JSON object.</summary>
+    /// <summary>Returns the parsed root object, or null when the file is missing, empty, or not a JSON object.</summary>
     private JsonObject? ReadRoot()
     {
         try

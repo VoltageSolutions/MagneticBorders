@@ -57,7 +57,7 @@ jobs:
           cache: true
           cache-dependency-path: '**/packages.lock.json'
 
-      # rust-toolchain.toml pins the compiler, components and both Windows targets.
+      # rust-toolchain.toml pins the compiler, components, and both Windows targets.
       - name: Install Rust toolchain
         if: matrix.target == 'rust'
         working-directory: src/engines/rust

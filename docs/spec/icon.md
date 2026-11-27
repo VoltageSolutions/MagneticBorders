@@ -10,7 +10,7 @@ The magnet stands for edges that stick together. The two sparks, one vertical an
 |---|---|
 | ICON-001 | `src/common/assets/icon.svg` must be the full icon for 40 to 256 px, on a transparent background, with `viewBox="49 24.5 176 176"`. |
 | ICON-002 | `src/common/assets/icon-small.svg` must be the magnet alone for 16 to 32 px, on a transparent background, with `viewBox="63.75 26.25 160 160"`. |
-| ICON-003 | `icon.ico` must contain 16, 20, 24 and 32 px frames exported from `icon-small.svg`, and 40, 48, 64 and 256 px frames exported from `icon.svg`. |
+| ICON-003 | `icon.ico` must contain 16, 20, 24, and 32 px frames exported from `icon-small.svg`, and 40, 48, 64, and 256 px frames exported from `icon.svg`. |
 | ICON-004 | The engines must embed `icon.ico` as their exe icon and their notification area icon. The settings app must use it as its app icon. |
 | ICON-005 | Nobody may edit a copy of the icon. Changes go to the SVG sources, then the `.ico` is regenerated. |
 
@@ -45,7 +45,7 @@ The magnet stands for edges that stick together. The two sparks, one vertical an
 
 | ID | Rule |
 |---|---|
-| ICON-040 | The icon must not have shine or reflection lines, outlines, drop shadows or text. |
+| ICON-040 | The icon must not have shine or reflection lines, outlines, drop shadows, or text. |
 
 ## Small sizes
 

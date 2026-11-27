@@ -1,7 +1,7 @@
 #Requires -Version 7
 <#
 .SYNOPSIS
-  Installs or checks every tool needed to build, lint, test and measure coverage for Magnetic Borders.
+  Installs or checks every tool needed to build, lint, test, and measure coverage for Magnetic Borders.
   Safe to re-run. Visual Studio changes need an elevated prompt and Visual Studio closed.
 
 .EXAMPLE

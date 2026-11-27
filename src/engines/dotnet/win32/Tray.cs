@@ -42,7 +42,7 @@ public sealed unsafe class TrayHost(string tooltip, string header, ILog log, Fun
     private uint _taskbarCreated;
     private ulong _lastClick;
 
-    /// <summary>Registers the window class, creates the hidden window, loads the icon and adds the tray icon. UI thread only.</summary>
+    /// <summary>Registers the window class, creates the hidden window, loads the icon, and adds the tray icon. UI thread only.</summary>
     public void Create()
     {
         s_slot = this;
@@ -193,7 +193,7 @@ public sealed unsafe class TrayHost(string tooltip, string header, ILog log, Fun
         }
     }
 
-    /// <summary>Instance window procedure: tray callbacks, posted actions (WM_RUN), timers and TaskbarCreated.</summary>
+    /// <summary>Instance window procedure: tray callbacks, posted actions (WM_RUN), timers, and TaskbarCreated.</summary>
     private LRESULT Handle(HWND h, uint msg, WPARAM w, LPARAM l)
     {
         if (msg == WM_TRAY) { OnTray((uint)(l.Value & 0xFFFF)); return (LRESULT)0; }

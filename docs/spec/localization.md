@@ -10,7 +10,7 @@ Every user-facing string belongs in a resource file so it can be translated. The
 | L10N-002 | The settings app must keep strings in `Strings/en-US/Resources.resw`, use `x:Uid` in XAML and `ResourceLoader` in code. |
 | L10N-003 | The C++ and Rust engines must share one Win32 `STRINGTABLE` resource file, loaded with `LoadStringW`. |
 | L10N-004 | The C# engine must use the same table if Native AOT can embed Win32 resources, and a `.resx` file otherwise. |
-| L10N-005 | The engines' strings are the notification area icon tooltip, the menu items and the message boxes. None of them may name the build (C++, Rust or C#). |
+| L10N-005 | The engines' strings are the notification area icon tooltip, the menu items, and the message boxes. None of them may name the build (C++, Rust, or C#). |
 | L10N-006 | Log lines and pipe protocol text are not user-facing and must stay in English. |
 | L10N-007 | The pipe commands and the keys in `settings.json` must never be translated. |
 

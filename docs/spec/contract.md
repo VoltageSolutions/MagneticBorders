@@ -69,7 +69,7 @@ The three engines and the settings app share two interfaces: the file `settings.
 |---|---|
 | CFG-030 | Each engine must watch the data directory for changes on a background thread that only posts a message to the UI thread. |
 | CFG-031 | Changes must be debounced by 100 ms before the file is re-read. |
-| CFG-032 | `enabled`, `glue.enabled`, `glue.tolerance_px` and `excluded_apps` must apply on the next drag without a restart. |
+| CFG-032 | `enabled`, `glue.enabled`, `glue.tolerance_px`, and `excluded_apps` must apply on the next drag without a restart. |
 | CFG-033 | Magnetic coupling must act only when `enabled` and `glue.enabled` are both true. |
 | CFG-034 | `start_at_login` must be owned by the running engine (see ENG-060). |
 
@@ -89,7 +89,7 @@ The engine is the server and the settings app is the client. The pipe name is `\
 
 | ID | Request | Response and effect |
 |---|---|---|
-| PIPE-010 | `{"cmd":"status"}` | `{"ok":true,"engine":"cpp","version":"0.2.0","pid":1234,"enabled":true,"glue":{"enabled":true,"tolerance_px":12},"drags":17,"glued_drags":9,"uptime_s":360}`. `engine` is `cpp`, `rust` or `dotnet`. |
+| PIPE-010 | `{"cmd":"status"}` | `{"ok":true,"engine":"cpp","version":"0.2.0","pid":1234,"enabled":true,"glue":{"enabled":true,"tolerance_px":12},"drags":17,"glued_drags":9,"uptime_s":360}`. `engine` is `cpp`, `rust`, or `dotnet`. |
 | PIPE-011 | Retired | There is no pause command. |
 | PIPE-012 | Retired | There is no resume command. |
 | PIPE-013 | `{"cmd":"reload"}` | `{"ok":true}`. The engine re-reads `settings.json` now. |

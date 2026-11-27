@@ -45,7 +45,7 @@ Every build is the same design in a different language. Each one is split into f
 | Common | `src/common/assets/` | Icon sources and brand art. |
 | Fixtures | `tests/fixtures/` | Shared `.layout` test cases every build must pass. |
 | Docs | `docs/` | This site and the specs. |
-| Tools | `tools/` | `tools/ci/run.ps1`, the one build entry point, the local build watcher and `tools/setup-dev.ps1`. |
+| Tools | `tools/` | `tools/ci/run.ps1`, the one build entry point, the local build watcher, and `tools/setup-dev.ps1`. |
 
 ### The four layers
 

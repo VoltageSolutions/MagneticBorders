@@ -1,4 +1,4 @@
-//! Domain layer (`mb-core`): pure geometry, the seam algorithm and magnetic attraction. No OS types, no I/O, no
+//! Domain layer (`mb-core`): pure geometry, the seam algorithm, and magnetic attraction. No OS types, no I/O, no
 //! global state; every function is deterministic, so the fixture runner and the unit tests drive it directly.
 //! Depends on nothing; `mb-app` and `mb-fixtures` depend on it.
 mod attraction;

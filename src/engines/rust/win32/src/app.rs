@@ -1,4 +1,4 @@
-//! Tray icon, hidden message window, settings-file watcher and named-pipe server.
+//! Tray icon, hidden message window, settings-file watcher, and named-pipe server.
 //! The watcher and pipe threads only post messages to the hidden window; `AppHandler` runs on the UI thread.
 use crate::Win32Error;
 use std::cell::RefCell;

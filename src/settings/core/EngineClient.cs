@@ -21,14 +21,14 @@ public sealed class PipeEngineClient : IEngineClient
     private readonly string _pipe;
     private readonly int _timeoutMs;
 
-    /// <summary>Creates a client; timeoutMs covers connect, write and read together.</summary>
+    /// <summary>Creates a client; timeoutMs covers connect, write, and read together.</summary>
     public PipeEngineClient(string pipeName = PipeName, int timeoutMs = 1000)
     {
         _pipe = pipeName;
         _timeoutMs = timeoutMs;
     }
 
-    /// <summary>Connects, writes {"cmd":...}, reads one line and parses it. A missing engine, timeout or I/O error yields PipeResponse.Failure("engine not reachable").</summary>
+    /// <summary>Connects, writes {"cmd":...}, reads one line and parses it. A missing engine, timeout, or I/O error yields PipeResponse.Failure("engine not reachable").</summary>
     public async Task<PipeResponse> SendAsync(string cmd, CancellationToken ct = default)
     {
         try

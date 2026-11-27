@@ -1,6 +1,6 @@
 namespace MagneticBorders.Core;
 
-/// <summary>Which side of a window rectangle is meant: Left, Top, Right or Bottom. Used by the seam builder to say which edge of the dragged window is being resized.</summary>
+/// <summary>Which side of a window rectangle is meant: Left, Top, Right, or Bottom. Used by the seam builder to say which edge of the dragged window is being resized.</summary>
 public enum Edge { Left, Top, Right, Bottom }
 
 /// <summary>Physical pixels; R and B exclusive.</summary>
