@@ -6,7 +6,7 @@
     <Platforms>x64;ARM64</Platforms>
     <Platform Condition="'$(Platform)' == ''">x64</Platform>
     <PlatformTarget>$(Platform)</PlatformTarget>
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>VOLTAGE</Company>
     <Product>Magnetic Borders</Product>
