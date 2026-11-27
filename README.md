@@ -31,9 +31,13 @@ The current app version does not come with an installation wizard. Download the 
 
 ## Roadmap
 
-- Drag-to-edge tiling, aka snap, such as how it works natively in macOS.
-- Provide an installation wizard.
-- Guidance around whether or not to run at Administrator level.
+- Magnetic attraction (a moving window snaps to nearby edges, as on macOS) ships in the C++ build. The C# and Rust builds are catching up.
+- Running as administrator: resize windows of elevated apps (uiAccess, which needs a signed build installed under Program Files).
+- Packaging: MSIX installer, Microsoft Store listing, and a winget package.
+- Updates: automatic updates through MSIX/Store, and an update check against GitHub Releases for the zip build.
+- Clean uninstall: remove the start-at-login Run key and the %LOCALAPPDATA%\MagneticBorders folder.
+- Trust in release files: code signing, GitHub artifact attestations, and an SBOM for each release.
+- Support tools: an About page, a "Copy diagnostics" button that bundles logs for bug reports, and issue templates.
 
 It's my long-term hope that this application would be considered for addition to Microsoft's PowerToys.
 
