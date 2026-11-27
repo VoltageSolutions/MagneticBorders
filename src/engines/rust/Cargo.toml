@@ -4,7 +4,7 @@ members = ["core", "app", "win32", "host", "fixture-runner"]
 
 [workspace.package]
 edition = "2021"
-version = "0.2.0"
+version = "0.3.0"
 
 # Exact versions: with the committed Cargo.lock and `--locked`, every build resolves the same crates.
 [workspace.dependencies]
