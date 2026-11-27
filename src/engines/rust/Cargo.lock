@@ -86,7 +86,7 @@ checksum = "65cd87c9a6d60536580b316ad985726104730a5151c99845f2490428ef91240a"
 
 [[package]]
 name = "mb-app"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "mb-core",
  "serde",
@@ -95,11 +95,11 @@ dependencies = [
 
 [[package]]
 name = "mb-core"
-version = "0.2.0"
+version = "0.3.0"
 
 [[package]]
 name = "mb-fixtures"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "mb-core",
  "thiserror",
@@ -107,7 +107,7 @@ dependencies = [
 
 [[package]]
 name = "mb-host"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "embed-resource",
@@ -120,7 +120,7 @@ dependencies = [
 
 [[package]]
 name = "mb-win32"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "mb-app",
  "mb-core",
