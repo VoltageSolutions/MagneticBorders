@@ -3,15 +3,16 @@ name: CodeQL
 # Pull requests, a monthly scan, and the CodeQL and Coverage workflow (codeql-and-coverage.yml), which calls this
 # workflow on every push to main so pull requests are compared against a current baseline.
 on:
-  workflow_call:
-  pull_request:
-    branches: [main, 'release/**']
-  schedule:
-    - cron: '23 4 1 * *'   # monthly, 1st of the month
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'zensical.toml'
+      - '**/*.md'
   workflow_dispatch:
 
 concurrency:
-  group: codeql-${{ github.event.pull_request.number || github.ref }}
+  group: codeql-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
