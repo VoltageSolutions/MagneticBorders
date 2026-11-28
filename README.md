@@ -10,8 +10,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/VoltageSolutions/MagneticBorders/actions/workflows/ci.yml" title="CI"><img alt="CI" src="https://github.com/VoltageSolutions/MagneticBorders/actions/workflows/ci.yml/badge.svg?branch=main"></a>
-  &nbsp;
   <a href="https://VoltageSolutions.github.io/MagneticBorders" title="Docs"><img alt="Docs" src="https://github.com/VoltageSolutions/MagneticBorders/actions/workflows/docs-cd.yml/badge.svg?branch=main"></a>
   &nbsp;
   <a href="https://github.com/VoltageSolutions/MagneticBorders/releases"><img alt="Current Release" src="https://img.shields.io/github/release/VoltageSolutions/MagneticBorders.svg"></a>
@@ -19,11 +17,19 @@
 
 ## Introduction
 
-Windows Snap resizes snapped windows together when you drag the line between them, but only for its built-in layouts. [FancyZones](https://learn.microsoft.com/en-us/windows/powertoys/fancyzones), included in [Microsoft PowerToys](https://github.com/microsoft/PowerToys), lets you create custom window tile layouts, but each window then resizes on its own. Magnetic Borders adds the missing piece: any windows whose edges touch resize together while you drag one of them. I call this Magnetic coupling.
+Windows Snap resizes snapped windows together when you drag the line between them, but only for its built-in layouts. [FancyZones](https://learn.microsoft.com/en-us/windows/powertoys/fancyzones), included in [Microsoft PowerToys](https://github.com/microsoft/PowerToys), lets you create custom window tile layouts, but each window then resizes on its own. **Magnetic Borders** adds the missing piece: any windows whose edges touch resize together while you drag one of them.
 
 - It works with windows you placed by hand, with Windows Snap, and with FancyZones layouts, including the gaps between zones.
-- It never takes over window management and never reads modifier keys, so FancyZones (Shift and Ctrl) and Grab And Move (Alt or Win) keep working exactly as before.
+- It never takes over window management and never reads modifier keys, so FancyZones and Grab And Move keep working exactly as before.
 - It runs in the background with a tray icon. Left-click the icon for a quick flyout, or open the full settings window.
+
+It's my long-term hope that this application would be considered for addition to Microsoft's PowerToys.
+
+## Key features
+
+**Magnetic coupling** resizes neighboring windows that share a border with the window you are resizing.
+
+**Magnetic attraction** snaps a window you are moving to a nearby window border, or the edge of your monitor. This mimics the app edge detection of macOS.
 
 ## Installation
 
@@ -31,27 +37,32 @@ The current app version does not come with an installation wizard. Download the 
 
 ## Roadmap
 
-- Magnetic attraction (a moving window snaps to nearby edges, as on macOS) ships in the C++ build. The C# and Rust builds are catching up.
+- Improved error handling, such as for invalid settings files.
+- Use benchmarking to select an implementation to stick with, C++ or Rust.
 - Running as administrator: resize windows of elevated apps (uiAccess, which needs a signed build installed under Program Files).
-- Packaging: MSIX installer, Microsoft Store listing, and a winget package.
+- Packaging: MSIX installer, Microsoft Store listing, and a winget package. Clean uninstall.
 - Updates: automatic updates through MSIX/Store, and an update check against GitHub Releases for the zip build.
-- Clean uninstall: remove the start-at-login Run key and the %LOCALAPPDATA%\MagneticBorders folder.
-- Trust in release files: code signing, GitHub artifact attestations, and an SBOM for each release.
 - Support tools: an About page, a "Copy diagnostics" button that bundles logs for bug reports, and issue templates.
+- Privacy policy (Magnetic Borders does not collect your data)
+- Accessibility checks in CI pipeline
+- Localization
 
-It's my long-term hope that this application would be considered for addition to Microsoft's PowerToys.
+### Bugs
+
+- Sometimes, a window can become trapped between two others, and is unable to breakaway.
+- Performance differences on some older machines leads to magnetic attraction (snapping windows together) over or under-shooting.
+- Performance differences on some older machines causes the flyout to render its border incorrectly.
+- Rust implementation tray tooltip never shows.
 
 ## Status
 
-Magnetic Borders should be small, performant, and blend into your workflow. At this stage in development, I wasn't sure what technology would best meet this goal, so I've used AI-accelerated workflows to pursue multiple at the same time.
-
-You can run Magnetic Borders based build from C++, C#, or Rust.
-
-All three implementations build and deploy releases. I will leverage feedback and performance testing to determine which implementation to go with long-term.
+Magnetic Borders should be small, performant, and blend into your workflow. On Windows, the prime candidates for low CPU usage and least likely to disrupt operations are C++ and Rust. For that reason, I am implementing both simultaneously to compare and contrast how they work.
 
 ## Contributing and support
 
-Ideas, bugs, and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). The [docs site](https://VoltageSolutions.github.io/MagneticBorders) explains how the app works. If you like it, you can support me on [Ko-fi](https://ko-fi.com/voltagesolutions).
+Ideas, bugs, and pull requests are welcome. Start with [the contributing guide](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). The [docs site](https://VoltageSolutions.github.io/MagneticBorders) explains how the app works. 
+
+If this app helps, you, please consider supporting me on [Ko-fi](https://ko-fi.com/voltagesolutions).
 
 ## Quick start
 
