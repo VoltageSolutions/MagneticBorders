@@ -369,19 +369,35 @@ std::optional<Rect> DragController::held_position() {
 }
 
 void DragController::finish_pointer_move(WindowId id) {
-    const auto held = held_position();
+    const Attraction* a = active_attraction();
+    const bool held_x = a != nullptr && a->held_x();
+    const bool held_y = a != nullptr && a->held_y();
+    const std::optional<Rect> held = held_position();
     stop_pointer();
     const auto frame = inventory_.frame_of(id);
-    // SNAP-075: Windows put the window where the cursor is. When that is off the held position and nothing else
-    // changed its size, the held position is applied once.
+    // SNAP-075: only the held axes are corrected. Each takes the held position and the other keeps where Windows
+    // put the window, so the target is the window's frame with the held axes replaced.
+    std::optional<Rect> target;
+    if (held && frame) {
+        Rect t = *frame;
+        if (held_x) {
+            t.l = held->l;
+            t.r = held->l + frame->width();
+        }
+        if (held_y) {
+            t.t = held->t;
+            t.b = held->t + frame->height();
+        }
+        target = t;
+    }
     const bool same_size =
         frame && frame->width() == start_frame_.width() && frame->height() == start_frame_.height();
     const char* action = "none";
-    if (held && frame && *frame != *held) action = same_size ? "applied" : "skipped-size";
-    if (opts_.verbose) log_.debug(drag_diag::move_correction_line(id, frame, held, action));
+    if (target && *frame != *target) action = same_size ? "applied" : "skipped-size";
+    if (opts_.verbose) log_.debug(drag_diag::move_correction_line(id, frame, target, action));
     const bool applied = std::string_view(action) == "applied";
     if (applied) {
-        const std::vector<Move> moves{{id, *held}};
+        const std::vector<Move> moves{{id, *target}};
         mover_.apply(moves);
     }
     say("move end id=" + std::to_string(id) + " snaps=" + std::to_string(drag_snaps_) + " pointer" +

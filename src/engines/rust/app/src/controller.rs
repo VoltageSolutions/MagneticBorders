@@ -437,9 +437,11 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragControl
     /// Ends a move drag (SNAP-050 to SNAP-052, SNAP-075).
     fn finish_move(&mut self, m: &mut Moving) {
         let id = m.id;
+        let mut held_axes = (false, false);
         let held = match &mut m.mode {
             Mode::Pointer(p) => {
                 let a = p.attraction();
+                held_axes = (a.held_x(), a.held_y());
                 a.held().then(|| a.current())
             }
             Mode::Frame(a) => a.held().then(|| a.current()),
@@ -450,11 +452,26 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragControl
                 if let Some(hook) = self.hook.as_mut() {
                     hook.stop();
                 }
-                // SNAP-075: Windows put the window where the cursor is. When that is off the held position and
-                // nothing else changed its size, the held position is applied once.
+                // SNAP-075: only the held axes are corrected. Each takes the held position and the other keeps where
+                // Windows put the window, so the target is the window's frame with the held axes replaced.
                 let frame = self.inventory.frame_of(id);
-                let action = match (held, frame) {
-                    (Some(h), Some(f)) if f != h => {
+                let target = match (held, frame) {
+                    (Some(h), Some(f)) => {
+                        let mut t = f;
+                        if held_axes.0 {
+                            t.l = h.l;
+                            t.r = h.l + f.width();
+                        }
+                        if held_axes.1 {
+                            t.t = h.t;
+                            t.b = h.t + f.height();
+                        }
+                        Some(t)
+                    }
+                    _ => None,
+                };
+                let action = match (target, frame) {
+                    (Some(t), Some(f)) if f != t => {
                         if f.width() == m.start.width() && f.height() == m.start.height() {
                             "applied"
                         } else {
@@ -463,9 +480,9 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragControl
                     }
                     _ => "none",
                 };
-                self.log.debug(&move_correction_line(id, frame, held, action));
-                if let Some(h) = held.filter(|_| action == "applied") {
-                    self.mover.apply(&[(id, h)]);
+                self.log.debug(&move_correction_line(id, frame, target, action));
+                if let Some(t) = target.filter(|_| action == "applied") {
+                    self.mover.apply(&[(id, t)]);
                     applied = true;
                 }
             }
@@ -1537,8 +1554,32 @@ mod tests {
         r.pointer(395, 260);
         r.set(1, Rect::new(304, 247, 504, 447));
         r.c.on_move_size_end(1);
-        assert_eq!(*r.batches.borrow(), vec![vec![(1, HELD)]]);
+        assert_eq!(*r.batches.borrow(), vec![vec![(1, Rect::new(300, 247, 500, 447))]]); // x held, y kept
         assert!(r.logged("move end id=1 snaps=1 pointer applied"));
+    }
+
+    #[test]
+    fn the_end_leaves_a_free_axis_alone_when_the_held_axis_is_right() {
+        // SNAP-075
+        let mut r = move_rig(true);
+        begin(&mut r);
+        r.pointer(395, 260);
+        r.set(1, Rect::new(300, 247, 500, 447));
+        r.c.on_move_size_end(1);
+        assert!(r.batches.borrow().is_empty());
+        assert!(r.logged("frame=300,247,500,447 held=300,247,500,447 action=none"));
+        assert!(!r.logged("pointer applied"));
+    }
+
+    #[test]
+    fn the_end_corrects_both_held_axes_to_the_held_position() {
+        // SNAP-075
+        let mut r = move_rig(true);
+        begin(&mut r);
+        r.pointer(395, 215); // the top edge is held on window 2's top at 200
+        r.set(1, Rect::new(304, 204, 504, 404));
+        r.c.on_move_size_end(1);
+        assert_eq!(*r.batches.borrow(), vec![vec![(1, Rect::new(300, 200, 500, 400))]]);
     }
 
     #[test]

@@ -47,7 +47,7 @@ pub fn pointer_calibrate_line(x_axis: bool, error: i32, cursor: Point, window: R
 }
 
 /// Line for the decision at the end of a pointer-mode move: the window's frame (`unavailable` when unreadable), the
-/// held position (`none` when no axis was held), and the action, `applied`, `none`, or `skipped-size`.
+/// target position (`none` when no axis was held), and the action, `applied`, `none`, or `skipped-size`.
 #[must_use]
 pub fn move_correction_line(id: u64, frame: Option<Rect>, held: Option<Rect>, action: &str) -> String {
     format!(

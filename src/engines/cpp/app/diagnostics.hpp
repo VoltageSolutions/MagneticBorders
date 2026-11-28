@@ -45,7 +45,7 @@ namespace mb::drag_diag {
 }
 
 /// Line for the decision at the end of a pointer-mode move: the window's frame (`unavailable` when unreadable), the
-/// held position (`none` when no axis was held), and the action, `applied`, `none`, or `skipped-size`.
+/// target position (`none` when no axis was held), and the action, `applied`, `none`, or `skipped-size`.
 [[nodiscard]] inline std::string move_correction_line(WindowId id, const std::optional<Rect>& frame,
                                                       const std::optional<Rect>& held,
                                                       std::string_view action) {

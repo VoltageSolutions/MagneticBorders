@@ -889,8 +889,17 @@ TEST_F(PointerFixture, TheEndPutsAWindowThatIsOffTheHeldPositionOnIt) {  // SNAP
     ASSERT_EQ(mover.batches.size(), 1u);
     ASSERT_EQ(mover.batches[0].size(), 1u);
     EXPECT_EQ(mover.batches[0][0].id, 1u);
-    EXPECT_EQ(mover.batches[0][0].frame, kHeld);
+    EXPECT_EQ(mover.batches[0][0].frame, (Rect{300, 247, 500, 447}));  // x held, y kept
     EXPECT_TRUE(log.contains("move end id=1 snaps=1 pointer applied"));
+}
+
+TEST_F(PointerFixture, TheEndCorrectsBothHeldAxesToTheHeldPosition) {  // SNAP-075
+    begin();
+    (void)pointer(395, 215);  // the top edge is held on window 2's top at 200
+    inv.frames[1] = {304, 204, 504, 404};
+    ctl.on_move_size_end(1);
+    ASSERT_EQ(mover.batches.size(), 1u);
+    EXPECT_EQ(mover.batches[0][0].frame, (Rect{300, 200, 500, 400}));
 }
 
 TEST_F(PointerFixture, TheEndLeavesAWindowWhoseSizeChanged) {  // SNAP-075
@@ -950,6 +959,20 @@ TEST_F(PointerFixture,
     EXPECT_TRUE(
         log.contains("diag: move correction id=1 frame=304,250,504,450 held=300,250,500,450 "
                      "action=applied"));
+}
+
+TEST_F(PointerFixture, TheEndLeavesAFreeAxisAloneWhenTheHeldAxisIsRight) {  // SNAP-075
+    VerboseController v(*this);
+    v.ctl.on_move_size_start(1);
+    clock.t += 100;
+    v.ctl.on_location_change(1);
+    clock.t += 100;
+    (void)v.ctl.on_pointer_move({395, 260});
+    inv.frames[1] = {300, 247, 500, 447};
+    v.ctl.on_move_size_end(1);
+    EXPECT_TRUE(mover.batches.empty());
+    EXPECT_TRUE(log.contains("frame=300,247,500,447 held=300,247,500,447 action=none"));
+    EXPECT_FALSE(log.contains("pointer applied"));
 }
 
 TEST_F(PointerFixture, VerboseWritesTheCalibrationLine) {  // ENG-091
