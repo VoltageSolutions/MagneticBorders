@@ -2,6 +2,7 @@
 //! model and the named-pipe protocol. No OS types; it is generic over its ports, so tests use fakes and
 //! `mb-win32` supplies the real adapters. Depends on `mb-core`.
 mod controller;
+pub mod diagnostics;
 mod live;
 mod pipe;
 mod ports;

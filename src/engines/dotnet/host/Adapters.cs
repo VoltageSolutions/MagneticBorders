@@ -48,11 +48,11 @@ internal sealed class EngineLog : ILog, IDisposable
     public void Debug(string msg) { if (_verbose) Write(msg); }
 }
 
-/// <summary>IClock backed by Environment.TickCount64.</summary>
+/// <summary>IClock backed by the high-resolution performance counter, like the steady clocks of the C++ and Rust builds.</summary>
 internal sealed class StopwatchClock : IClock
 {
-    /// <summary>Milliseconds from the tick counter.</summary>
-    public ulong NowMs() => (ulong)Environment.TickCount64;
+    /// <summary>Milliseconds from Stopwatch.GetTimestamp. Drag speed (SNAP-013) needs millisecond resolution.</summary>
+    public ulong NowMs() => (ulong)(System.Diagnostics.Stopwatch.GetTimestamp() * 1000 / System.Diagnostics.Stopwatch.Frequency);
 }
 
 /// <summary>File access for settings.json.</summary>

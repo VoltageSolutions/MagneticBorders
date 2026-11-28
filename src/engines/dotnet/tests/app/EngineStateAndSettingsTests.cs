@@ -33,10 +33,12 @@ public class SettingsParserEdgeCaseTests
     }
 
     [Fact]
-    public void Fractional_tolerance_falls_back_to_default()
+    public void Fractional_numbers_round_halves_away_from_zero()
     {
-        Assert.True(SettingsParser.TryParse("""{"glue":{"tolerance_px":1.5}}""", out var m, out _));
-        Assert.Equal(12, m.GlueTolerancePx);
+        Assert.True(SettingsParser.TryParse("""{"glue":{"tolerance_px":12.5},"snap":{"distance_px":3.2}}""", out var m, out _));
+        Assert.Equal(13, m.GlueTolerancePx);
+        Assert.True(SettingsParser.TryParse("""{"glue":{"tolerance_px":1.4}}""", out var m2, out _));
+        Assert.Equal(1, m2.GlueTolerancePx);
     }
 
     [Fact]

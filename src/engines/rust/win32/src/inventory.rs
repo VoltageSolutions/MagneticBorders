@@ -1,7 +1,9 @@
 //! `Win32Inventory`: window eligibility, monitor snapshot, and frame lookup via `EnumWindows` and DWM.
 
+use crate::diagnostics::{candidate_line, move_result_line, Candidate};
+use crate::misc::AppLog;
 use crate::util::*;
-use mb_app::{Snapshot, WindowInventory};
+use mb_app::{Log, Snapshot, WindowInventory};
 use mb_core::{Rect, WinInfo};
 use std::ffi::c_void;
 use windows::core::{BOOL, PWSTR};
@@ -17,34 +19,75 @@ use windows::Win32::UI::HiDpi::GetDpiForWindow;
 use windows::Win32::UI::WindowsAndMessaging::*;
 
 /// `WindowInventory` over Win32. Shares `Shared` with the mover; UI thread only.
+/// With a diagnostics log it also writes the `diag: window` and `diag: move result` lines described in
+/// `docs/spec/engine.md`.
 pub struct Win32Inventory {
     shared: Shared,
+    diagnostics: Option<AppLog>,
 }
 
 impl Win32Inventory {
     /// Creates the inventory and sets the excluded executable names.
     pub fn new(shared: Shared, excluded_apps: &[String]) -> Self {
         shared.set_excluded(excluded_apps);
-        Self { shared }
+        Self { shared, diagnostics: None }
+    }
+
+    /// Writes the verbose `diag:` lines to `log`.
+    #[must_use]
+    pub fn with_diagnostics(mut self, log: AppLog) -> Self {
+        self.diagnostics = Some(log);
+        self
+    }
+
+    /// File name of the executable of a process (for example `app.exe`), or `None` when it cannot be read.
+    fn exe_file_name(pid: u32) -> Option<String> {
+        unsafe {
+            let h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
+            let mut buf = [0u16; 520];
+            let mut len = buf.len() as u32;
+            let ok = QueryFullProcessImageNameW(h, PROCESS_NAME_WIN32, PWSTR(buf.as_mut_ptr()), &raw mut len).is_ok();
+            let _ = CloseHandle(h);
+            if !ok {
+                return None;
+            }
+            let path = String::from_utf16_lossy(&buf[..len as usize]);
+            Some(path.rsplit('\\').next().unwrap_or("").to_string())
+        }
     }
 
     fn exe_excluded(&self, pid: u32) -> bool {
         if self.shared.excluded.borrow().is_empty() {
             return false;
         }
-        unsafe {
-            let Ok(h) = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) else { return false };
-            let mut buf = [0u16; 520];
-            let mut len = buf.len() as u32;
-            let ok = QueryFullProcessImageNameW(h, PROCESS_NAME_WIN32, PWSTR(buf.as_mut_ptr()), &raw mut len).is_ok();
-            let _ = CloseHandle(h);
-            if !ok {
-                return false;
-            }
-            let path = String::from_utf16_lossy(&buf[..len as usize]).to_lowercase();
-            let name = path.rsplit('\\').next().unwrap_or("");
-            self.shared.excluded.borrow().iter().any(|e| e == name)
-        }
+        let Some(name) = Self::exe_file_name(pid) else { return false };
+        let name = name.to_lowercase();
+        self.shared.excluded.borrow().contains(&name)
+    }
+
+    /// Window class name, or an empty string when it cannot be read.
+    fn class_name(h: HWND) -> String {
+        let mut buf = [0u16; 256];
+        let len = unsafe { GetClassNameW(h, &mut buf) };
+        String::from_utf16_lossy(&buf[..usize::try_from(len).unwrap_or(0)])
+    }
+
+    fn log_candidate(log: &AppLog, h: HWND, frame: Rect, rect: Rect, dragged: u64) {
+        let mut pid = 0u32;
+        unsafe { GetWindowThreadProcessId(h, Some(&raw mut pid)) };
+        let exe = Self::exe_file_name(pid).unwrap_or_default();
+        let window_class = Self::class_name(h);
+        let id = id_of(h);
+        let dpi = unsafe { GetDpiForWindow(h) };
+        log.debug(&candidate_line(&Candidate {
+            id,
+            frame,
+            rect,
+            dpi,
+            window_class: &window_class,
+            exe: &exe,
+            dragged: id == dragged,
+        }));
     }
 
     /// True when a window hides what is below it: visible, not minimized, not cloaked, not click-through (overlays
@@ -105,6 +148,7 @@ struct Ctx<'a> {
     /// Covering windows from the top of the z-order down, on any monitor.
     stack: Vec<(u64, Rect)>,
     min: (i32, i32),
+    dragged: u64,
 }
 
 /// Collects the work area of every monitor into the `Vec<Rect>` behind `lp`.
@@ -139,6 +183,9 @@ unsafe extern "system" fn enum_cb(h: HWND, lp: LPARAM) -> BOOL {
                     .borrow_mut()
                     .insert(id, Rect::new(wr.l - frame.l, wr.t - frame.t, wr.r - frame.r, wr.b - frame.b));
                 ctx.out.push(WinInfo { id, frame, min_w: ctx.min.0, min_h: ctx.min.1 });
+                if let Some(log) = &ctx.inv.diagnostics {
+                    Win32Inventory::log_candidate(log, h, frame, wr, ctx.dragged);
+                }
             }
         }
         BOOL(1)
@@ -160,6 +207,7 @@ impl WindowInventory for Win32Inventory {
                 out: Vec::new(),
                 stack: Vec::new(),
                 min: (GetSystemMetrics(SM_CXMINTRACK), GetSystemMetrics(SM_CYMINTRACK)),
+                dragged: dragged_id,
             };
             let _ = EnumWindows(Some(enum_cb), LPARAM(&raw mut ctx as isize));
             let mut work_areas: Vec<Rect> = Vec::new();
@@ -176,5 +224,13 @@ impl WindowInventory for Win32Inventory {
 
     fn frame_of(&mut self, id: u64) -> Option<Rect> {
         frame_bounds(hwnd_of(id))
+    }
+
+    fn report_move_result(&mut self, id: u64, held: Option<Rect>) {
+        let Some(log) = &self.diagnostics else { return };
+        let h = hwnd_of(id);
+        let mut wr = RECT::default();
+        let rect = unsafe { GetWindowRect(h, &raw mut wr) }.ok().map(|()| from_rect(wr));
+        log.debug(&move_result_line(id, frame_bounds(h), rect, held));
     }
 }

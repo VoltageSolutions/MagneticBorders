@@ -67,9 +67,9 @@ public:
     /// During a move with the pointer hook, returns where the cursor must go so the window lands on its held
     /// position (SNAP-070 to SNAP-074). Otherwise lets the movement through.
     [[nodiscard]] std::optional<Point> on_pointer_move(const Point& proposed) override;
-    /// Stops the pointer hook as soon as the mouse button is released, so the cursor can never stay held after
-    /// a move (SNAP-075).
-    void on_pointer_release() override;
+    /// Stops the pointer hook as soon as the mouse button is released at `cursor`, so the cursor can never stay held
+    /// after a move (SNAP-075).
+    void on_pointer_release(const Point& cursor) override;
 
     /// Uses `hook` (or none) to hold the cursor during moves; takes effect on the next drag. Without a hook, or
     /// when it cannot start, a move moves the window back to the held position after Windows moves it. UI thread.
@@ -106,6 +106,8 @@ private:
     [[nodiscard]] Attraction* active_attraction();
     void on_move(const Rect& frame);
     void finish_move(WindowId id);
+    void finish_pointer_move(WindowId id);
+    void calibrate_pointer(const Rect& frame);
     void log_snap_events();
     [[nodiscard]] Planned plan_for(const Rect& frame) const;
     std::vector<Move> final_moves(const Rect& frame, bool& snapped);
@@ -118,6 +120,8 @@ private:
     void on_settle();
     void on_verify();
     void say(const std::string& msg);
+    /// The position the active attraction holds, or nullopt when no axis is held.
+    std::optional<Rect> held_position();
     [[nodiscard]] std::uint64_t since_start() { return clock_.now_ms() - drag_start_ms_; }
 
     WindowInventory& inventory_;
@@ -140,6 +144,12 @@ private:
     WindowId dragged_{};
     std::uint64_t drag_start_ms_{0};
     Rect start_frame_{};
+    /// The dragged window's frame and the cursor, read when the drag starts (SNAP-071).
+    struct PointerRef {
+        Rect frame;
+        Point cursor;
+    };
+    std::optional<PointerRef> pointer_ref_;
     Rect last_frame_{};
     Rect pending_frame_{};
     Rect final_frame_{};
@@ -151,8 +161,10 @@ private:
     std::optional<Attraction> attraction_;  // set while Moving without the pointer hook
     std::optional<PointerDrag> pointer_;    // set while Moving with the pointer hook (SNAP-070)
     PointerHook* hook_{nullptr};
-    Rect last_free_{};               // last free position fed to attraction_
-    std::optional<Rect> last_held_;  // frame the window reported after our last held move
+    int breakaway_px_{0};  // scaled breakaway distance, the bound of a calibration (SNAP-077)
+    std::optional<Rect> pointer_prev_frame_;  // previous frame reported in pointer mode (SNAP-077)
+    Rect last_free_{};                        // last free position fed to attraction_
+    std::optional<Rect> last_held_;           // frame the window reported after our last held move
     std::uint64_t drag_snaps_{0};
     std::unordered_map<WindowId, std::pair<int, int>> learned_min_;  // id -> (min_w, min_h)
 };

@@ -26,6 +26,9 @@ pub trait WindowInventory {
     fn snapshot(&mut self, dragged_id: u64) -> Snapshot;
     /// Current visible frame of a window, or `None` when it is gone.
     fn frame_of(&mut self, id: u64) -> Option<Rect>;
+    /// Verbose diagnostics: called when a move ends, with the position Magnetic attraction held (`None` when no axis
+    /// was held). The adapter may log where the window is. The default does nothing.
+    fn report_move_result(&mut self, _id: u64, _held: Option<Rect>) {}
 }
 
 /// Writes window positions. Called by the controller on the UI thread.
@@ -85,8 +88,8 @@ pub trait PointerEvents {
     /// Windows is about to put the cursor at `proposed`. Returns the position to put it at instead, or `None` to
     /// let the movement through unchanged.
     fn on_pointer_move(&mut self, proposed: Point) -> Option<Point>;
-    /// A mouse button was released. The move is over even if its end event has not arrived yet.
-    fn on_pointer_release(&mut self);
+    /// A mouse button was released at `cursor`. The move is over even if its end event has not arrived yet.
+    fn on_pointer_release(&mut self, cursor: Point);
 }
 
 /// Everything the Win32 event adapters deliver to the controller: drag events and mouse movement.
@@ -103,4 +106,6 @@ pub trait PointerHook {
     fn stop(&mut self);
     /// The cursor position now, or `None` if it cannot be read.
     fn cursor(&mut self) -> Option<Point>;
+    /// Puts the cursor at `to` (`SetCursorPos`). A failure is ignored.
+    fn set_cursor(&mut self, to: Point);
 }

@@ -3,6 +3,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
+
+#include "diagnostics.hpp"
 
 namespace mb {
 namespace {
@@ -42,6 +45,14 @@ void DragController::say(const std::string& msg) {
 }
 
 void DragController::on_move_size_start(WindowId id) {
+    // SNAP-071: read the reference first. The snapshot below takes milliseconds, and Windows keeps the cursor's
+    // offset in the window from this moment for the whole drag.
+    pointer_ref_.reset();
+    if (hook_ != nullptr) {
+        const auto frame = inventory_.frame_of(id);
+        const auto cursor = hook_->cursor();
+        if (frame && cursor) pointer_ref_ = PointerRef{*frame, *cursor};
+    }
     timer_.cancel_all();
     seams_.clear();
     requested_.clear();
@@ -237,6 +248,8 @@ void DragController::begin_move() {
         others.push_back(make_target(w.frame, above));
     }
     const SideTargets sides = screen_side_targets(snapshot_.work_area, snapshot_.work_areas);
+    breakaway_px_ = std::max(cfg.breakaway, cfg.pull_in);  // SNAP-043
+    pointer_prev_frame_.reset();
     attraction_.emplace(cfg, std::move(others), snapshot_.work_area, sides);
     start_pointer();
     last_free_ = start_frame_;
@@ -245,14 +258,21 @@ void DragController::begin_move() {
 
 void DragController::start_pointer() {
     if (hook_ == nullptr || !attraction_) return;
-    const auto frame = inventory_.frame_of(dragged_);
-    if (!frame || !hook_->start(*this)) return;  // SNAP-076: fall back to moving the window back
-    const auto cursor = hook_->cursor();
-    if (!cursor) {
-        hook_->stop();
-        return;
+    PointerRef ref{};
+    if (pointer_ref_) {
+        if (!hook_->start(*this)) return;  // SNAP-076: fall back to moving the window back
+        ref = *pointer_ref_;
+    } else {
+        const auto frame = inventory_.frame_of(dragged_);
+        if (!frame || !hook_->start(*this)) return;
+        const auto cursor = hook_->cursor();
+        if (!cursor) {
+            hook_->stop();
+            return;
+        }
+        ref = PointerRef{*frame, *cursor};
     }
-    pointer_.emplace(std::move(*attraction_), *frame, *cursor);
+    pointer_.emplace(std::move(*attraction_), ref.frame, ref.cursor);
     attraction_.reset();
 }
 
@@ -270,13 +290,17 @@ Attraction* DragController::active_attraction() {
 std::optional<Point> DragController::on_pointer_move(const Point& proposed) {
     if (!pointer_ || state_ != State::Moving) return std::nullopt;
     const Point out = pointer_->move(proposed, clock_.now_ms());
+    const Rect window = pointer_->window();
     log_snap_events();
     if (out == proposed) return std::nullopt;
+    if (opts_.verbose) log_.debug(drag_diag::pointer_hold_line(proposed, out, window));
     return out;
 }
 
-void DragController::on_pointer_release() {
-    if (pointer_ && hook_ != nullptr) hook_->stop();
+void DragController::on_pointer_release(const Point& cursor) {
+    if (!pointer_) return;
+    if (opts_.verbose) log_.debug(drag_diag::pointer_release_line(cursor, pointer_->cursor()));
+    if (hook_ != nullptr) hook_->stop();
 }
 
 void DragController::log_snap_events() {
@@ -297,7 +321,32 @@ void DragController::log_snap_events() {
     }
 }
 
+void DragController::calibrate_pointer(const Rect& frame) {
+    // SNAP-077: a held axis keeps the cursor still, so a leading coordinate that did not change since the previous
+    // report has settled and equals cursor - grab offset.
+    const std::optional<Rect> prev = pointer_prev_frame_;
+    pointer_prev_frame_ = frame;
+    if (!prev || !pointer_ || hook_ == nullptr) return;
+    for (const bool x_axis : {true, false}) {
+        const int actual = x_axis ? frame.l : frame.t;
+        if (actual != (x_axis ? prev->l : prev->t)) continue;
+        const Rect expected = pointer_->window();
+        const int error = actual - (x_axis ? expected.l : expected.t);
+        if (std::abs(error) > breakaway_px_) continue;
+        const auto cursor = pointer_->calibrate(x_axis, error);
+        if (!cursor) continue;
+        hook_->set_cursor(*cursor);
+        if (opts_.verbose)
+            log_.debug(
+                drag_diag::pointer_calibrate_line(x_axis, error, *cursor, pointer_->window()));
+    }
+}
+
 void DragController::on_move(const Rect& frame) {
+    if (pointer_) {
+        calibrate_pointer(frame);
+        return;
+    }
     if (!attraction_) return;
     if (last_held_ && frame == *last_held_ && frame != last_free_)
         return;  // SNAP-024: our own move
@@ -313,14 +362,55 @@ void DragController::on_move(const Rect& frame) {
     last_held_ = applied.empty() ? held : applied.front().frame;
 }
 
+std::optional<Rect> DragController::held_position() {
+    const Attraction* a = active_attraction();
+    if (a == nullptr || !a->held()) return std::nullopt;
+    return a->current();
+}
+
+void DragController::finish_pointer_move(WindowId id) {
+    const Attraction* a = active_attraction();
+    const bool held_x = a != nullptr && a->held_x();
+    const bool held_y = a != nullptr && a->held_y();
+    const std::optional<Rect> held = held_position();
+    stop_pointer();
+    const auto frame = inventory_.frame_of(id);
+    // SNAP-075: only the held axes are corrected. Each takes the held position and the other keeps where Windows
+    // put the window, so the target is the window's frame with the held axes replaced.
+    std::optional<Rect> target;
+    if (held && frame) {
+        Rect t = *frame;
+        if (held_x) {
+            t.l = held->l;
+            t.r = held->l + frame->width();
+        }
+        if (held_y) {
+            t.t = held->t;
+            t.b = held->t + frame->height();
+        }
+        target = t;
+    }
+    const bool same_size =
+        frame && frame->width() == start_frame_.width() && frame->height() == start_frame_.height();
+    const char* action = "none";
+    if (target && *frame != *target) action = same_size ? "applied" : "skipped-size";
+    if (opts_.verbose) log_.debug(drag_diag::move_correction_line(id, frame, target, action));
+    const bool applied = std::string_view(action) == "applied";
+    if (applied) {
+        const std::vector<Move> moves{{id, *target}};
+        mover_.apply(moves);
+    }
+    say("move end id=" + std::to_string(id) + " snaps=" + std::to_string(drag_snaps_) + " pointer" +
+        (applied ? " applied" : ""));
+    if (opts_.verbose) inventory_.report_move_result(id, held);
+}
+
 void DragController::finish_move(WindowId id) {
     if (pointer_) {
-        // SNAP-075: Windows already put the window where the cursor is, so nothing is applied.
-        stop_pointer();
-        say("move end id=" + std::to_string(id) + " snaps=" + std::to_string(drag_snaps_) +
-            " pointer");
+        finish_pointer_move(id);
         return;
     }
+    const auto held = opts_.verbose ? held_position() : std::nullopt;
     const auto frame = inventory_.frame_of(id);
     if (!attraction_) return;
     bool applied = false;
@@ -333,6 +423,7 @@ void DragController::finish_move(WindowId id) {
     }
     say("move end id=" + std::to_string(id) + " snaps=" + std::to_string(drag_snaps_) +
         (applied ? " applied" : ""));
+    if (opts_.verbose) inventory_.report_move_result(id, held);
     attraction_.reset();  // SNAP-052: nothing more is applied
 }
 

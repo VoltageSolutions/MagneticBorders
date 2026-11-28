@@ -167,7 +167,7 @@ public sealed class AppSettings
             if (n is JsonValue v)
             {
                 if (v.TryGetValue<int>(out var i)) return i;
-                if (v.TryGetValue<double>(out var dd)) return (int)Math.Round(dd);
+                if (v.TryGetValue<double>(out var dd)) return (int)Math.Round(dd, MidpointRounding.AwayFromZero);  // CFG-017
             }
         }
         catch (Exception ex) when (ex is InvalidOperationException or OverflowException) { return d; }

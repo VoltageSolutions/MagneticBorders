@@ -364,6 +364,21 @@ TEST(Win32Mover, DiagnosticsLogSkipsAndBatchLines) {
     }));
 }
 
+TEST(Win32Inventory, DiagnosticsLogsCandidatesAndMoveResults) {
+    win32::WindowRegistry registry({});
+    CaptureLog log;
+    win32::Win32Inventory inventory{registry, &log};
+    const auto desktop = win32::to_id(GetDesktopWindow());
+    (void)inventory.snapshot(desktop);
+    EXPECT_TRUE(std::ranges::all_of(
+        log.lines, [](const std::string& l) { return l.starts_with("diag: window id="); }));
+    log.lines.clear();
+    inventory.report_move_result(desktop, std::nullopt);
+    ASSERT_EQ(log.lines.size(), 1U);
+    EXPECT_TRUE(log.lines[0].starts_with("diag: move result id="));
+    EXPECT_TRUE(log.lines[0].ends_with(" held=none"));
+}
+
 TEST(Win32SystemDiagnostics, ReportsSystemAndMonitorLines) {
     CaptureLog log;
     win32::log_system_diagnostics(log);
@@ -388,7 +403,7 @@ namespace {
 /// Pointer sink that lets every movement through.
 struct PassThrough : PointerEvents {
     std::optional<Point> on_pointer_move(const Point&) override { return std::nullopt; }
-    void on_pointer_release() override {}
+    void on_pointer_release(const Point&) override {}
 };
 }  // namespace
 

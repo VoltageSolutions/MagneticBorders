@@ -34,7 +34,9 @@ unsafe extern "system" fn on_mouse(code: i32, wp: WPARAM, lp: LPARAM) -> LRESULT
                     return LRESULT(1); // the original movement is replaced by the held cursor position
                 }
             } else if is_button_up(msg) {
-                with_engine(|h| PointerEvents::on_pointer_release(h)); // may stop (unhook) this hook
+                let m = &*(lp.0 as *const MSLLHOOKSTRUCT);
+                let cursor = Point { x: m.pt.x, y: m.pt.y };
+                with_engine(|h| PointerEvents::on_pointer_release(h, cursor)); // may stop (unhook) this hook
             }
         }
         CallNextHookEx(None, code, wp, lp)
@@ -83,6 +85,10 @@ impl PointerHook for Win32PointerHook {
         let mut p = POINT::default();
         unsafe { GetCursorPos(&raw mut p).ok()? };
         Some(Point { x: p.x, y: p.y })
+    }
+
+    fn set_cursor(&mut self, to: Point) {
+        let _ = unsafe { SetCursorPos(to.x, to.y) };
     }
 }
 

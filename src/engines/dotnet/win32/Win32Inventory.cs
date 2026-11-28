@@ -11,7 +11,8 @@ namespace MagneticBorders.Win32;
 /// <summary>IWindowInventory over Win32: enumerates top-level windows, filters them, and caches frame offsets in WindowState. UI thread only. DI singleton.</summary>
 /// <param name="state">Shared offsets and exclusions.</param>
 /// <param name="excludedApps">Initial excluded executable names.</param>
-public sealed unsafe class Win32Inventory(WindowState state, IReadOnlyCollection<string> excludedApps) : IWindowInventory
+/// <param name="diagnostics">Log that receives the verbose "diag:" lines described in docs/spec/engine.md, or null for none.</param>
+public sealed unsafe class Win32Inventory(WindowState state, IReadOnlyCollection<string> excludedApps, ILog? diagnostics = null) : IWindowInventory
 {
     /// <summary>Scratch list filled by the EnumWindows callback; reused to avoid allocations.</summary>
     private static readonly List<HWND> s_enum = [];
@@ -76,9 +77,38 @@ public sealed unsafe class Win32Inventory(WindowState state, IReadOnlyCollection
             if (!Frames.TryGetFrame(h, out var frame) || !Frames.TryGetWindowRect(h, out var wr)) continue;
             state.Offsets[id] = new Rect(wr.L - frame.L, wr.T - frame.T, wr.R - frame.R, wr.B - frame.B);
             list.Add(new WinInfo(id, frame, minW, minH));
+            if (diagnostics is not null) LogCandidate(h, id, frame, wr, id == draggedId);
         }
         s_enum.Clear();
         return new Snapshot(list, work, scale, areas, stack);
+    }
+
+    /// <summary>Writes the verbose "diag: move result" line when a diagnostics log is set.</summary>
+    public void ReportMoveResult(ulong id, Rect? held)
+    {
+        if (diagnostics is null) return;
+        var h = Frames.ToHwnd(id);
+        Rect? frame = Frames.TryGetFrame(h, out var f) ? f : null;
+        Rect? rect = Frames.TryGetWindowRect(h, out var r) ? r : null;
+        diagnostics.Debug(MoveDiagnostics.MoveResultLine(id, frame, rect, held));
+    }
+
+    /// <summary>Writes the verbose "diag: window" line of one candidate.</summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability", "CA1416:Validate platform compatibility",
+        Justification = "GetDpiForWindow needs Windows 10 1607; the product supports Windows 10 and 11 only, and a later TargetPlatformVersion is not a valid value for this target framework.")]
+    private void LogCandidate(HWND h, ulong id, Rect frame, Rect rect, bool dragged)
+    {
+        uint pid;
+        string exe = PInvoke.GetWindowThreadProcessId(h, &pid) == 0 ? "" : ExeName(pid);
+        diagnostics?.Debug(MoveDiagnostics.CandidateLine(id, frame, rect, PInvoke.GetDpiForWindow(h), ClassName(h), exe, dragged));
+    }
+
+    /// <summary>Window class name, or an empty string if it cannot be read.</summary>
+    private static string ClassName(HWND h)
+    {
+        char* buf = stackalloc char[256];
+        int len = PInvoke.GetClassName(h, buf, 256);
+        return len > 0 ? new string(buf, 0, len) : "";
     }
 
     /// <summary>True when a window hides what is below it: visible, not minimized, not cloaked, not click-through (overlays such as the FancyZones editor), and not a window of this process (SNAP-038).</summary>

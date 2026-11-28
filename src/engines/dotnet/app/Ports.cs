@@ -19,6 +19,8 @@ public interface IWindowInventory
     Snapshot Snapshot(ulong draggedId);
     /// <summary>Current visual frame of a window, or null if it cannot be read.</summary>
     Rect? FrameOf(ulong id);
+    /// <summary>Verbose diagnostics: called when a move ends, with the position Magnetic attraction held (null when no axis was held). The adapter may log where the window is. The default does nothing.</summary>
+    void ReportMoveResult(ulong id, Rect? held) { }
 }
 
 /// <summary>Port: moves windows. Called on the UI thread. Implemented by Win32Mover.</summary>
@@ -51,8 +53,8 @@ public interface IPointerEvents
 {
     /// <summary>Windows is about to put the cursor at <paramref name="proposed"/>. Returns the position to put it at instead, or null to let the movement through unchanged.</summary>
     Point? OnPointerMove(Point proposed);
-    /// <summary>A mouse button was released. The move is over even if its end event has not arrived yet.</summary>
-    void OnPointerRelease();
+    /// <summary>A mouse button was released at <paramref name="cursor"/>. The move is over even if its end event has not arrived yet.</summary>
+    void OnPointerRelease(Point cursor);
 }
 
 /// <summary>Port: watches the mouse while a window is moved (SNAP-070). Implemented by Win32PointerHook with a low-level mouse hook that is installed only between Install and Remove. Called on the UI thread.</summary>

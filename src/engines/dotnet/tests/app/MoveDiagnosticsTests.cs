@@ -14,6 +14,20 @@ public class MoveDiagnosticsTests
     }
 
     [Fact]
+    public void PointerLineText()
+    {
+        Assert.Equal("diag: pointer hold proposed=395,260 cursor=400,260 window=300,250,500,450", DragDiagnostics.PointerHoldLine(new Point(395, 260), new Point(400, 260), new Rect(300, 250, 500, 450)));
+        Assert.Equal("diag: pointer release cursor=398,-3 expected=400,260", DragDiagnostics.PointerReleaseLine(new Point(398, -3), new Point(400, 260)));
+    }
+
+    [Fact]
+    public void MoveCorrectionLineText()
+    {
+        Assert.Equal("diag: move correction id=12 frame=304,247,504,447 held=300,250,500,450 action=applied", DragDiagnostics.MoveCorrectionLine(12, new Rect(304, 247, 504, 447), new Rect(300, 250, 500, 450), "applied"));
+        Assert.Equal("diag: move correction id=12 frame=unavailable held=none action=none", DragDiagnostics.MoveCorrectionLine(12, null, null, "none"));
+    }
+
+    [Fact]
     public void HexAndFlagsText()
     {
         Assert.Equal("0x1a2b", MoveDiagnostics.HexId(0x1a2b));
@@ -47,6 +61,32 @@ public class MoveDiagnosticsTests
         Assert.Equal("move: deferred batch failed step=defer hwnd=0x10 error=5, falling back to SetWindowPos", MoveDiagnostics.DeferredFailureLine("defer", 0x10, 5));
         Assert.Equal("move: SetWindowPos failed hwnd=0x10 error=5", MoveDiagnostics.SetWindowPosFailureLine(0x10, 5));
         Assert.Equal("move: skipped hwnd=0x10 reason=hung", MoveDiagnostics.SkipLine(0x10, "hung"));
+    }
+
+    [Fact]
+    public void CandidateLineText()
+    {
+        var frame = new Rect(1000, 100, 1900, 890);
+        var rect = new Rect(990, 100, 1910, 900);
+        Assert.Equal(new Rect(-10, 0, 10, 10), MoveDiagnostics.Border(rect, frame));
+        Assert.Equal(
+            "diag: window id=12 frame=1000,100,1900,890 rect=990,100,1910,900 border=-10,0,10,10 dpi=120 class=ConsoleWindowClass exe=WindowsTerminal.exe dragged=yes",
+            MoveDiagnostics.CandidateLine(12, frame, rect, 120, "ConsoleWindowClass", "WindowsTerminal.exe", true));
+        var same = new Rect(0, 0, 10, 10);
+        Assert.Equal(
+            "diag: window id=3 frame=0,0,10,10 rect=0,0,10,10 border=0,0,0,0 dpi=96 class=unknown exe=unknown dragged=no",
+            MoveDiagnostics.CandidateLine(3, same, same, 96, "", "", false));
+    }
+
+    [Fact]
+    public void MoveResultLineText()
+    {
+        Assert.Equal(
+            "diag: move result id=12 frame=1,2,3,4 rect=0,2,4,5 held=1,2,3,4",
+            MoveDiagnostics.MoveResultLine(12, new Rect(1, 2, 3, 4), new Rect(0, 2, 4, 5), new Rect(1, 2, 3, 4)));
+        Assert.Equal(
+            "diag: move result id=12 frame=unavailable rect=unavailable held=none",
+            MoveDiagnostics.MoveResultLine(12, null, null, null));
     }
 
     [Fact]

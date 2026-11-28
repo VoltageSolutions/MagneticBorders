@@ -23,6 +23,8 @@ public:
     void stop() override;
     /// GetCursorPos, or nullopt when it fails.
     [[nodiscard]] std::optional<Point> cursor() override;
+    /// SetCursorPos.
+    void set_cursor(const Point& to) override;
 
 private:
     static LRESULT CALLBACK on_mouse(int code, WPARAM wp, LPARAM lp);

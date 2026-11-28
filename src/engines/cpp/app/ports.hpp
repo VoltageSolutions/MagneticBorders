@@ -33,6 +33,12 @@ public:
     [[nodiscard]] virtual Snapshot snapshot(WindowId dragged) = 0;
     /// Returns the current visual frame of a window, or nullopt if it cannot be read.
     [[nodiscard]] virtual std::optional<Rect> frame_of(WindowId id) = 0;
+    /// Verbose diagnostics: called when a move ends, with the position Magnetic attraction held (nullopt when no
+    /// axis was held). The adapter may log where the window is. The default does nothing.
+    virtual void report_move_result(WindowId id, const std::optional<Rect>& held) {
+        (void)id;
+        (void)held;
+    }
 };
 
 /// Port: moves and resizes windows. Implemented by win32::Win32Mover; called on the UI thread.
@@ -91,8 +97,8 @@ public:
     /// Windows is about to put the cursor at `proposed`. Returns the position to put it at instead, or nullopt to
     /// let the movement through unchanged.
     [[nodiscard]] virtual std::optional<Point> on_pointer_move(const Point& proposed) = 0;
-    /// A mouse button was released. The move is over even if its end event has not arrived yet.
-    virtual void on_pointer_release() = 0;
+    /// A mouse button was released at `cursor`. The move is over even if its end event has not arrived yet.
+    virtual void on_pointer_release(const Point& cursor) = 0;
 };
 
 /// Port: watches the mouse while a window is moved (SNAP-070). Implemented by win32::PointerHook with a low-level
@@ -106,6 +112,8 @@ public:
     virtual void stop() = 0;
     /// The cursor position now, or nullopt if it cannot be read.
     [[nodiscard]] virtual std::optional<Point> cursor() = 0;
+    /// Puts the cursor at `to` (SetCursorPos). A failure is ignored.
+    virtual void set_cursor(const Point& to) = 0;
 };
 
 /// Sink for drag lifecycle events. Implemented by DragController; win32::WinEventSource calls it on the UI thread.

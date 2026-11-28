@@ -86,7 +86,8 @@ public:
     /// Constructs the adapters and the controller and connects the timer to it.
     explicit EngineApp(const EngineOptions& opts)
         : log_(win32::log_path(kEngineId), opts.console, opts.verbose), registry_({}),
-          inventory_(registry_), mover_(registry_, opts.verbose ? &log_ : nullptr),
+          inventory_(registry_, opts.verbose ? &log_ : nullptr),
+          mover_(registry_, opts.verbose ? &log_ : nullptr),
           controller_(inventory_, mover_, clock_, timer_, log_,
                       ControllerOptions{12, "MagneticBorders.Cpp", opts.verbose}),
           verbose_(opts.verbose), started_(std::chrono::steady_clock::now()) {

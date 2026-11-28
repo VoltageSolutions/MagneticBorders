@@ -38,6 +38,8 @@ std::optional<Point> Win32PointerHook::cursor() {
     return Point{p.x, p.y};
 }
 
+void Win32PointerHook::set_cursor(const Point& to) { SetCursorPos(to.x, to.y); }
+
 LRESULT CALLBACK Win32PointerHook::on_mouse(int code, WPARAM wp, LPARAM lp) {
     Win32PointerHook* self = t_pointer_hook;
     if (code == HC_ACTION && self != nullptr && self->sink_ != nullptr) {
@@ -48,7 +50,7 @@ LRESULT CALLBACK Win32PointerHook::on_mouse(int code, WPARAM wp, LPARAM lp) {
                 return 1;  // the original movement is replaced by the held cursor position
             }
         } else if (is_button_up(wp)) {
-            self->sink_->on_pointer_release();  // may stop (unhook) this hook
+            self->sink_->on_pointer_release({m->pt.x, m->pt.y});  // may stop (unhook) this hook
         }
     }
     return CallNextHookEx(nullptr, code, wp, lp);

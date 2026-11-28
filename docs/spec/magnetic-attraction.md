@@ -63,8 +63,8 @@ All distances are in effective pixels and are scaled by the DPI of the dragged w
 
 | ID | Rule |
 |---|---|
-| SNAP-050 | Without the mouse hook, on `EVENT_SYSTEM_MOVESIZEEND`, if any edge is held and the window's current frame equals the last free position, the held position must be applied once. |
-| SNAP-051 | If the window's size changed by the end of the drag (Windows Snap, FancyZones, or another tool placed it), Magnetic attraction must not move it. |
+| SNAP-050 | Without the mouse hook, on `EVENT_SYSTEM_MOVESIZEEND`, if any edge is held and the window's current frame equals the last free position, the held position must be applied once. With the mouse hook, SNAP-075 applies instead. |
+| SNAP-051 | If the window's size changed by the end of the drag (Windows Snap, FancyZones, or another tool placed it), Magnetic attraction must not move it, with or without the mouse hook. |
 | SNAP-052 | After the drag ends nothing more may be applied. Unlike Magnetic coupling there is no Verify pass, so a tool that places the window after the drop always wins. |
 
 ## Holding the cursor
@@ -72,12 +72,13 @@ All distances are in effective pixels and are scaled by the DPI of the dragged w
 | ID | Rule |
 |---|---|
 | SNAP-070 | When a drag is classified as a move, Magnetic Borders must install a low-level mouse hook (`WH_MOUSE_LL`) and remove it when the move ends. The hook must never run outside a move. |
-| SNAP-071 | The free position must start at the window's frame when the hook starts. On a held axis, each mouse movement must add to the free position. On a free axis, the free position must follow the cursor. |
-| SNAP-072 | For each mouse movement, the cursor must go where the held position puts it: the cursor at hook start plus the held position's offset from the frame at hook start. When that differs from where Windows was about to put the cursor, the movement must be blocked and the cursor set there. Windows then moves the window to the held position, so Magnetic Borders never moves the window itself. |
+| SNAP-071 | The free position must start at the window's frame as read when the drag starts (the move/size start event), before Windows moves the window. On a held axis, each mouse movement must add to the free position. On a free axis, the free position must follow the cursor. |
+| SNAP-072 | For each mouse movement, the cursor must go where the held position puts it: the cursor plus the held position's offset from the frame, both read when the drag starts. Windows keeps that cursor-to-window offset fixed for the whole drag. When either cannot be read at drag start, both are read when the hook starts. These readings are estimates, because the cursor may already have moved before the start event is handled (SNAP-077 corrects them). When that differs from where Windows was about to put the cursor, the movement must be blocked and the cursor set there. Windows then moves the window to the held position, so Magnetic Borders never moves the window itself. |
 | SNAP-073 | When a movement releases an axis, the cursor must move by that movement only on that axis, so neither the cursor nor the window jumps. |
 | SNAP-074 | While an axis is held, the cursor must not move on that axis. Sliding on the other axis follows the mouse. |
-| SNAP-075 | The hook must be removed at the end of the move, at the start of the next drag, and as soon as a mouse button is released, so the cursor is never held after a move. |
+| SNAP-075 | The hook must be removed at the end of the move, at the start of the next drag, and as soon as a mouse button is released, so the cursor is never held after a move. After the hook is removed at the end of the move, if any axis is held, the C++ and Rust builds must build a target from the window's actual frame in which each held axis takes the held position (x held: left is the held left, width unchanged; y held: top is the held top, height unchanged) and a free axis keeps where Windows put the window. When the window has the size it had when the drag started and the target differs from its frame, the target must be applied once. Otherwise nothing is applied. A free axis is never corrected, because its position is only an estimate. The C# build applies the full held position when any axis is held. The `move end` line then ends with `pointer applied`. |
 | SNAP-076 | When the hook cannot be installed or the cursor cannot be read, Magnetic attraction must fall back to moving the window back to the held position after Windows moves it (SNAP-023 to SNAP-025, SNAP-050 to SNAP-052). |
+| SNAP-077 | The C++ and Rust builds must calibrate the cursor-to-window offset while an axis is held. On each location change of the dragged window in pointer mode, for each held axis whose leading coordinate (left for x, top for y) equals the one in the previous reported frame, the window has settled on that axis, so its coordinate must equal the cursor minus the offset Windows recorded. The difference between the actual coordinate and the expected one is the error. When the error is not 0 and its size is at most the scaled breakaway distance, the reference frame must shift by the error on that axis, the cursor must be set to the position that puts the window on the held position, and the correction must stay for the rest of the drag. An axis that is not held, a window that has not settled, and a larger error change nothing. The C# build does not implement this rule and relies on SNAP-075. |
 
 ## Logging
 

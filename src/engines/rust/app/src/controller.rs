@@ -1,6 +1,7 @@
 //! `DragController`: the drag state machine (Idle, Classifying, Resizing, Moving, Ignoring) plus the post-drag
 //! verify step.
 
+use crate::diagnostics::{move_correction_line, pointer_calibrate_line, pointer_hold_line, pointer_release_line};
 use crate::ports::*;
 use mb_core::{
     build_seam, make_target, propagate, screen_side_targets, Attraction, AttractionConfig, AttractionEvent, Config,
@@ -23,6 +24,8 @@ struct Drag {
     t0: u64,
     glue_on: bool,
     snap_on: bool,
+    /// The dragged window's frame and the cursor, read when the drag starts (SNAP-071).
+    reference: Option<(Rect, Point)>,
 }
 
 /// How a move drag holds the window: by moving it back after Windows moves it, or by holding the cursor (SNAP-070).
@@ -43,6 +46,10 @@ struct Moving {
     /// Edges held during this drag.
     snaps: u64,
     t0: u64,
+    /// Scaled breakaway distance, the bound of a calibration (pointer mode, SNAP-077).
+    breakaway: i32,
+    /// Frame the window reported before the current one (pointer mode, SNAP-077).
+    prev_frame: Option<Rect>,
 }
 
 /// An active glued resize: the seams, throttle bookkeeping, and the frames last requested per member.
@@ -310,8 +317,9 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragControl
             })
             .collect();
         let sides = screen_side_targets(&d.snap.work_area, &d.snap.work_areas);
+        let cfg_breakaway = cfg.breakaway.max(cfg.pull_in); // SNAP-043
         let attraction = Attraction::new(cfg, others, d.snap.work_area, sides);
-        let mode = self.start_pointer(attraction, d.id);
+        let mode = self.start_pointer(attraction, d.id, d.reference);
         let pointer = if matches!(mode, Mode::Pointer(_)) { " pointer" } else { "" };
         self.info_at(d.t0, &format!("move start id={}{pointer}", d.id));
         State::Moving(Box::new(Moving {
@@ -322,18 +330,22 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragControl
             last_held: None,
             snaps: 0,
             t0: d.t0,
+            breakaway: cfg_breakaway,
+            prev_frame: None,
         }))
     }
 
-    /// Starts the pointer hook and hands the attraction to a `PointerDrag`. Falls back to frame mode when there is
+    /// Starts the pointer hook and hands the attraction to a `PointerDrag` that holds the cursor from `reference`, the
+    /// frame and cursor read when the drag started (SNAP-071). Without a reference it reads both now. Falls back to frame mode when there is
     /// no hook, it cannot start, or the cursor cannot be read (SNAP-076).
-    fn start_pointer(&mut self, attraction: Attraction, id: u64) -> Mode {
-        let frame = self.inventory.frame_of(id);
-        let (Some(hook), Some(frame)) = (self.hook.as_mut(), frame) else { return Mode::Frame(attraction) };
-        if !hook.start() {
+    fn start_pointer(&mut self, attraction: Attraction, id: u64, reference: Option<(Rect, Point)>) -> Mode {
+        let read = reference.is_none();
+        let frame = if read { self.inventory.frame_of(id) } else { None };
+        let Some(hook) = self.hook.as_mut() else { return Mode::Frame(attraction) };
+        if (read && frame.is_none()) || !hook.start() {
             return Mode::Frame(attraction);
         }
-        let Some(cursor) = hook.cursor() else {
+        let Some((frame, cursor)) = reference.or_else(|| frame.zip(hook.cursor())) else {
             hook.stop();
             return Mode::Frame(attraction);
         };
@@ -377,10 +389,36 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragControl
         }
     }
 
+    /// Pointer mode: a held axis keeps the cursor still, so a leading coordinate that did not change since the
+    /// previous report has settled and equals the cursor minus the grab offset. Measures the error of the estimate
+    /// on each such axis and moves the cursor so the window lands on the held position (SNAP-077).
+    fn calibrate_pointer(&mut self, m: &mut Moving, frame: Rect) {
+        let prev = m.prev_frame.replace(frame);
+        let (Some(prev), Mode::Pointer(p), Some(hook)) = (prev, &mut m.mode, self.hook.as_mut()) else { return };
+        for x_axis in [true, false] {
+            let (actual, before) = if x_axis { (frame.l, prev.l) } else { (frame.t, prev.t) };
+            if actual != before {
+                continue;
+            }
+            let expected = p.window();
+            let error = actual - if x_axis { expected.l } else { expected.t };
+            if error.abs() > m.breakaway {
+                continue;
+            }
+            if let Some(cursor) = p.calibrate(x_axis, error) {
+                hook.set_cursor(cursor);
+                self.log.debug(&pointer_calibrate_line(x_axis, error, cursor, p.window()));
+            }
+        }
+    }
+
     /// Frame mode: feeds the free position to the attraction and puts the window on the held position (SNAP-023).
     fn on_move(&mut self, m: &mut Moving, frame: Rect) {
         let now = self.clock.now_ms();
-        let Mode::Frame(attraction) = &mut m.mode else { return };
+        let Mode::Frame(attraction) = &mut m.mode else {
+            self.calibrate_pointer(m, frame);
+            return;
+        };
         if m.last_held == Some(frame) && frame != m.last_free {
             return; // SNAP-024: our own move
         }
@@ -397,14 +435,55 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragControl
     }
 
     /// Ends a move drag (SNAP-050 to SNAP-052, SNAP-075).
-    fn finish_move(&mut self, m: &Moving) {
+    fn finish_move(&mut self, m: &mut Moving) {
         let id = m.id;
+        let mut held_axes = (false, false);
+        let held = match &mut m.mode {
+            Mode::Pointer(p) => {
+                let a = p.attraction();
+                held_axes = (a.held_x(), a.held_y());
+                a.held().then(|| a.current())
+            }
+            Mode::Frame(a) => a.held().then(|| a.current()),
+        };
         let mut applied = false;
         match &m.mode {
             Mode::Pointer(_) => {
-                // SNAP-075: Windows already put the window where the cursor is, so nothing is applied.
                 if let Some(hook) = self.hook.as_mut() {
                     hook.stop();
+                }
+                // SNAP-075: only the held axes are corrected. Each takes the held position and the other keeps where
+                // Windows put the window, so the target is the window's frame with the held axes replaced.
+                let frame = self.inventory.frame_of(id);
+                let target = match (held, frame) {
+                    (Some(h), Some(f)) => {
+                        let mut t = f;
+                        if held_axes.0 {
+                            t.l = h.l;
+                            t.r = h.l + f.width();
+                        }
+                        if held_axes.1 {
+                            t.t = h.t;
+                            t.b = h.t + f.height();
+                        }
+                        Some(t)
+                    }
+                    _ => None,
+                };
+                let action = match (target, frame) {
+                    (Some(t), Some(f)) if f != t => {
+                        if f.width() == m.start.width() && f.height() == m.start.height() {
+                            "applied"
+                        } else {
+                            "skipped-size"
+                        }
+                    }
+                    _ => "none",
+                };
+                self.log.debug(&move_correction_line(id, frame, target, action));
+                if let Some(t) = target.filter(|_| action == "applied") {
+                    self.mover.apply(&[(id, t)]);
+                    applied = true;
                 }
             }
             Mode::Frame(a) => {
@@ -424,11 +503,13 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragControl
             }
         }
         let tail = match (&m.mode, applied) {
-            (Mode::Pointer(_), _) => " pointer",
+            (Mode::Pointer(_), true) => " pointer applied",
+            (Mode::Pointer(_), false) => " pointer",
             (Mode::Frame(_), true) => " applied",
             (Mode::Frame(_), false) => "",
         };
         self.info_at(m.t0, &format!("move end id={id} snaps={}{tail}", m.snaps));
+        self.inventory.report_move_result(id, held);
     }
 
     fn on_settle(&mut self) {
@@ -487,6 +568,12 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragEvents 
     fn on_move_size_start(&mut self, id: u64) {
         self.timer.cancel_all();
         self.verify = None;
+        // SNAP-071: read the reference first. The snapshot takes milliseconds, and Windows keeps the cursor's offset
+        // in the window from this moment for the whole drag.
+        let reference = match self.hook.as_mut() {
+            Some(hook) => self.inventory.frame_of(id).zip(hook.cursor()),
+            None => None,
+        };
         self.stop_pointer(); // SNAP-075: a hook left running by the previous drag
         let glue_on = self.live.active.get();
         let snap_on = self.live.snap_active.get();
@@ -499,7 +586,7 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragEvents 
         self.state = match snap.windows.iter().find(|w| w.id == id) {
             Some(w) => {
                 let start = w.frame;
-                State::Classifying(Drag { id, start, snap, t0, glue_on, snap_on })
+                State::Classifying(Drag { id, start, snap, t0, glue_on, snap_on, reference })
             }
             None => State::Ignoring,
         };
@@ -555,8 +642,8 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragEvents 
     fn on_move_size_end(&mut self, id: u64) {
         self.timer.cancel_all();
         if matches!(&self.state, State::Moving(m) if m.id == id) {
-            if let Some(m) = self.take_moving() {
-                self.finish_move(&m);
+            if let Some(mut m) = self.take_moving() {
+                self.finish_move(&mut m);
             }
             return;
         }
@@ -600,16 +687,25 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> PointerEven
         if let Mode::Pointer(p) = &mut m.mode {
             let to = p.move_cursor(proposed, now);
             let events = p.attraction().take_events();
-            self.log_snap_events(&mut m, &events);
             out = (to != proposed).then_some(to);
+            let window = p.window();
+            self.log_snap_events(&mut m, &events);
+            if let Some(to) = out {
+                self.log.debug(&pointer_hold_line(proposed, to, window));
+            }
         }
         self.state = State::Moving(Box::new(m));
         out
     }
 
-    /// Stops the pointer hook as soon as the mouse button is released, so the cursor can never stay held after a
-    /// move (SNAP-075).
-    fn on_pointer_release(&mut self) {
+    /// Stops the pointer hook as soon as the mouse button is released at `cursor`, so the cursor can never stay held
+    /// after a move (SNAP-075).
+    fn on_pointer_release(&mut self, cursor: Point) {
+        if let State::Moving(m) = &self.state {
+            if let Mode::Pointer(p) = &m.mode {
+                self.log.debug(&pointer_release_line(cursor, p.cursor()));
+            }
+        }
         self.stop_pointer();
     }
 }
@@ -628,9 +724,12 @@ mod tests {
 
     type Snap = Rc<RefCell<Snapshot>>;
 
+    type Results = Rc<RefCell<Vec<(u64, Option<Rect>)>>>;
+
     struct Inv {
         snap: Snap,
         frames: Frames,
+        results: Results,
     }
     impl WindowInventory for Inv {
         fn snapshot(&mut self, _d: u64) -> Snapshot {
@@ -638,6 +737,9 @@ mod tests {
         }
         fn frame_of(&mut self, id: u64) -> Option<Rect> {
             self.frames.borrow().get(&id).copied()
+        }
+        fn report_move_result(&mut self, id: u64, held: Option<Rect>) {
+            self.results.borrow_mut().push((id, held));
         }
     }
     struct Mov {
@@ -692,6 +794,7 @@ mod tests {
         starts: u32,
         stops: u32,
         at: Option<Point>,
+        set: Vec<Point>,
     }
     type Hook = Rc<RefCell<HookState>>;
 
@@ -716,6 +819,9 @@ mod tests {
         fn cursor(&mut self) -> Option<Point> {
             self.0.borrow().at
         }
+        fn set_cursor(&mut self, to: Point) {
+            self.0.borrow_mut().set.push(to);
+        }
     }
 
     struct Rig {
@@ -728,6 +834,7 @@ mod tests {
         force: Frames,
         lines: Lines,
         hook: Hook,
+        results: Results,
     }
 
     impl Rig {
@@ -761,8 +868,9 @@ mod tests {
         let lines: Lines = Rc::default();
         let hook: Hook =
             Rc::new(RefCell::new(HookState { at: Some(Point { x: 300, y: 260 }), ..HookState::default() }));
+        let results: Results = Rc::default();
         let mut c = DragController::new(
-            Inv { snap: snap.clone(), frames: frames.clone() },
+            Inv { snap: snap.clone(), frames: frames.clone(), results: results.clone() },
             Mov { batches: batches.clone(), floor_w: floor, force: force.clone() },
             Clk(time.clone()),
             Tmr(armed.clone()),
@@ -773,7 +881,7 @@ mod tests {
         if with_hook {
             c = c.with_pointer_hook(Box::new(Fake(hook.clone())));
         }
-        Rig { c, snap, frames, batches, time, armed, force, lines, hook }
+        Rig { c, snap, frames, batches, time, armed, force, lines, hook, results }
     }
 
     fn win(id: u64, x: i32, w: i32, min_w: i32) -> WinInfo {
@@ -1058,6 +1166,47 @@ mod tests {
         assert_eq!(*r.batches.borrow(), vec![vec![(1, HELD)]]);
         assert_eq!((r.c.live.move_drags.get(), r.c.live.snaps.get(), r.c.live.drags.get()), (1, 1, 0));
         assert!(r.logged("snap hold right=500 target=edge-to-edge"));
+    }
+
+    #[test]
+    fn the_pointer_reference_is_the_frame_and_cursor_from_the_drag_start() {
+        // SNAP-071, SNAP-072
+        let mut r = move_rig(true);
+        r.c.on_move_size_start(1);
+        // By the time the move is classified, Windows has moved the window and the cursor on.
+        r.hook.borrow_mut().at = Some(Point { x: 320, y: 260 });
+        r.move_to(Rect::new(220, 250, 420, 450));
+        // The cursor grabbed the window 100 px right of its left edge at the drag start. Held at 300..500, the cursor
+        // goes to (400, 260), so the window lands exactly on the held position.
+        assert_eq!(r.pointer(395, 260), Some(Point { x: 400, y: 260 }));
+    }
+
+    #[test]
+    fn a_move_end_reports_the_held_position_to_the_inventory() {
+        let mut r = move_rig(false);
+        r.c.on_move_size_start(1);
+        r.move_to(NEAR);
+        r.c.on_move_size_end(1);
+        assert_eq!(*r.results.borrow(), vec![(1, Some(HELD))]);
+    }
+
+    #[test]
+    fn a_move_end_without_a_held_axis_reports_none() {
+        let mut r = move_rig(false);
+        r.c.on_move_size_start(1);
+        r.move_to(Rect::new(400, 500, 600, 700));
+        r.c.on_move_size_end(1);
+        assert_eq!(*r.results.borrow(), vec![(1, None)]);
+    }
+
+    #[test]
+    fn a_resize_end_does_not_report_a_move_result() {
+        let mut r = rig(two(), None);
+        r.c.on_move_size_start(1);
+        r.set(1, Rect::from_xywh(0, 0, 1820, 1440));
+        r.c.on_location_change(1);
+        r.c.on_move_size_end(1);
+        assert!(r.results.borrow().is_empty());
     }
 
     #[test]
@@ -1398,11 +1547,162 @@ mod tests {
     }
 
     #[test]
+    fn the_end_puts_a_window_that_is_off_the_held_position_on_it() {
+        // SNAP-075
+        let mut r = move_rig(true);
+        begin(&mut r);
+        r.pointer(395, 260);
+        r.set(1, Rect::new(304, 247, 504, 447));
+        r.c.on_move_size_end(1);
+        assert_eq!(*r.batches.borrow(), vec![vec![(1, Rect::new(300, 247, 500, 447))]]); // x held, y kept
+        assert!(r.logged("move end id=1 snaps=1 pointer applied"));
+    }
+
+    #[test]
+    fn the_end_leaves_a_free_axis_alone_when_the_held_axis_is_right() {
+        // SNAP-075
+        let mut r = move_rig(true);
+        begin(&mut r);
+        r.pointer(395, 260);
+        r.set(1, Rect::new(300, 247, 500, 447));
+        r.c.on_move_size_end(1);
+        assert!(r.batches.borrow().is_empty());
+        assert!(r.logged("frame=300,247,500,447 held=300,247,500,447 action=none"));
+        assert!(!r.logged("pointer applied"));
+    }
+
+    #[test]
+    fn the_end_corrects_both_held_axes_to_the_held_position() {
+        // SNAP-075
+        let mut r = move_rig(true);
+        begin(&mut r);
+        r.pointer(395, 215); // the top edge is held on window 2's top at 200
+        r.set(1, Rect::new(304, 204, 504, 404));
+        r.c.on_move_size_end(1);
+        assert_eq!(*r.batches.borrow(), vec![vec![(1, Rect::new(300, 200, 500, 400))]]);
+    }
+
+    #[test]
+    fn the_end_leaves_a_window_whose_size_changed() {
+        // SNAP-075
+        let mut r = move_rig(true);
+        begin(&mut r);
+        r.pointer(395, 260);
+        r.set(1, Rect::new(0, 0, 500, 800));
+        r.c.on_move_size_end(1);
+        assert!(r.batches.borrow().is_empty());
+        assert!(r.logged("move end id=1 snaps=1 pointer"));
+        assert!(!r.logged("applied"));
+        assert!(r.logged("action=skipped-size"));
+    }
+
+    #[test]
+    fn the_end_applies_nothing_when_no_axis_is_held() {
+        // SNAP-075
+        let mut r = move_rig(true);
+        begin(&mut r);
+        assert_eq!(r.pointer(310, 270), None);
+        r.set(1, Rect::new(212, 262, 412, 462));
+        r.c.on_move_size_end(1);
+        assert!(r.batches.borrow().is_empty());
+        assert!(!r.logged("applied"));
+        assert!(r.logged("held=none action=none"));
+    }
+
+    #[test]
+    fn the_end_applies_nothing_when_the_window_is_on_the_held_position() {
+        // SNAP-075
+        let mut r = move_rig(true);
+        begin(&mut r);
+        r.pointer(395, 260);
+        r.set(1, HELD);
+        r.c.on_move_size_end(1);
+        assert!(r.batches.borrow().is_empty());
+    }
+
+    #[test]
+    fn a_settled_window_off_the_held_line_calibrates_the_grab_offset() {
+        // SNAP-077
+        let mut r = move_rig(true);
+        begin(&mut r);
+        assert_eq!(r.pointer(395, 260), Some(Point { x: 400, y: 260 })); // x held at left = 300
+        r.move_to(Rect::new(305, 250, 505, 450)); // moving: not settled yet
+        assert_eq!(r.hook.borrow().set.len(), 0);
+        r.move_to(Rect::new(305, 250, 505, 450)); // settled 5 px right of the expected 300
+        assert_eq!(r.hook.borrow().set, vec![Point { x: 395, y: 260 }]);
+        r.move_to(Rect::new(300, 250, 500, 450)); // the window moved onto the held line
+        r.move_to(Rect::new(300, 250, 500, 450));
+        assert_eq!(r.hook.borrow().set.len(), 1);
+        assert!(r.batches.borrow().is_empty());
+        // The correction lasts: the held cursor stays where it was set.
+        assert_eq!(r.pointer(399, 262), Some(Point { x: 395, y: 262 }));
+    }
+
+    #[test]
+    fn an_error_beyond_the_breakaway_distance_is_not_calibrated() {
+        // SNAP-077
+        let mut r = move_rig(true);
+        begin(&mut r);
+        r.pointer(395, 260);
+        r.move_to(Rect::new(340, 250, 540, 450));
+        r.move_to(Rect::new(340, 250, 540, 450));
+        assert_eq!(r.hook.borrow().set.len(), 0);
+    }
+
+    #[test]
+    fn an_axis_that_is_not_held_is_not_calibrated() {
+        // SNAP-077
+        let mut r = move_rig(true);
+        begin(&mut r);
+        assert_eq!(r.pointer(310, 270), None);
+        r.move_to(Rect::new(205, 250, 405, 450));
+        r.move_to(Rect::new(205, 250, 405, 450));
+        assert_eq!(r.hook.borrow().set.len(), 0);
+    }
+
+    #[test]
+    fn a_window_that_has_not_settled_is_not_calibrated() {
+        // SNAP-077
+        let mut r = move_rig(true);
+        begin(&mut r);
+        r.pointer(395, 260);
+        r.move_to(Rect::new(305, 250, 505, 450));
+        assert_eq!(r.hook.borrow().set.len(), 0);
+    }
+
+    #[test]
+    fn the_calibration_line_is_written() {
+        // ENG-091
+        let mut r = move_rig(true);
+        begin(&mut r);
+        r.pointer(395, 260);
+        r.move_to(Rect::new(305, 250, 505, 450));
+        r.move_to(Rect::new(305, 250, 505, 450));
+        assert!(r.logged("diag: pointer calibrate axis=x error=5 cursor=395,260 window=300,250,500,450"));
+    }
+
+    #[test]
+    fn the_pointer_lines_describe_the_hold_the_release_and_the_correction() {
+        // ENG-088 to ENG-090
+        let mut r = move_rig(true);
+        begin(&mut r);
+        assert_eq!(r.pointer(310, 270), None);
+        assert!(!r.logged("diag: pointer hold"));
+        assert_eq!(r.pointer(395, 260), Some(Point { x: 400, y: 260 }));
+        assert!(r.logged("diag: pointer hold proposed=395,260 cursor=400,260 window=300,250,500,450"));
+        r.c.on_pointer_release(Point { x: 398, y: 260 });
+        assert!(r.logged("diag: pointer release cursor=398,260 expected=400,260"));
+        r.set(1, Rect::new(304, 250, 504, 450));
+        r.c.on_move_size_end(1);
+        assert!(r.logged("diag: move correction id=1 frame=304,250,504,450 held=300,250,500,450 action=applied"));
+    }
+
+    #[test]
     fn a_button_release_stops_the_hook_before_the_end_event() {
         // SNAP-075
         let mut r = move_rig(true);
         begin(&mut r);
-        r.c.on_pointer_release();
+        r.c.on_pointer_release(Point { x: 300, y: 260 });
         assert_eq!(r.hook.borrow().stops, 1);
         r.c.on_move_size_end(1);
         assert_eq!(r.hook.borrow().stops, 1);
@@ -1451,7 +1751,7 @@ mod tests {
     #[test]
     fn a_pointer_release_outside_a_move_does_nothing() {
         let mut r = move_rig(true);
-        r.c.on_pointer_release();
+        r.c.on_pointer_release(Point { x: 300, y: 260 });
         assert_eq!(r.hook.borrow().stops, 0);
     }
 }

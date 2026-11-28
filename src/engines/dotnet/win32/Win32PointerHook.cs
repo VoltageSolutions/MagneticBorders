@@ -77,7 +77,8 @@ public sealed unsafe class Win32PointerHook(ILog log) : IPointerHook, IDisposabl
                 }
                 else if (IsButtonUp(msg))
                 {
-                    sink.OnPointerRelease(); // may remove this hook
+                    var m = (MSLLHOOKSTRUCT*)lp.Value;
+                    sink.OnPointerRelease(new Point(m->pt.X, m->pt.Y)); // may remove this hook
                 }
             }
             catch (Exception ex) { self._log.Info("error: " + ex.Message); }

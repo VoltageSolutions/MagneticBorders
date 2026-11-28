@@ -49,6 +49,45 @@ TEST(MoveDiagnostics, FailureAndSkipLines) {
     EXPECT_EQ(diag::skip_line(0x10, "hung"), "move: skipped hwnd=0x10 reason=hung");
 }
 
+TEST(MoveDiagnostics, CandidateLine) {
+    EXPECT_EQ(diag::border({990, 100, 1910, 900}, {1000, 100, 1900, 890}), (Rect{-10, 0, 10, 10}));
+    EXPECT_EQ(diag::candidate_line(12, {1000, 100, 1900, 890}, {990, 100, 1910, 900}, 120,
+                                   "ConsoleWindowClass", "WindowsTerminal.exe", true),
+              "diag: window id=12 frame=1000,100,1900,890 rect=990,100,1910,900 "
+              "border=-10,0,10,10 dpi=120 class=ConsoleWindowClass exe=WindowsTerminal.exe "
+              "dragged=yes");
+    EXPECT_EQ(diag::candidate_line(3, {0, 0, 10, 10}, {0, 0, 10, 10}, 96, "", "", false),
+              "diag: window id=3 frame=0,0,10,10 rect=0,0,10,10 border=0,0,0,0 dpi=96 "
+              "class=unknown exe=unknown dragged=no");
+}
+
+TEST(MoveDiagnostics, MoveResultLine) {
+    EXPECT_EQ(diag::move_result_line(12, Rect{1, 2, 3, 4}, Rect{0, 2, 4, 5}, Rect{1, 2, 3, 4}),
+              "diag: move result id=12 frame=1,2,3,4 rect=0,2,4,5 held=1,2,3,4");
+    EXPECT_EQ(diag::move_result_line(12, std::nullopt, std::nullopt, std::nullopt),
+              "diag: move result id=12 frame=unavailable rect=unavailable held=none");
+}
+
+TEST(MoveDiagnostics, PointerLines) {
+    EXPECT_EQ(mb::drag_diag::pointer_hold_line({395, 260}, {400, 260}, {300, 250, 500, 450}),
+              "diag: pointer hold proposed=395,260 cursor=400,260 window=300,250,500,450");
+    EXPECT_EQ(mb::drag_diag::pointer_release_line({398, -3}, {400, 260}),
+              "diag: pointer release cursor=398,-3 expected=400,260");
+    EXPECT_EQ(mb::drag_diag::move_correction_line(12, Rect{304, 247, 504, 447},
+                                                  Rect{300, 250, 500, 450}, "applied"),
+              "diag: move correction id=12 frame=304,247,504,447 held=300,250,500,450 "
+              "action=applied");
+    EXPECT_EQ(mb::drag_diag::move_correction_line(12, std::nullopt, std::nullopt, "none"),
+              "diag: move correction id=12 frame=unavailable held=none action=none");
+}
+
+TEST(MoveDiagnostics, PointerCalibrateLine) {
+    EXPECT_EQ(mb::drag_diag::pointer_calibrate_line(true, 5, {395, 260}, {300, 250, 500, 450}),
+              "diag: pointer calibrate axis=x error=5 cursor=395,260 window=300,250,500,450");
+    EXPECT_EQ(mb::drag_diag::pointer_calibrate_line(false, -3, {400, 263}, {300, 250, 500, 450}),
+              "diag: pointer calibrate axis=y error=-3 cursor=400,263 window=300,250,500,450");
+}
+
 TEST(MoveDiagnostics, SystemLines) {
     EXPECT_EQ(diag::system_line("22631.3880", "per-monitor-v2", true, 2),
               "diag: system os_build=22631.3880 dpi_awareness=per-monitor-v2 dwm_composition=on "

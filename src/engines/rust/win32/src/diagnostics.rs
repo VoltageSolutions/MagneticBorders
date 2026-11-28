@@ -19,10 +19,7 @@ use windows::Win32::UI::HiDpi::{
 /// `MONITORINFO.dwFlags` bit of the primary monitor.
 const MONITORINFOF_PRIMARY: u32 = 1;
 
-/// Formats a rectangle as `l,t,r,b`.
-pub(crate) fn rect_text(r: Rect) -> String {
-    format!("{},{},{},{}", r.l, r.t, r.r, r.b)
-}
+pub(crate) use mb_app::diagnostics::rect_text;
 
 /// Returns `actual - requested` per side.
 pub(crate) fn delta(requested: Rect, actual: Rect) -> Rect {
@@ -91,6 +88,58 @@ pub(crate) fn set_window_pos_failure_line(id: u64, error: u32) -> String {
 /// Line for a window left out of a batch. `reason` is `no-offsets`, `banned` or `hung`.
 pub(crate) fn skip_line(id: u64, reason: &str) -> String {
     format!("move: skipped hwnd={} reason={reason}", hex_id(id))
+}
+
+/// Formats an optional rectangle as `l,t,r,b`, or `unavailable` when it could not be read.
+pub(crate) fn rect_or_unavailable(r: Option<Rect>) -> String {
+    r.map_or_else(|| "unavailable".to_string(), rect_text)
+}
+
+/// Returns `rect - frame` per side: the invisible border between `GetWindowRect` and the visual frame.
+pub(crate) fn border(rect: Rect, frame: Rect) -> Rect {
+    delta(frame, rect)
+}
+
+/// What the inventory reads about one window for a `diag: window` line.
+pub(crate) struct Candidate<'a> {
+    pub id: u64,
+    /// DWM extended frame bounds.
+    pub frame: Rect,
+    /// `GetWindowRect`.
+    pub rect: Rect,
+    pub dpi: u32,
+    /// Window class name; empty when unreadable.
+    pub window_class: &'a str,
+    /// Process executable file name; empty when unreadable.
+    pub exe: &'a str,
+    pub dragged: bool,
+}
+
+/// Line for one candidate window of a drag snapshot. An empty class or exe is written as `unknown`.
+pub(crate) fn candidate_line(c: &Candidate) -> String {
+    let or_unknown = |s: &str| if s.is_empty() { "unknown".to_string() } else { s.to_string() };
+    format!(
+        "diag: window id={} frame={} rect={} border={} dpi={} class={} exe={} dragged={}",
+        c.id,
+        rect_text(c.frame),
+        rect_text(c.rect),
+        rect_text(border(c.rect, c.frame)),
+        c.dpi,
+        or_unknown(c.window_class),
+        or_unknown(c.exe),
+        if c.dragged { "yes" } else { "no" }
+    )
+}
+
+/// Line for a window at the end of a move: where it is (`frame`, `rect`; `unavailable` when unreadable) and the
+/// position Magnetic attraction held (`none` when no axis was held).
+pub(crate) fn move_result_line(id: u64, frame: Option<Rect>, rect: Option<Rect>, held: Option<Rect>) -> String {
+    format!(
+        "diag: move result id={id} frame={} rect={} held={}",
+        rect_or_unavailable(frame),
+        rect_or_unavailable(rect),
+        held.map_or_else(|| "none".to_string(), rect_text)
+    )
 }
 
 /// Start-up line with the system facts. `dpi_awareness` is `unaware`, `system`, `per-monitor`, `per-monitor-v2` or
@@ -241,6 +290,45 @@ mod tests {
         assert_eq!(win32_code(&wrapped), 5);
         let other = windows::core::Error::from_hresult(HRESULT(0x8000_4005_u32 as i32));
         assert_eq!(win32_code(&other), 0x8000_4005);
+    }
+
+    #[test]
+    fn candidate_line_text() {
+        let frame = Rect::new(1000, 100, 1900, 890);
+        let rect = Rect::new(990, 100, 1910, 900);
+        assert_eq!(border(rect, frame), Rect::new(-10, 0, 10, 10));
+        let c = Candidate {
+            id: 12,
+            frame,
+            rect,
+            dpi: 120,
+            window_class: "ConsoleWindowClass",
+            exe: "WindowsTerminal.exe",
+            dragged: true,
+        };
+        assert_eq!(
+            candidate_line(&c),
+            "diag: window id=12 frame=1000,100,1900,890 rect=990,100,1910,900 border=-10,0,10,10 dpi=120 class=ConsoleWindowClass exe=WindowsTerminal.exe dragged=yes"
+        );
+        let r = Rect::new(0, 0, 10, 10);
+        let c = Candidate { id: 3, frame: r, rect: r, dpi: 96, window_class: "", exe: "", dragged: false };
+        assert_eq!(
+            candidate_line(&c),
+            "diag: window id=3 frame=0,0,10,10 rect=0,0,10,10 border=0,0,0,0 dpi=96 class=unknown exe=unknown dragged=no"
+        );
+    }
+
+    #[test]
+    fn move_result_line_text() {
+        let r = Rect::new(1, 2, 3, 4);
+        assert_eq!(
+            move_result_line(12, Some(r), Some(Rect::new(0, 2, 4, 5)), Some(r)),
+            "diag: move result id=12 frame=1,2,3,4 rect=0,2,4,5 held=1,2,3,4"
+        );
+        assert_eq!(
+            move_result_line(12, None, None, None),
+            "diag: move result id=12 frame=unavailable rect=unavailable held=none"
+        );
     }
 
     #[test]

@@ -38,6 +38,16 @@ TEST(PointerDrag, TheCursorGoesWhereTheMouseSendsItWhenNothingIsHeld) {  // SNAP
     EXPECT_FALSE(r.d.attraction().held());
 }
 
+TEST(PointerDrag, CalibrationMovesTheReferenceAndReturnsTheHeldCursor) {  // SNAP-077
+    Rig r;
+    (void)r.nudge(-90, 0);  // held at x = 0, cursor (50, 410)
+    EXPECT_EQ(r.d.calibrate(true, 5), (Point{45, 410}));
+    EXPECT_EQ(r.d.window(), (Rect{0, 400, 100, 500}));
+    EXPECT_EQ(r.d.cursor(), (Point{45, 410}));
+    EXPECT_EQ(r.d.calibrate(true, 0), std::nullopt);
+    EXPECT_EQ(r.d.calibrate(false, 3), std::nullopt);  // y is not held
+}
+
 TEST(PointerDrag, PullInMovesTheCursorSoTheWindowLandsOnTheLine) {  // SNAP-040, SNAP-072
     Rig r;
     // The window's left edge would be at 10: pulled to 0, so the cursor lands 10 px further left.

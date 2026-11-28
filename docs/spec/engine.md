@@ -85,6 +85,12 @@ Verbose logging records how each move batch is applied and what the system looks
 | ENG-083 | With `--verbose`, a failed deferred batch must write a `move: deferred batch failed` line with the Win32 error number, and every `SetWindowPos` failure in the fallback must write a `move: SetWindowPos failed` line. |
 | ENG-084 | Without `--verbose`, the mover must not read back window rectangles, measure time or build any of these lines. |
 | ENG-085 | All three engines must write the same text after the log prefix. The prefix (time stamp and level) may differ. |
+| ENG-086 | With `--verbose`, taking the snapshot at the start of a drag must write one `diag: window` line per candidate window, the dragged window included when it is eligible. |
+| ENG-087 | With `--verbose`, the end of a move (not a resize) must write one `diag: move result` line after the `move end` line. |
+| ENG-088 | With `--verbose`, each mouse movement that the pointer hook changes must write `diag: pointer hold proposed=x,y cursor=x,y window=l,t,r,b`: the position Windows proposed, the cursor position the engine set, and the window frame that position gives. Movements let through unchanged write nothing. |
+| ENG-089 | With `--verbose`, a mouse button release seen by the pointer hook during a move must write `diag: pointer release cursor=x,y expected=x,y`: the position of the release event and the last cursor position the engine set or let through. |
+| ENG-090 | With `--verbose`, the end of a move with the pointer hook must write `diag: move correction id=N frame=l,t,r,b held=l,t,r,b\|none action=applied\|none\|skipped-size` before the `move end` line. `frame` is `unavailable` when the window cannot be read. `held` is the target position that SNAP-075 computes from the window's frame and the held axes (the position that is applied when `action` is `applied`), and `none` when no axis is held or the frame is unavailable. `action` is `applied` when that target is applied (SNAP-075), `skipped-size` when the window's size changed, and `none` otherwise. |
+| ENG-091 | With `--verbose`, each calibration of the cursor-to-window offset (SNAP-077) must write `diag: pointer calibrate axis=x\|y error=N cursor=x,y window=l,t,r,b`: the axis, the measured error, the cursor position the engine set, and the window frame that position gives. The C++ and Rust builds write it. The C# build does not calibrate and never writes it. |
 
 ### Capture a log
 
@@ -133,9 +139,36 @@ move: hwnd=0x3c4d requested=960,0,1920,1000 actual=960,0,1940,1000 delta=0,0,20,
 | `move: deferred batch failed` | A call of the deferred batch failed. `step` is `begin`, `defer` (with the `hwnd` that failed) or `end`, and `error` is the Win32 error number. The engine then moves each window with `SetWindowPos`. |
 | `move: SetWindowPos failed` | A fallback move failed. The window is excluded until the engine restarts. Error 5 is access denied. |
 
+### Snap lines
+
+```text
+diag: window id=1052040 frame=1000,100,1900,890 rect=1000,100,1900,890 border=0,0,0,0 dpi=120 class=CASCADIA_HOSTING_WINDOW_CLASS exe=WindowsTerminal.exe dragged=no
+diag: window id=395786 frame=100,100,990,890 rect=90,100,1000,900 border=-10,0,10,10 dpi=120 class=Notepad exe=notepad.exe dragged=yes
+diag: move result id=395786 frame=1000,100,1890,890 rect=990,100,1900,900 held=1000,100,1890,890
+```
+
+| Line | Meaning |
+|---|---|
+| `diag: window` | One candidate window when a drag starts: every eligible window on the monitor of the dragged window, with `dragged=yes` for the dragged window. Windows that only appear in the covering stack are not written. |
+| `diag: move result` | The dragged window when a move ends, after the `move end` line. `held` is the position Magnetic attraction held at the end, or `none` when no axis was held. A resize writes no such line. |
+
+| Field | Meaning |
+|---|---|
+| `id` | Window handle as a decimal number, the same value as `id=` in the `move start` and `move end` lines. |
+| `frame` | Visual frame (`DWMWA_EXTENDED_FRAME_BOUNDS`) as `left,top,right,bottom`, or `unavailable`. The engine aligns edges on this rectangle. |
+| `rect` | `GetWindowRect` as `left,top,right,bottom`, or `unavailable`. |
+| `border` | `rect` minus `frame` per side. A normal window has an invisible resize border, so the left and top values are negative and the right and bottom values are positive (about 10 px each at 120 DPI). `0,0,0,0` on a window that has such a border means the frame bounds include the border, so aligned edges leave a visible gap of that size. |
+| `dpi` | `GetDpiForWindow` of the window. |
+| `class` | Window class name, or `unknown`. |
+| `exe` | File name of the process executable, or `unknown`. |
+| `dragged` | `yes` for the dragged window, otherwise `no`. |
+
+`diag: move result` compares `frame` with `held`. A `frame` that differs from `held` after a `move end` line shows that the window did not end where attraction held it.
+
 ### Reading the lines
 
 - Flicker while dragging often shows as `mismatches` above 0 in consecutive batches for the same window: the window corrects its own size after each move, and the neighbor repaints twice.
 - `mode=individual` means the windows repaint one by one instead of together.
 - A large `elapsed_us` (several milliseconds) means a window is slow to process the move. Windows blocks the engine in `SetWindowPos` until the window handles its size messages.
 - A `dpi_awareness` other than `per-monitor-v2`, or monitors with different `dpi` values, can explain offsets of a pixel or more between `requested` and `actual`.
+- A `border` of `0,0,0,0` next to a gap in the layout points at a window whose frame bounds are its outer window rectangle. Look at its `class` and `exe`.

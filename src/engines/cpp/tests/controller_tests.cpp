@@ -15,7 +15,11 @@ namespace {
 struct FakeInventory : WindowInventory {
     Snapshot snap;
     std::map<WindowId, Rect> frames;
+    std::vector<std::pair<WindowId, std::optional<Rect>>> results;
     Snapshot snapshot(WindowId) override { return snap; }
+    void report_move_result(WindowId id, const std::optional<Rect>& held) override {
+        results.emplace_back(id, held);
+    }
     std::optional<Rect> frame_of(WindowId id) override {
         const auto it = frames.find(id);
         return it == frames.end() ? std::nullopt : std::optional{it->second};
@@ -538,6 +542,36 @@ TEST_F(MoveFixture, AFastMoveDoesNotSnap) {  // SNAP-012
     EXPECT_EQ(ctl.snaps(), 0u);
 }
 
+TEST_F(MoveFixture, AVerboseMoveEndReportsTheHeldPositionToTheInventory) {
+    DragController verbose{inv, mover, clock, timer, log, ControllerOptions{12, "Test", true, {}}};
+    verbose.on_move_size_start(1);
+    inv.frames[1] = kNear;
+    clock.t += 100;
+    verbose.on_location_change(1);
+    verbose.on_move_size_end(1);
+    ASSERT_EQ(inv.results.size(), 1U);
+    EXPECT_EQ(inv.results[0].first, 1U);
+    EXPECT_EQ(inv.results[0].second, std::optional<Rect>{kHeld});
+}
+
+TEST_F(MoveFixture, AVerboseMoveEndWithoutAHeldAxisReportsNone) {
+    DragController verbose{inv, mover, clock, timer, log, ControllerOptions{12, "Test", true, {}}};
+    verbose.on_move_size_start(1);
+    inv.frames[1] = {400, 500, 600, 700};
+    clock.t += 100;
+    verbose.on_location_change(1);
+    verbose.on_move_size_end(1);
+    ASSERT_EQ(inv.results.size(), 1U);
+    EXPECT_FALSE(inv.results[0].second.has_value());
+}
+
+TEST_F(MoveFixture, AQuietMoveEndDoesNotReport) {
+    ctl.on_move_size_start(1);
+    move_to(kNear);
+    ctl.on_move_size_end(1);
+    EXPECT_TRUE(inv.results.empty());
+}
+
 TEST_F(MoveFixture, TheEndAppliesTheHeldPositionOnceWhenWindowsPutTheWindowBackAtTheFreePosition) {
     // SNAP-050, SNAP-052
     ctl.on_move_size_start(1);
@@ -742,6 +776,8 @@ struct FakeHook : PointerHook {
         sink = nullptr;
     }
     std::optional<Point> cursor() override { return at; }
+    std::vector<Point> set;
+    void set_cursor(const Point& to) override { set.push_back(to); }
 };
 
 /// MoveFixture with a pointer hook. The cursor at (300, 260) grabs window 1 (200..400) 100 px right of its left.
@@ -773,6 +809,17 @@ TEST_F(PointerFixture,
     EXPECT_TRUE(log.contains("snap hold right=500 target=edge-to-edge"));
 }
 
+TEST_F(PointerFixture, TheReferenceIsTheFrameAndCursorFromTheDragStart) {  // SNAP-071, SNAP-072
+    ctl.on_move_size_start(1);
+    // By the time the move is classified, Windows has moved the window and the cursor on.
+    hook.at = Point{320, 260};
+    move_to({220, 250, 420, 450});
+    EXPECT_EQ(hook.starts, 1);
+    // The cursor grabbed the window 100 px right of its left edge at the drag start. Held at 300..500, the cursor
+    // goes to (400, 260), so the window lands exactly on the held position.
+    EXPECT_EQ(pointer(395, 260), (Point{400, 260}));
+}
+
 TEST_F(PointerFixture, AFreeMovementGoesThroughUnchanged) {  // SNAP-072
     begin();
     EXPECT_EQ(pointer(310, 270), std::nullopt);
@@ -782,6 +829,45 @@ TEST_F(PointerFixture, LocationChangesNeverMoveTheWindow) {  // SNAP-072
     begin();
     move_to(kNear);
     EXPECT_TRUE(mover.batches.empty());
+}
+
+TEST_F(PointerFixture, ASettledWindowThatIsOffTheHeldLineCalibratesTheGrabOffset) {  // SNAP-077
+    begin();
+    EXPECT_EQ(pointer(395, 260), (Point{400, 260}));  // x held at left=300
+    move_to({305, 250, 505, 450});                    // moving: not settled yet
+    EXPECT_TRUE(hook.set.empty());
+    move_to({305, 250, 505, 450});  // settled 5 px right of the expected 300
+    ASSERT_EQ(hook.set.size(), 1u);
+    EXPECT_EQ(hook.set[0], (Point{395, 260}));
+    move_to({300, 250, 500, 450});  // the window moved onto the held line
+    move_to({300, 250, 500, 450});
+    EXPECT_EQ(hook.set.size(), 1u);
+    EXPECT_TRUE(mover.batches.empty());
+    // The correction lasts: the held cursor stays where it was set.
+    EXPECT_EQ(pointer(399, 262), (Point{395, 262}));
+}
+
+TEST_F(PointerFixture, AnErrorBeyondTheBreakawayDistanceIsNotCalibrated) {  // SNAP-077
+    begin();
+    (void)pointer(395, 260);
+    move_to({340, 250, 540, 450});
+    move_to({340, 250, 540, 450});
+    EXPECT_TRUE(hook.set.empty());
+}
+
+TEST_F(PointerFixture, AnAxisThatIsNotHeldIsNotCalibrated) {  // SNAP-077
+    begin();
+    EXPECT_EQ(pointer(310, 270), std::nullopt);
+    move_to({205, 250, 405, 450});
+    move_to({205, 250, 405, 450});
+    EXPECT_TRUE(hook.set.empty());
+}
+
+TEST_F(PointerFixture, AWindowThatHasNotSettledIsNotCalibrated) {  // SNAP-077
+    begin();
+    (void)pointer(395, 260);
+    move_to({305, 250, 505, 450});
+    EXPECT_TRUE(hook.set.empty());
 }
 
 TEST_F(PointerFixture, TheEndStopsTheHookAndAppliesNothing) {  // SNAP-075
@@ -795,9 +881,125 @@ TEST_F(PointerFixture, TheEndStopsTheHookAndAppliesNothing) {  // SNAP-075
     EXPECT_EQ(pointer(390, 260), std::nullopt);
 }
 
+TEST_F(PointerFixture, TheEndPutsAWindowThatIsOffTheHeldPositionOnIt) {  // SNAP-075
+    begin();
+    (void)pointer(395, 260);
+    inv.frames[1] = {304, 247, 504, 447};
+    ctl.on_move_size_end(1);
+    ASSERT_EQ(mover.batches.size(), 1u);
+    ASSERT_EQ(mover.batches[0].size(), 1u);
+    EXPECT_EQ(mover.batches[0][0].id, 1u);
+    EXPECT_EQ(mover.batches[0][0].frame, (Rect{300, 247, 500, 447}));  // x held, y kept
+    EXPECT_TRUE(log.contains("move end id=1 snaps=1 pointer applied"));
+}
+
+TEST_F(PointerFixture, TheEndCorrectsBothHeldAxesToTheHeldPosition) {  // SNAP-075
+    begin();
+    (void)pointer(395, 215);  // the top edge is held on window 2's top at 200
+    inv.frames[1] = {304, 204, 504, 404};
+    ctl.on_move_size_end(1);
+    ASSERT_EQ(mover.batches.size(), 1u);
+    EXPECT_EQ(mover.batches[0][0].frame, (Rect{300, 200, 500, 400}));
+}
+
+TEST_F(PointerFixture, TheEndLeavesAWindowWhoseSizeChanged) {  // SNAP-075
+    begin();
+    (void)pointer(395, 260);
+    inv.frames[1] = {0, 0, 500, 800};
+    ctl.on_move_size_end(1);
+    EXPECT_TRUE(mover.batches.empty());
+    EXPECT_TRUE(log.contains("move end id=1 snaps=1 pointer"));
+    EXPECT_FALSE(log.contains("applied"));
+}
+
+TEST_F(PointerFixture, TheEndAppliesNothingWhenNoAxisIsHeld) {  // SNAP-075
+    begin();
+    EXPECT_EQ(pointer(310, 270), std::nullopt);
+    inv.frames[1] = {212, 262, 412, 462};
+    ctl.on_move_size_end(1);
+    EXPECT_TRUE(mover.batches.empty());
+    EXPECT_FALSE(log.contains("applied"));
+}
+
+TEST_F(PointerFixture, TheEndAppliesNothingWhenTheWindowIsOnTheHeldPosition) {  // SNAP-075
+    begin();
+    (void)pointer(395, 260);
+    inv.frames[1] = kHeld;
+    ctl.on_move_size_end(1);
+    EXPECT_TRUE(mover.batches.empty());
+}
+
+namespace {
+/// A verbose controller on a PointerFixture's ports.
+struct VerboseController {
+    DragController ctl;
+    explicit VerboseController(PointerFixture& f)
+        : ctl(f.inv, f.mover, f.clock, f.timer, f.log, ControllerOptions{12, "Test", true, {}}) {
+        ctl.set_pointer_hook(&f.hook);
+    }
+};
+}  // namespace
+
+TEST_F(PointerFixture,
+       VerboseLinesDescribeTheHoldTheReleaseAndTheCorrection) {  // ENG-088 to ENG-090
+    VerboseController v(*this);
+    v.ctl.on_move_size_start(1);
+    clock.t += 100;
+    v.ctl.on_location_change(1);
+    clock.t += 100;
+    EXPECT_EQ(v.ctl.on_pointer_move({310, 270}), std::nullopt);
+    EXPECT_FALSE(log.contains("diag: pointer hold"));
+    clock.t += 100;
+    EXPECT_EQ(v.ctl.on_pointer_move({395, 260}), (Point{400, 260}));
+    EXPECT_TRUE(log.contains("diag: pointer hold proposed=395,260 cursor=400,260 window=300,"));
+    v.ctl.on_pointer_release({398, 260});
+    EXPECT_TRUE(log.contains("diag: pointer release cursor=398,260 expected=400,260"));
+    inv.frames[1] = {304, 250, 504, 450};
+    v.ctl.on_move_size_end(1);
+    EXPECT_TRUE(
+        log.contains("diag: move correction id=1 frame=304,250,504,450 held=300,250,500,450 "
+                     "action=applied"));
+}
+
+TEST_F(PointerFixture, TheEndLeavesAFreeAxisAloneWhenTheHeldAxisIsRight) {  // SNAP-075
+    VerboseController v(*this);
+    v.ctl.on_move_size_start(1);
+    clock.t += 100;
+    v.ctl.on_location_change(1);
+    clock.t += 100;
+    (void)v.ctl.on_pointer_move({395, 260});
+    inv.frames[1] = {300, 247, 500, 447};
+    v.ctl.on_move_size_end(1);
+    EXPECT_TRUE(mover.batches.empty());
+    EXPECT_TRUE(log.contains("frame=300,247,500,447 held=300,247,500,447 action=none"));
+    EXPECT_FALSE(log.contains("pointer applied"));
+}
+
+TEST_F(PointerFixture, VerboseWritesTheCalibrationLine) {  // ENG-091
+    VerboseController v(*this);
+    v.ctl.on_move_size_start(1);
+    clock.t += 100;
+    v.ctl.on_location_change(1);
+    clock.t += 100;
+    EXPECT_EQ(v.ctl.on_pointer_move({395, 260}), (Point{400, 260}));
+    inv.frames[1] = {305, 250, 505, 450};
+    v.ctl.on_location_change(1);
+    v.ctl.on_location_change(1);
+    EXPECT_TRUE(log.contains(
+        "diag: pointer calibrate axis=x error=5 cursor=395,260 window=300,250,500,450"));
+}
+
+TEST_F(PointerFixture, WithoutVerboseNoPointerLinesAreWritten) {  // ENG-088 to ENG-090
+    begin();
+    (void)pointer(395, 260);
+    ctl.on_pointer_release({400, 260});
+    ctl.on_move_size_end(1);
+    EXPECT_FALSE(log.contains("diag:"));
+}
+
 TEST_F(PointerFixture, AButtonReleaseStopsTheHookBeforeTheEndEvent) {  // SNAP-075
     begin();
-    ctl.on_pointer_release();
+    ctl.on_pointer_release({300, 260});
     EXPECT_EQ(hook.stops, 1);
     ctl.on_move_size_end(1);
     EXPECT_EQ(hook.stops, 1);

@@ -9,6 +9,8 @@ internal sealed class SnapInventory : IWindowInventory
     public Dictionary<ulong, Rect> Frames { get; } = [];
     public Snapshot Snapshot(ulong draggedId) => Snap;
     public Rect? FrameOf(ulong id) => Frames.TryGetValue(id, out var r) ? r : null;
+    public List<(ulong Id, Rect? Held)> Results { get; } = [];
+    public void ReportMoveResult(ulong id, Rect? held) => Results.Add((id, held));
 }
 
 /// <summary>Pointer hook that records installs and removals and reports a settable cursor.</summary>
@@ -159,6 +161,26 @@ public class AttractionControllerTests
         r.Ctl.OnLocationChange(1); // 195 px in 5 ms
         Assert.Empty(r.Mover.Batches);
         Assert.Equal(0, r.Ctl.Snaps);
+    }
+
+    [Fact]
+    public void A_move_end_reports_the_held_position_to_the_inventory()
+    {
+        var r = new Rig();
+        r.Ctl.OnMoveSizeStart(1);
+        r.MoveTo(Near);
+        r.Ctl.OnMoveSizeEnd(1);
+        Assert.Equal((1UL, (Rect?)Held), Assert.Single(r.Inv.Results));
+    }
+
+    [Fact]
+    public void A_move_end_without_a_held_axis_reports_none()
+    {
+        var r = new Rig();
+        r.Ctl.OnMoveSizeStart(1);
+        r.MoveTo(new Rect(400, 500, 600, 700));
+        r.Ctl.OnMoveSizeEnd(1);
+        Assert.Equal((1UL, (Rect?)null), Assert.Single(r.Inv.Results));
     }
 
     [Fact]
@@ -469,6 +491,19 @@ public class AttractionControllerTests
     }
 
     [Fact]
+    public void The_reference_is_the_frame_and_cursor_from_the_drag_start() // SNAP-071, SNAP-072
+    {
+        var r = new Rig(withHook: true);
+        r.Ctl.OnMoveSizeStart(1);
+        // By the time the move is classified, Windows has moved the window and the cursor on.
+        r.Hook.At = new Point(320, 260);
+        r.MoveTo(new Rect(220, 250, 420, 450));
+        Assert.Equal(1, r.Hook.Starts);
+        // The cursor grabbed the window 100 px right of its left edge at the drag start. Held at 300..500, the cursor goes to (400, 260), so the window lands exactly on the held position.
+        Assert.Equal(new Point(400, 260), Pointer(r, 395, 260));
+    }
+
+    [Fact]
     public void A_free_movement_goes_through_unchanged() // SNAP-072
     {
         var r = new Rig(withHook: true);
@@ -500,11 +535,78 @@ public class AttractionControllerTests
     }
 
     [Fact]
+    public void The_end_puts_a_window_that_is_off_the_held_position_on_it() // SNAP-075
+    {
+        var r = new Rig(withHook: true);
+        Begin(r);
+        Pointer(r, 395, 260);
+        r.Inv.Frames[1] = new Rect(304, 247, 504, 447);
+        r.Ctl.OnMoveSizeEnd(1);
+        var batch = Assert.Single(r.Mover.Batches);
+        Assert.Equal((1UL, Held), Assert.Single(batch));
+        r.AssertLogged("move end id=1 snaps=1 pointer applied");
+    }
+
+    [Fact]
+    public void The_end_leaves_a_window_whose_size_changed() // SNAP-075
+    {
+        var r = new Rig(withHook: true);
+        Begin(r);
+        Pointer(r, 395, 260);
+        r.Inv.Frames[1] = new Rect(0, 0, 500, 800);
+        r.Ctl.OnMoveSizeEnd(1);
+        Assert.Empty(r.Mover.Batches);
+        r.AssertLogged("move end id=1 snaps=1 pointer");
+        Assert.DoesNotContain(r.Log.Infos, l => l.Contains("applied", StringComparison.Ordinal));
+        Assert.Contains(r.Log.Debugs, l => l.Contains("action=skipped-size", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void The_end_applies_nothing_when_no_axis_is_held() // SNAP-075
+    {
+        var r = new Rig(withHook: true);
+        Begin(r);
+        Assert.Null(Pointer(r, 310, 270));
+        r.Inv.Frames[1] = new Rect(212, 262, 412, 462);
+        r.Ctl.OnMoveSizeEnd(1);
+        Assert.Empty(r.Mover.Batches);
+        Assert.DoesNotContain(r.Log.Infos, l => l.Contains("applied", StringComparison.Ordinal));
+        Assert.Contains(r.Log.Debugs, l => l.Contains("held=none action=none", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void The_end_applies_nothing_when_the_window_is_on_the_held_position() // SNAP-075
+    {
+        var r = new Rig(withHook: true);
+        Begin(r);
+        Pointer(r, 395, 260);
+        r.Inv.Frames[1] = Held;
+        r.Ctl.OnMoveSizeEnd(1);
+        Assert.Empty(r.Mover.Batches);
+    }
+
+    [Fact]
+    public void The_pointer_lines_describe_the_hold_the_release_and_the_correction() // ENG-088 to ENG-090
+    {
+        var r = new Rig(withHook: true);
+        Begin(r);
+        Assert.Null(Pointer(r, 310, 270));
+        Assert.DoesNotContain(r.Log.Debugs, l => l.StartsWith("diag: pointer hold", StringComparison.Ordinal));
+        Assert.Equal(new Point(400, 260), Pointer(r, 395, 260));
+        Assert.Contains("diag: pointer hold proposed=395,260 cursor=400,260 window=300,250,500,450", r.Log.Debugs);
+        r.Ctl.OnPointerRelease(new Point(398, 260));
+        Assert.Contains("diag: pointer release cursor=398,260 expected=400,260", r.Log.Debugs);
+        r.Inv.Frames[1] = new Rect(304, 250, 504, 450);
+        r.Ctl.OnMoveSizeEnd(1);
+        Assert.Contains("diag: move correction id=1 frame=304,250,504,450 held=300,250,500,450 action=applied", r.Log.Debugs);
+    }
+
+    [Fact]
     public void A_button_release_stops_the_hook_before_the_end_event() // SNAP-075
     {
         var r = new Rig(withHook: true);
         Begin(r);
-        r.Ctl.OnPointerRelease();
+        r.Ctl.OnPointerRelease(new Point(300, 260));
         Assert.Equal(1, r.Hook.Stops);
         r.Ctl.OnMoveSizeEnd(1);
         Assert.Equal(1, r.Hook.Stops);
@@ -514,7 +616,7 @@ public class AttractionControllerTests
     public void A_button_release_without_a_move_does_nothing()
     {
         var r = new Rig(withHook: true);
-        r.Ctl.OnPointerRelease();
+        r.Ctl.OnPointerRelease(new Point(300, 260));
         Assert.Equal(0, r.Hook.Stops);
     }
 

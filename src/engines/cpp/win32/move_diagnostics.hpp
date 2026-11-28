@@ -7,15 +7,12 @@
 #include <string>
 #include <string_view>
 
+#include "app/diagnostics.hpp"
 #include "core/geometry.hpp"
 
 namespace mb::win32::diag {
 
-/// Formats a rectangle as `l,t,r,b`.
-[[nodiscard]] inline std::string rect_text(const Rect& r) {
-    return std::to_string(r.l) + "," + std::to_string(r.t) + "," + std::to_string(r.r) + "," +
-           std::to_string(r.b);
-}
+using mb::drag_diag::rect_text;
 
 /// Returns `actual - requested` per side.
 [[nodiscard]] constexpr Rect delta(const Rect& requested, const Rect& actual) noexcept {
@@ -93,6 +90,39 @@ namespace mb::win32::diag {
     return "diag: monitor " + std::to_string(index) + " rect=" + rect_text(bounds) +
            " work=" + rect_text(work) + " dpi=" + std::to_string(dpi_x) + "x" +
            std::to_string(dpi_y) + " primary=" + (primary ? "yes" : "no");
+}
+
+/// Formats an optional rectangle as `l,t,r,b`, or `unavailable` when it could not be read.
+[[nodiscard]] inline std::string rect_or_unavailable(const std::optional<Rect>& r) {
+    return r ? rect_text(*r) : std::string("unavailable");
+}
+
+/// Returns `rect - frame` per side: the invisible border between GetWindowRect and the visual frame.
+[[nodiscard]] constexpr Rect border(const Rect& rect, const Rect& frame) noexcept {
+    return delta(frame, rect);
+}
+
+/// Line for one candidate window of a drag snapshot. `frame` is the DWM extended frame bounds and `rect` is
+/// GetWindowRect. `window_class` and `exe` are written as `unknown` when empty.
+[[nodiscard]] inline std::string candidate_line(WindowId id, const Rect& frame, const Rect& rect,
+                                                unsigned dpi, std::string_view window_class,
+                                                std::string_view exe, bool dragged) {
+    return "diag: window id=" + std::to_string(id) + " frame=" + rect_text(frame) +
+           " rect=" + rect_text(rect) + " border=" + rect_text(border(rect, frame)) +
+           " dpi=" + std::to_string(dpi) +
+           " class=" + std::string(window_class.empty() ? "unknown" : window_class) +
+           " exe=" + std::string(exe.empty() ? "unknown" : exe) +
+           " dragged=" + (dragged ? "yes" : "no");
+}
+
+/// Line for a window at the end of a move: where it is (`frame`, `rect`; `unavailable` when unreadable) and the
+/// position Magnetic attraction held (`none` when no axis was held).
+[[nodiscard]] inline std::string move_result_line(WindowId id, const std::optional<Rect>& frame,
+                                                  const std::optional<Rect>& rect,
+                                                  const std::optional<Rect>& held) {
+    return "diag: move result id=" + std::to_string(id) + " frame=" + rect_or_unavailable(frame) +
+           " rect=" + rect_or_unavailable(rect) +
+           " held=" + (held ? rect_text(*held) : std::string("none"));
 }
 
 }  // namespace mb::win32::diag
