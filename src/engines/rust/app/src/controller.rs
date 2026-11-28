@@ -1586,7 +1586,7 @@ mod tests {
         begin(&mut r);
         assert_eq!(r.pointer(395, 260), Some(Point { x: 400, y: 260 })); // x held at left = 300
         r.move_to(Rect::new(305, 250, 505, 450)); // moving: not settled yet
-        assert!(r.hook.borrow().set.is_empty());
+        assert_eq!(r.hook.borrow().set.len(), 0);
         r.move_to(Rect::new(305, 250, 505, 450)); // settled 5 px right of the expected 300
         assert_eq!(r.hook.borrow().set, vec![Point { x: 395, y: 260 }]);
         r.move_to(Rect::new(300, 250, 500, 450)); // the window moved onto the held line
@@ -1605,7 +1605,7 @@ mod tests {
         r.pointer(395, 260);
         r.move_to(Rect::new(340, 250, 540, 450));
         r.move_to(Rect::new(340, 250, 540, 450));
-        assert!(r.hook.borrow().set.is_empty());
+        assert_eq!(r.hook.borrow().set.len(), 0);
     }
 
     #[test]
@@ -1616,7 +1616,7 @@ mod tests {
         assert_eq!(r.pointer(310, 270), None);
         r.move_to(Rect::new(205, 250, 405, 450));
         r.move_to(Rect::new(205, 250, 405, 450));
-        assert!(r.hook.borrow().set.is_empty());
+        assert_eq!(r.hook.borrow().set.len(), 0);
     }
 
     #[test]
@@ -1626,7 +1626,7 @@ mod tests {
         begin(&mut r);
         r.pointer(395, 260);
         r.move_to(Rect::new(305, 250, 505, 450));
-        assert!(r.hook.borrow().set.is_empty());
+        assert_eq!(r.hook.borrow().set.len(), 0);
     }
 
     #[test]

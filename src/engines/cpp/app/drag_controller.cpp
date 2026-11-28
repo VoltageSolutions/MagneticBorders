@@ -326,7 +326,7 @@ void DragController::calibrate_pointer(const Rect& frame) {
     // report has settled and equals cursor - grab offset.
     const std::optional<Rect> prev = pointer_prev_frame_;
     pointer_prev_frame_ = frame;
-    if (!prev || hook_ == nullptr) return;
+    if (!prev || !pointer_ || hook_ == nullptr) return;
     for (const bool x_axis : {true, false}) {
         const int actual = x_axis ? frame.l : frame.t;
         if (actual != (x_axis ? prev->l : prev->t)) continue;
