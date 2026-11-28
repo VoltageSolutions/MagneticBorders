@@ -106,4 +106,6 @@ pub trait PointerHook {
     fn stop(&mut self);
     /// The cursor position now, or `None` if it cannot be read.
     fn cursor(&mut self) -> Option<Point>;
+    /// Puts the cursor at `to` (`SetCursorPos`). A failure is ignored.
+    fn set_cursor(&mut self, to: Point);
 }

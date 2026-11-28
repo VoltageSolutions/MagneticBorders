@@ -90,6 +90,7 @@ Verbose logging records how each move batch is applied and what the system looks
 | ENG-088 | With `--verbose`, each mouse movement that the pointer hook changes must write `diag: pointer hold proposed=x,y cursor=x,y window=l,t,r,b`: the position Windows proposed, the cursor position the engine set, and the window frame that position gives. Movements let through unchanged write nothing. |
 | ENG-089 | With `--verbose`, a mouse button release seen by the pointer hook during a move must write `diag: pointer release cursor=x,y expected=x,y`: the position of the release event and the last cursor position the engine set or let through. |
 | ENG-090 | With `--verbose`, the end of a move with the pointer hook must write `diag: move correction id=N frame=l,t,r,b held=l,t,r,b\|none action=applied\|none\|skipped-size` before the `move end` line. `frame` is `unavailable` when the window cannot be read. `action` is `applied` when the held position is applied (SNAP-075), `skipped-size` when the window's size changed, and `none` otherwise. |
+| ENG-091 | With `--verbose`, each calibration of the cursor-to-window offset (SNAP-077) must write `diag: pointer calibrate axis=x\|y error=N cursor=x,y window=l,t,r,b`: the axis, the measured error, the cursor position the engine set, and the window frame that position gives. The C++ and Rust builds write it. The C# build does not calibrate and never writes it. |
 
 ### Capture a log
 

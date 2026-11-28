@@ -36,7 +36,7 @@ Win32 types stay out of `mb-core` and `mb-app`. That is why the controller can b
 | `TargetWindow`, `Span`, `make_target` | struct, struct, fn | `core/src/attraction.rs` | Another window with the visible spans of each edge (SNAP-038). | `Attraction` |
 | `AttractionEvent`, `TargetKind`, `ReleaseReason` | struct, enums | `core/src/attraction.rs` | One engage or release, for the log (SNAP-060). | `Attraction`, `DragController` |
 | `screen_side_targets` | fn | `core/src/attraction.rs` | Drops work-area sides that touch another monitor (SNAP-031). | `SideTargets` |
-| `PointerDrag` | struct | `core/src/pointer_drag.rs` | Runs an `Attraction` from mouse movement and returns where the cursor must go (SNAP-070 to SNAP-074). | `Attraction`, `Point` |
+| `PointerDrag` | struct | `core/src/pointer_drag.rs` | Runs an `Attraction` from mouse movement and returns where the cursor must go (SNAP-070 to SNAP-074). `calibrate` corrects its grab-offset estimate while an axis is held (SNAP-077). | `Attraction`, `Point` |
 
 ### mb-app
 

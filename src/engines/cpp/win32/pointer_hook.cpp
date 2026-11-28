@@ -38,6 +38,8 @@ std::optional<Point> Win32PointerHook::cursor() {
     return Point{p.x, p.y};
 }
 
+void Win32PointerHook::set_cursor(const Point& to) { SetCursorPos(to.x, to.y); }
+
 LRESULT CALLBACK Win32PointerHook::on_mouse(int code, WPARAM wp, LPARAM lp) {
     Win32PointerHook* self = t_pointer_hook;
     if (code == HC_ACTION && self != nullptr && self->sink_ != nullptr) {

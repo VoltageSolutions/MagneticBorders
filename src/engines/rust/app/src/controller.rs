@@ -1,7 +1,7 @@
 //! `DragController`: the drag state machine (Idle, Classifying, Resizing, Moving, Ignoring) plus the post-drag
 //! verify step.
 
-use crate::diagnostics::{move_correction_line, pointer_hold_line, pointer_release_line};
+use crate::diagnostics::{move_correction_line, pointer_calibrate_line, pointer_hold_line, pointer_release_line};
 use crate::ports::*;
 use mb_core::{
     build_seam, make_target, propagate, screen_side_targets, Attraction, AttractionConfig, AttractionEvent, Config,
@@ -46,6 +46,10 @@ struct Moving {
     /// Edges held during this drag.
     snaps: u64,
     t0: u64,
+    /// Scaled breakaway distance, the bound of a calibration (pointer mode, SNAP-077).
+    breakaway: i32,
+    /// Frame the window reported before the current one (pointer mode, SNAP-077).
+    prev_frame: Option<Rect>,
 }
 
 /// An active glued resize: the seams, throttle bookkeeping, and the frames last requested per member.
@@ -313,6 +317,7 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragControl
             })
             .collect();
         let sides = screen_side_targets(&d.snap.work_area, &d.snap.work_areas);
+        let cfg_breakaway = cfg.breakaway.max(cfg.pull_in); // SNAP-043
         let attraction = Attraction::new(cfg, others, d.snap.work_area, sides);
         let mode = self.start_pointer(attraction, d.id, d.reference);
         let pointer = if matches!(mode, Mode::Pointer(_)) { " pointer" } else { "" };
@@ -325,6 +330,8 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragControl
             last_held: None,
             snaps: 0,
             t0: d.t0,
+            breakaway: cfg_breakaway,
+            prev_frame: None,
         }))
     }
 
@@ -382,10 +389,36 @@ impl<I: WindowInventory, M: WindowMover, C: Clock, T: Timer, L: Log> DragControl
         }
     }
 
+    /// Pointer mode: a held axis keeps the cursor still, so a leading coordinate that did not change since the
+    /// previous report has settled and equals the cursor minus the grab offset. Measures the error of the estimate
+    /// on each such axis and moves the cursor so the window lands on the held position (SNAP-077).
+    fn calibrate_pointer(&mut self, m: &mut Moving, frame: Rect) {
+        let prev = m.prev_frame.replace(frame);
+        let (Some(prev), Mode::Pointer(p), Some(hook)) = (prev, &mut m.mode, self.hook.as_mut()) else { return };
+        for x_axis in [true, false] {
+            let (actual, before) = if x_axis { (frame.l, prev.l) } else { (frame.t, prev.t) };
+            if actual != before {
+                continue;
+            }
+            let expected = p.window();
+            let error = actual - if x_axis { expected.l } else { expected.t };
+            if error.abs() > m.breakaway {
+                continue;
+            }
+            if let Some(cursor) = p.calibrate(x_axis, error) {
+                hook.set_cursor(cursor);
+                self.log.debug(&pointer_calibrate_line(x_axis, error, cursor, p.window()));
+            }
+        }
+    }
+
     /// Frame mode: feeds the free position to the attraction and puts the window on the held position (SNAP-023).
     fn on_move(&mut self, m: &mut Moving, frame: Rect) {
         let now = self.clock.now_ms();
-        let Mode::Frame(attraction) = &mut m.mode else { return };
+        let Mode::Frame(attraction) = &mut m.mode else {
+            self.calibrate_pointer(m, frame);
+            return;
+        };
         if m.last_held == Some(frame) && frame != m.last_free {
             return; // SNAP-024: our own move
         }
@@ -744,6 +777,7 @@ mod tests {
         starts: u32,
         stops: u32,
         at: Option<Point>,
+        set: Vec<Point>,
     }
     type Hook = Rc<RefCell<HookState>>;
 
@@ -767,6 +801,9 @@ mod tests {
         }
         fn cursor(&mut self) -> Option<Point> {
             self.0.borrow().at
+        }
+        fn set_cursor(&mut self, to: Point) {
+            self.0.borrow_mut().set.push(to);
         }
     }
 
@@ -1540,6 +1577,67 @@ mod tests {
         r.set(1, HELD);
         r.c.on_move_size_end(1);
         assert!(r.batches.borrow().is_empty());
+    }
+
+    #[test]
+    fn a_settled_window_off_the_held_line_calibrates_the_grab_offset() {
+        // SNAP-077
+        let mut r = move_rig(true);
+        begin(&mut r);
+        assert_eq!(r.pointer(395, 260), Some(Point { x: 400, y: 260 })); // x held at left = 300
+        r.move_to(Rect::new(305, 250, 505, 450)); // moving: not settled yet
+        assert!(r.hook.borrow().set.is_empty());
+        r.move_to(Rect::new(305, 250, 505, 450)); // settled 5 px right of the expected 300
+        assert_eq!(r.hook.borrow().set, vec![Point { x: 395, y: 260 }]);
+        r.move_to(Rect::new(300, 250, 500, 450)); // the window moved onto the held line
+        r.move_to(Rect::new(300, 250, 500, 450));
+        assert_eq!(r.hook.borrow().set.len(), 1);
+        assert!(r.batches.borrow().is_empty());
+        // The correction lasts: the held cursor stays where it was set.
+        assert_eq!(r.pointer(399, 262), Some(Point { x: 395, y: 262 }));
+    }
+
+    #[test]
+    fn an_error_beyond_the_breakaway_distance_is_not_calibrated() {
+        // SNAP-077
+        let mut r = move_rig(true);
+        begin(&mut r);
+        r.pointer(395, 260);
+        r.move_to(Rect::new(340, 250, 540, 450));
+        r.move_to(Rect::new(340, 250, 540, 450));
+        assert!(r.hook.borrow().set.is_empty());
+    }
+
+    #[test]
+    fn an_axis_that_is_not_held_is_not_calibrated() {
+        // SNAP-077
+        let mut r = move_rig(true);
+        begin(&mut r);
+        assert_eq!(r.pointer(310, 270), None);
+        r.move_to(Rect::new(205, 250, 405, 450));
+        r.move_to(Rect::new(205, 250, 405, 450));
+        assert!(r.hook.borrow().set.is_empty());
+    }
+
+    #[test]
+    fn a_window_that_has_not_settled_is_not_calibrated() {
+        // SNAP-077
+        let mut r = move_rig(true);
+        begin(&mut r);
+        r.pointer(395, 260);
+        r.move_to(Rect::new(305, 250, 505, 450));
+        assert!(r.hook.borrow().set.is_empty());
+    }
+
+    #[test]
+    fn the_calibration_line_is_written() {
+        // ENG-091
+        let mut r = move_rig(true);
+        begin(&mut r);
+        r.pointer(395, 260);
+        r.move_to(Rect::new(305, 250, 505, 450));
+        r.move_to(Rect::new(305, 250, 505, 450));
+        assert!(r.logged("diag: pointer calibrate axis=x error=5 cursor=395,260 window=300,250,500,450"));
     }
 
     #[test]

@@ -34,6 +34,18 @@ pub fn pointer_release_line(cursor: Point, expected: Point) -> String {
     format!("diag: pointer release cursor={} expected={}", point_text(cursor), point_text(expected))
 }
 
+/// Line for a grab-offset calibration: the axis (`x` or `y`), the error that was measured, the cursor position the
+/// engine set, and the window frame that position now gives.
+#[must_use]
+pub fn pointer_calibrate_line(x_axis: bool, error: i32, cursor: Point, window: Rect) -> String {
+    format!(
+        "diag: pointer calibrate axis={} error={error} cursor={} window={}",
+        if x_axis { "x" } else { "y" },
+        point_text(cursor),
+        rect_text(window)
+    )
+}
+
 /// Line for the decision at the end of a pointer-mode move: the window's frame (`unavailable` when unreadable), the
 /// held position (`none` when no axis was held), and the action, `applied`, `none`, or `skipped-size`.
 #[must_use]
@@ -64,6 +76,18 @@ mod tests {
         assert_eq!(
             pointer_release_line(Point { x: 398, y: -3 }, Point { x: 400, y: 260 }),
             "diag: pointer release cursor=398,-3 expected=400,260"
+        );
+    }
+
+    #[test]
+    fn pointer_calibrate_line_text() {
+        assert_eq!(
+            pointer_calibrate_line(true, 5, Point { x: 395, y: 260 }, Rect::new(300, 250, 500, 450)),
+            "diag: pointer calibrate axis=x error=5 cursor=395,260 window=300,250,500,450"
+        );
+        assert_eq!(
+            pointer_calibrate_line(false, -3, Point { x: 400, y: 263 }, Rect::new(300, 250, 500, 450)),
+            "diag: pointer calibrate axis=y error=-3 cursor=400,263 window=300,250,500,450"
         );
     }
 

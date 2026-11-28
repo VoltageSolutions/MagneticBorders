@@ -112,6 +112,8 @@ public:
     virtual void stop() = 0;
     /// The cursor position now, or nullopt if it cannot be read.
     [[nodiscard]] virtual std::optional<Point> cursor() = 0;
+    /// Puts the cursor at `to` (SetCursorPos). A failure is ignored.
+    virtual void set_cursor(const Point& to) = 0;
 };
 
 /// Sink for drag lifecycle events. Implemented by DragController; win32::WinEventSource calls it on the UI thread.

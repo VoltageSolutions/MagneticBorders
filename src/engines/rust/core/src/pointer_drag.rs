@@ -1,4 +1,4 @@
-//! `PointerDrag`: magnetic attraction driven by the mouse cursor during a move (SNAP-070 to SNAP-076). No OS types.
+//! `PointerDrag`: magnetic attraction driven by the mouse cursor during a move (SNAP-070 to SNAP-077). No OS types.
 
 use crate::{Attraction, Point, Rect};
 
@@ -59,6 +59,28 @@ impl PointerDrag {
         }
         self.cursor = out;
         out
+    }
+
+    /// Corrects the estimate of the window's offset from the cursor on one axis. `error` is the window's actual
+    /// leading coordinate (left for x, top for y) minus `window()` on that axis, measured while the cursor was still
+    /// on that axis. The reference frame and the free position shift by `error` on the axis, so `window()` matches
+    /// the actual window, and the result is the cursor that puts the window on the held position: the last cursor
+    /// with the axis moved there. Returns `None` when the axis is not held or `error` is 0 (SNAP-077).
+    pub fn calibrate(&mut self, x_axis: bool, error: i32) -> Option<Point> {
+        if error == 0 || !(if x_axis { self.attraction.held_x() } else { self.attraction.held_y() }) {
+            return None;
+        }
+        let held = self.attraction.current();
+        if x_axis {
+            self.frame0 = at_x(&self.frame0, self.frame0.l + error);
+            self.free = at_x(&self.free, self.free.l + error);
+            self.cursor.x = self.cursor0.x + held.l - self.frame0.l;
+        } else {
+            self.frame0 = at_y(&self.frame0, self.frame0.t + error);
+            self.free = at_y(&self.free, self.free.t + error);
+            self.cursor.y = self.cursor0.y + held.t - self.frame0.t;
+        }
+        Some(self.cursor)
     }
 
     /// The attraction, for its events and counters.
@@ -128,6 +150,18 @@ mod tests {
         assert_eq!(r.nudge(10, 10), pt(160, 420));
         assert_eq!(r.d.window(), Rect::new(110, 410, 210, 510));
         assert!(!r.d.attraction().held());
+    }
+
+    #[test]
+    fn calibration_moves_the_reference_and_returns_the_held_cursor() {
+        // SNAP-077
+        let mut r = Rig::new();
+        r.nudge(-90, 0); // held at x = 0, cursor (50, 410)
+        assert_eq!(r.d.calibrate(true, 5), Some(pt(45, 410)));
+        assert_eq!(r.d.window(), Rect::new(0, 400, 100, 500));
+        assert_eq!(r.d.cursor(), pt(45, 410));
+        assert_eq!(r.d.calibrate(true, 0), None);
+        assert_eq!(r.d.calibrate(false, 3), None); // y is not held
     }
 
     #[test]

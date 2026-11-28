@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
 #include "diagnostics.hpp"
 
@@ -247,6 +248,8 @@ void DragController::begin_move() {
         others.push_back(make_target(w.frame, above));
     }
     const SideTargets sides = screen_side_targets(snapshot_.work_area, snapshot_.work_areas);
+    breakaway_px_ = std::max(cfg.breakaway, cfg.pull_in);  // SNAP-043
+    pointer_prev_frame_.reset();
     attraction_.emplace(cfg, std::move(others), snapshot_.work_area, sides);
     start_pointer();
     last_free_ = start_frame_;
@@ -318,7 +321,32 @@ void DragController::log_snap_events() {
     }
 }
 
+void DragController::calibrate_pointer(const Rect& frame) {
+    // SNAP-077: a held axis keeps the cursor still, so a leading coordinate that did not change since the previous
+    // report has settled and equals cursor - grab offset.
+    const std::optional<Rect> prev = pointer_prev_frame_;
+    pointer_prev_frame_ = frame;
+    if (!prev || hook_ == nullptr) return;
+    for (const bool x_axis : {true, false}) {
+        const int actual = x_axis ? frame.l : frame.t;
+        if (actual != (x_axis ? prev->l : prev->t)) continue;
+        const Rect expected = pointer_->window();
+        const int error = actual - (x_axis ? expected.l : expected.t);
+        if (std::abs(error) > breakaway_px_) continue;
+        const auto cursor = pointer_->calibrate(x_axis, error);
+        if (!cursor) continue;
+        hook_->set_cursor(*cursor);
+        if (opts_.verbose)
+            log_.debug(
+                drag_diag::pointer_calibrate_line(x_axis, error, *cursor, pointer_->window()));
+    }
+}
+
 void DragController::on_move(const Rect& frame) {
+    if (pointer_) {
+        calibrate_pointer(frame);
+        return;
+    }
     if (!attraction_) return;
     if (last_held_ && frame == *last_held_ && frame != last_free_)
         return;  // SNAP-024: our own move

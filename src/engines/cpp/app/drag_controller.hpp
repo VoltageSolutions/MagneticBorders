@@ -107,6 +107,7 @@ private:
     void on_move(const Rect& frame);
     void finish_move(WindowId id);
     void finish_pointer_move(WindowId id);
+    void calibrate_pointer(const Rect& frame);
     void log_snap_events();
     [[nodiscard]] Planned plan_for(const Rect& frame) const;
     std::vector<Move> final_moves(const Rect& frame, bool& snapped);
@@ -160,8 +161,10 @@ private:
     std::optional<Attraction> attraction_;  // set while Moving without the pointer hook
     std::optional<PointerDrag> pointer_;    // set while Moving with the pointer hook (SNAP-070)
     PointerHook* hook_{nullptr};
-    Rect last_free_{};               // last free position fed to attraction_
-    std::optional<Rect> last_held_;  // frame the window reported after our last held move
+    int breakaway_px_{0};  // scaled breakaway distance, the bound of a calibration (SNAP-077)
+    std::optional<Rect> pointer_prev_frame_;  // previous frame reported in pointer mode (SNAP-077)
+    Rect last_free_{};                        // last free position fed to attraction_
+    std::optional<Rect> last_held_;           // frame the window reported after our last held move
     std::uint64_t drag_snaps_{0};
     std::unordered_map<WindowId, std::pair<int, int>> learned_min_;  // id -> (min_w, min_h)
 };

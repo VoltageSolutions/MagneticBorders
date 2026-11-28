@@ -35,6 +35,15 @@ namespace mb::drag_diag {
            " expected=" + point_text(expected);
 }
 
+/// Line for a grab-offset calibration: the axis (`x` or `y`), the error that was measured, the cursor position the
+/// engine set, and the window frame that position now gives.
+[[nodiscard]] inline std::string pointer_calibrate_line(bool x_axis, int error, const Point& cursor,
+                                                        const Rect& window) {
+    return std::string("diag: pointer calibrate axis=") + (x_axis ? "x" : "y") +
+           " error=" + std::to_string(error) + " cursor=" + point_text(cursor) +
+           " window=" + rect_text(window);
+}
+
 /// Line for the decision at the end of a pointer-mode move: the window's frame (`unavailable` when unreadable), the
 /// held position (`none` when no axis was held), and the action, `applied`, `none`, or `skipped-size`.
 [[nodiscard]] inline std::string move_correction_line(WindowId id, const std::optional<Rect>& frame,

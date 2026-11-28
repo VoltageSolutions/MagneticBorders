@@ -81,6 +81,13 @@ TEST(MoveDiagnostics, PointerLines) {
               "diag: move correction id=12 frame=unavailable held=none action=none");
 }
 
+TEST(MoveDiagnostics, PointerCalibrateLine) {
+    EXPECT_EQ(mb::drag_diag::pointer_calibrate_line(true, 5, {395, 260}, {300, 250, 500, 450}),
+              "diag: pointer calibrate axis=x error=5 cursor=395,260 window=300,250,500,450");
+    EXPECT_EQ(mb::drag_diag::pointer_calibrate_line(false, -3, {400, 263}, {300, 250, 500, 450}),
+              "diag: pointer calibrate axis=y error=-3 cursor=400,263 window=300,250,500,450");
+}
+
 TEST(MoveDiagnostics, SystemLines) {
     EXPECT_EQ(diag::system_line("22631.3880", "per-monitor-v2", true, 2),
               "diag: system os_build=22631.3880 dpi_awareness=per-monitor-v2 dwm_composition=on "

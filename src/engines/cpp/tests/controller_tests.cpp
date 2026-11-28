@@ -776,6 +776,8 @@ struct FakeHook : PointerHook {
         sink = nullptr;
     }
     std::optional<Point> cursor() override { return at; }
+    std::vector<Point> set;
+    void set_cursor(const Point& to) override { set.push_back(to); }
 };
 
 /// MoveFixture with a pointer hook. The cursor at (300, 260) grabs window 1 (200..400) 100 px right of its left.
@@ -827,6 +829,45 @@ TEST_F(PointerFixture, LocationChangesNeverMoveTheWindow) {  // SNAP-072
     begin();
     move_to(kNear);
     EXPECT_TRUE(mover.batches.empty());
+}
+
+TEST_F(PointerFixture, ASettledWindowThatIsOffTheHeldLineCalibratesTheGrabOffset) {  // SNAP-077
+    begin();
+    EXPECT_EQ(pointer(395, 260), (Point{400, 260}));  // x held at left=300
+    move_to({305, 250, 505, 450});                    // moving: not settled yet
+    EXPECT_TRUE(hook.set.empty());
+    move_to({305, 250, 505, 450});  // settled 5 px right of the expected 300
+    ASSERT_EQ(hook.set.size(), 1u);
+    EXPECT_EQ(hook.set[0], (Point{395, 260}));
+    move_to({300, 250, 500, 450});  // the window moved onto the held line
+    move_to({300, 250, 500, 450});
+    EXPECT_EQ(hook.set.size(), 1u);
+    EXPECT_TRUE(mover.batches.empty());
+    // The correction lasts: the held cursor stays where it was set.
+    EXPECT_EQ(pointer(399, 262), (Point{395, 262}));
+}
+
+TEST_F(PointerFixture, AnErrorBeyondTheBreakawayDistanceIsNotCalibrated) {  // SNAP-077
+    begin();
+    (void)pointer(395, 260);
+    move_to({340, 250, 540, 450});
+    move_to({340, 250, 540, 450});
+    EXPECT_TRUE(hook.set.empty());
+}
+
+TEST_F(PointerFixture, AnAxisThatIsNotHeldIsNotCalibrated) {  // SNAP-077
+    begin();
+    EXPECT_EQ(pointer(310, 270), std::nullopt);
+    move_to({205, 250, 405, 450});
+    move_to({205, 250, 405, 450});
+    EXPECT_TRUE(hook.set.empty());
+}
+
+TEST_F(PointerFixture, AWindowThatHasNotSettledIsNotCalibrated) {  // SNAP-077
+    begin();
+    (void)pointer(395, 260);
+    move_to({305, 250, 505, 450});
+    EXPECT_TRUE(hook.set.empty());
 }
 
 TEST_F(PointerFixture, TheEndStopsTheHookAndAppliesNothing) {  // SNAP-075
@@ -909,6 +950,20 @@ TEST_F(PointerFixture,
     EXPECT_TRUE(
         log.contains("diag: move correction id=1 frame=304,250,504,450 held=300,250,500,450 "
                      "action=applied"));
+}
+
+TEST_F(PointerFixture, VerboseWritesTheCalibrationLine) {  // ENG-091
+    VerboseController v(*this);
+    v.ctl.on_move_size_start(1);
+    clock.t += 100;
+    v.ctl.on_location_change(1);
+    clock.t += 100;
+    EXPECT_EQ(v.ctl.on_pointer_move({395, 260}), (Point{400, 260}));
+    inv.frames[1] = {305, 250, 505, 450};
+    v.ctl.on_location_change(1);
+    v.ctl.on_location_change(1);
+    EXPECT_TRUE(log.contains(
+        "diag: pointer calibrate axis=x error=5 cursor=395,260 window=300,250,500,450"));
 }
 
 TEST_F(PointerFixture, WithoutVerboseNoPointerLinesAreWritten) {  // ENG-088 to ENG-090

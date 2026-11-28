@@ -28,6 +28,22 @@ Rect PointerDrag::window() const noexcept {
                 frame0_.t + cursor_.y - cursor0_.y);
 }
 
+std::optional<Point> PointerDrag::calibrate(bool x_axis, int error) {
+    if (error == 0 || !(x_axis ? attraction_.held_x() : attraction_.held_y())) return std::nullopt;
+    // SNAP-077: the grab offset is constant for the drag, so the reference frame moves by the error for good.
+    const Rect held = attraction_.current();
+    if (x_axis) {
+        frame0_ = at_x(frame0_, frame0_.l + error);
+        free_ = at_x(free_, free_.l + error);
+        cursor_.x = cursor0_.x + held.l - frame0_.l;
+    } else {
+        frame0_ = at_y(frame0_, frame0_.t + error);
+        free_ = at_y(free_, free_.t + error);
+        cursor_.y = cursor0_.y + held.t - frame0_.t;
+    }
+    return cursor_;
+}
+
 Point PointerDrag::move(const Point& proposed, std::uint64_t now_ms) {
     const int dx = proposed.x - cursor_.x;
     const int dy = proposed.y - cursor_.y;

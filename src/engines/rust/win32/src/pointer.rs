@@ -86,6 +86,10 @@ impl PointerHook for Win32PointerHook {
         unsafe { GetCursorPos(&raw mut p).ok()? };
         Some(Point { x: p.x, y: p.y })
     }
+
+    fn set_cursor(&mut self, to: Point) {
+        let _ = unsafe { SetCursorPos(to.x, to.y) };
+    }
 }
 
 impl Drop for Win32PointerHook {
