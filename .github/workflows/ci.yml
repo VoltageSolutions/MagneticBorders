@@ -8,7 +8,12 @@ name: CI
 # workflow (codeql-and-coverage.yml) refreshes the CodeQL and Codecov baselines on main.
 on:
   pull_request:
-    branches: [main, 'release/**']
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/**'
+      - 'global.json'
+      - '.github/workflows/ci.yml'
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
